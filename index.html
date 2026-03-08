@@ -1,0 +1,84 @@
+---
+layout: storykit-home
+format: grid
+banner: 
+title: StoryKit
+description: 
+---
+
+<style>
+    .page-content {
+        padding-top: 80px;
+    }
+
+    .hero-overlay {
+        /* min-height: clamp(320px, 20vh, 720px); */
+        aspect-ratio: 2.5;
+        background:
+        /* linear-gradient(to bottom right, rgba(0,0,0,.4), rgba(0,0,0,.2)), */
+        url({{ page.banner | relative_url }}) center / cover no-repeat;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        text-align: center;
+        margin-top: 0;
+    }
+
+    .hero-overlay h2 {
+        color: white;
+        font-size: clamp(2rem, 4vw + 1rem, 4rem);
+        line-height: 1.1;
+        margin-bottom: 0.5em;
+        /* margin-top: -2em; */
+        padding: 12px 24px;
+        border-radius: 12px;
+        background-color: rgba(0, 0, 0, .4);
+    }
+
+    .hero-overlay p {
+        color: white;
+        font-size: clamp(1rem, 1.5vw + 2rem, 1.8rem) !important;
+        line-height: 1.3;
+        max-width: 60ch;
+        /* keeps text comfortably readable */
+        margin: 0 auto;
+        /* center under heading */
+        /* padding: 0 2em; */
+        padding: 12px 24px;
+        border-radius: 12px;
+        background-color: rgba(0, 0, 0, .4);
+    }
+</style>
+
+{% if paginator and paginator.page == 1 %}
+
+{% if page.banner %}
+
+<div class="hero-overlay">
+    <h2>{{ page.title }}</h2>
+    <p>{{ page.description }}</p>
+</div>
+
+{% endif %}
+
+<h1>Welcome!</h1>
+
+<p>
+This website template is built on Jekyll, a publishing system that turns simple text files into a complete website. It offers a practical way to create a modern site without needing to learn traditional web development. You write in clean, readable Markdown, much like writing an email or document, and the framework takes care of layout, navigation, styling, and publishing. With built-in support for images, video, diagrams, math, and structured formatting, you can create content that looks polished and professional from the start.
+</p>
+<p>
+It builds on the popular Chirpy Jekyll theme, a clean and modern design with built-in navigation, search, and tagging. On top of that, it adds interactive features such as rich image viewers and entity information popups, allowing your pages to go beyond static text while remaining simple to author. The result is a lightweight but capable system that lets you focus on ideas and storytelling instead of technical setup. If you can edit text in a browser, you can build and maintain an engaging website with this framework.
+</p>
+<p>
+The source code for this template is available on <a href="https://github.com/rsnyder/storykit">GitHub</a>. You are welcome to explore it, adapt it, and use it as a starting point for your own projects. If you need help getting started, just reach out.
+</p>
+
+{% include featured_posts.html %}
+
+{% endif %}
+
+<h2>Example Posts:</h2>
+
+Below are some example posts to demonstrate the features of this template. You can click on any post to view it in detail.

@@ -1,0 +1,110 @@
+{% assign post = include.post %}
+
+{%- comment -%}
+Single markup that supports both LIST + GRID via CSS.
+Enclosing container class controls layout:
+- .post-index.view-list
+- .post-index.view-grid
+{%- endcomment -%}
+
+{%- if post.image -%}
+
+    {% assign src = post.image.path | default: post.image %}
+
+    {%- assign p4 = src | slice: 0, 4 -%}
+    {%- assign is_abs = false -%}
+    {%- if p4 == "http" -%}
+        {%- assign is_abs = true -%}
+    {%- endif -%}
+
+    {%- assign p3 = src | slice: 0, 3 -%}
+    {%- assign is_wc = false -%}
+    {%- if p3 == "wc:" or src contains "commons.wikimedia.org" -%}
+        {%- assign is_wc = true -%}
+    {%- endif -%}
+
+    {%- assign is_dev = false -%}
+    {%- if jekyll.environment == "development" -%}
+        {%- assign is_dev = true -%}
+    {%- endif -%}
+        
+    {%- assign is_cloudinary_cdn = false -%}
+        {%- if site.cdn contains 'res.cloudinary.com' -%}
+        {%- assign is_cloudinary_cdn = true -%}
+    {%- endif -%}
+
+    {% if post.media_subpath and is_abs == false and is_wc == false %}
+        {% assign src = post.media_subpath | append: '/' | append: src %}
+        {% if is_dev == false and is_cloudinary_cdn == true %}
+            {% assign src = site.url | append: site.baseurl | append: src %}
+        {% endif %}
+    {% endif %}
+
+    {% if is_dev == false and is_cloudinary_cdn == true and is_wc == false %}
+      {%- assign src = site.cdn | append: '/' | append: src -%}
+    {% endif %}
+
+    {% capture class %}class="preview-img{% if page.image.no_bg %}{{ ' no-bg' }}{% endif %}"{% endcapture %}
+    {% capture alt %}alt="{{ page.image.alt | xml_escape | default: "Preview Image" }}"{% endcapture %}
+
+    {%- if post.image.lqip -%}
+        {% assign lqip = post.image.lqip %}
+        {% if post.media_subpath %}
+            {% unless lqip contains 'data:' %}
+                {% assign lqip = post.media_subpath
+                    | append: '/'
+                    | append: lqip
+                    | replace: '///', '/'
+                    | replace: '//', '/'
+                %}
+            {% endunless %}
+        {% endif %}
+
+        {% assign lqip_attr = 'lqip="' | append: lqip | append: '"' %}
+    {%- endif -%}
+{%- endif -%}
+
+{%- assign alt = post.image.alt | xml_escape | default: 'Preview Image' -%}
+
+<article class="post-index-item card-wrapper card">
+    <a href="{{ post.url | relative_url }}" class="post-index-link">
+        <div class="post-index-media">
+            <img src="{{ src }}" alt="{{ alt }}" {{ lqip_attr }}>
+        </div>
+
+        <div class="post-index-body card-body d-flex flex-column">
+            <h2 class="post-index-title card-title my-2 mt-md-0">{{ post.title }}</h2>
+
+            <div class="post-index-excerpt card-text content post-excerpt-wrap mt-0 mb-3">
+                <p class="post-excerpt">{% include post-summary.html %}</p>
+
+                <button class="post-excerpt-toggle" type="button" aria-expanded="false">More</button>
+            </div>
+
+            <div class="post-meta flex-grow-1 d-flex align-items-end">
+                <div class="me-auto">
+                    <i class="far fa-calendar fa-fw me-1"></i>
+                    {% include datetime.html date=post.date lang=lang %}
+
+                    {% if post.categories.size > 0 %}
+                    <span class="ms-2">
+                        <i class="far fa-folder-open fa-fw me-1"></i>
+                        <span class="categories">
+                            {% for category in post.categories %}
+                            {{ category }}{%- unless forloop.last -%},{%- endunless -%}
+                            {% endfor %}
+                        </span>
+                    </span>
+                    {% endif %}
+                </div>
+
+                {% if post.pin %}
+                <div class="pin ms-2">
+                    <i class="fas fa-thumbtack fa-fw"></i>
+                    <span>{{ site.data.locales[lang].post.pin_prompt }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </a>
+</article>

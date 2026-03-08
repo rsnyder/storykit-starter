@@ -1,0 +1,38 @@
+{%- comment -%}
+Normalize BEFORE (bottom) image URL
+{%- endcomment -%}
+{%- capture before_final -%}
+{%- include media-url.html src=include.before subpath=page.media_subpath width=include.width -%}
+{%- endcapture -%}
+{%- assign before_final = before_final | strip -%}
+
+{%- comment -%}
+Normalize AFTER (top) image URL
+{%- endcomment -%}
+{%- capture after_final -%}
+{%- include media-url.html src=include.after subpath=page.media_subpath width=include.width -%}
+{%- endcapture -%}
+{%- assign after_final = after_final | strip -%}
+
+{%- comment -%}
+Build query string
+{%- endcomment -%}
+{%- assign qs = "before=" | append: before_final | uri_escape -%}
+{%- assign qs = qs | append: "&after=" | append: after_final | uri_escape -%}
+
+{%- if include.caption -%}
+{%- assign qs = qs | append: "&caption=" | append: include.caption | uri_escape -%}
+{%- endif -%}
+
+{%- if include.aspect -%}
+{%- assign qs = qs | append: "&aspect=" | append: include.aspect | uri_escape -%}
+{%- endif -%}
+
+<iframe id="{{ include.id }}" class="embed-image-compare" loading="lazy" title="Image comparison"
+  allow="clipboard-write"
+  src="{{ '/assets/components/image-compare.html' | relative_url }}?{{ qs }}"
+  {% if include.width %} width="{{ include.width }}" {% endif %}
+  {% if include.height %} height="{{ include.height }}" {% endif %}
+  style="aspect-ratio: {{ include.aspect | default: 1.5 }};"
+  allowfullscreen>
+</iframe>
