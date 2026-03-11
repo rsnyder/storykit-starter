@@ -15,8 +15,7 @@ from typing import List, Optional
 # Config: source repo + branch
 # ----------------------------
 SRC_USER = "rsnyder"
-SRC_REPO = "
-"
+SRC_REPO = "storykit-starter"
 SRC_BRANCH = "main"
 
 # Optional: GitHub token (env var) to avoid rate limits / access private repos
