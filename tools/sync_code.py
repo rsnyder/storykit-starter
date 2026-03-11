@@ -76,6 +76,8 @@ FILES_TO_SYNC = [
     "assets/posts/image-compare/Westgate_Towers_2021.jpg",
     "preview/index.html",
     "tools/sync_code.py",
+    "Gemfile",
+    ".github/workflows/pages-deploy.yml"
 ]
 
 
