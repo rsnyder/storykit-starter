@@ -692,6 +692,14 @@ iframe.right.float {
 
 iframe[class*="embed"].float {
     width: 50% !important;
+    float: right;
+    margin: 0 0 0.5rem 1rem;
+}
+
+iframe[class*="embed"].float.left {
+    width: 50% !important;
+    float: left;
+    margin: 0 1rem 0.5rem 0;
 }
 
 iframe[src^="https://cdn.knightlab.com/"] {
@@ -816,7 +824,7 @@ iframe[src^="https://cdn.knightlab.com/"] {
 }
 
 .float-pair {
-    display: block;
+    display: flow-root;
     margin: 0;
     padding: 0;
     border: 0;
