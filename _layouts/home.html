@@ -12,7 +12,6 @@ layout: default
 
 <script>
   let modeToggle = document.getElementById('view-toggle');
-  console.log(modeToggle.style.display);
   modeToggle.style.display = 'unset';
   modeToggle.firstChild.className = 'fa-solid fa-grip';
 </script>
@@ -102,7 +101,7 @@ layout: default
     setView(isCurrentlyGrid ? "list" : "grid");
   });
 
-  setView(localStorage.getItem("postIndexView") === "list" ? "list" : "grid");
+  setView(localStorage.getItem("postIndexView") || "{{ page.format | default: 'list' }}");
 
   document.addEventListener("click", (e) => {
     const btn = e.target.closest(".post-excerpt-toggle");
