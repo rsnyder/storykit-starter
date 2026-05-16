@@ -689,13 +689,13 @@
 
             // Build alignment query suffix for before and after independently.
             // Only non-default values are included, matching the format:
-            //   before="image.jpg&bx=-4&by=-2&bs=1.17"
+            //   before="image.jpg?bx=-4&by=-2&bs=1.17"
             function alignSuffix(xKey, yKey, sKey) {
                 const parts = [];
                 if (align[xKey] !== defaults[xKey]) parts.push(`${xKey}=${align[xKey]}`);
                 if (align[yKey] !== defaults[yKey]) parts.push(`${yKey}=${align[yKey]}`);
                 if (align[sKey] !== defaults[sKey]) parts.push(`${sKey}=${align[sKey]}`);
-                return parts.length ? "&" + parts.join("&") : "";
+                return parts.length ? "?" + parts.join("&") : "";
             }
 
             // For relative URLs and StoryKit preview URLs, keep only the filename.

@@ -1,16 +1,24 @@
 {%- comment -%}
-Normalize BEFORE (bottom) image URL
+Normalize BEFORE (bottom) image URL.
+Split at ? so alignment params (bx/by/bs) are stripped before URL processing,
+then re-appended verbatim to the query string.
 {%- endcomment -%}
+{%- assign before_parts = include.before | split: "?" -%}
+{%- assign before_src   = before_parts[0] -%}
 {%- capture before_final -%}
-{%- include media-url.html src=include.before subpath=page.media_subpath width=include.width -%}
+{%- include media-url.html src=before_src subpath=page.media_subpath width=include.width -%}
 {%- endcapture -%}
 {%- assign before_final = before_final | strip -%}
 
 {%- comment -%}
-Normalize AFTER (top) image URL
+Normalize AFTER (top) image URL.
+Split at ? so alignment params (ax/ay/as) are stripped before URL processing,
+then re-appended verbatim to the query string.
 {%- endcomment -%}
+{%- assign after_parts = include.after | split: "?" -%}
+{%- assign after_src   = after_parts[0] -%}
 {%- capture after_final -%}
-{%- include media-url.html src=include.after subpath=page.media_subpath width=include.width -%}
+{%- include media-url.html src=after_src subpath=page.media_subpath width=include.width -%}
 {%- endcapture -%}
 {%- assign after_final = after_final | strip -%}
 
@@ -18,7 +26,9 @@ Normalize AFTER (top) image URL
 Build query string
 {%- endcomment -%}
 {%- assign qs = "before=" | append: before_final | uri_escape -%}
+{%- if before_parts[1] -%}{%- assign qs = qs | append: "&" | append: before_parts[1] -%}{%- endif -%}
 {%- assign qs = qs | append: "&after=" | append: after_final | uri_escape -%}
+{%- if after_parts[1] -%}{%- assign qs = qs | append: "&" | append: after_parts[1] -%}{%- endif -%}
 
 {%- if include.caption -%}
 {%- assign qs = qs | append: "&caption=" | append: include.caption | uri_escape -%}
@@ -28,11 +38,15 @@ Build query string
 {%- assign qs = qs | append: "&aspect=" | append: include.aspect | uri_escape -%}
 {%- endif -%}
 
+{%- if include.position -%}
+{%- assign qs = qs | append: "&position=" | append: include.position | uri_escape -%}
+{%- endif -%}
+
 <iframe id="{{ include.id }}" class="embed-image-compare" loading="lazy" title="Image comparison"
   allow="clipboard-write"
   src="{{ '/assets/components/image-compare.html' | relative_url }}?{{ qs }}"
   {% if include.width %} width="{{ include.width }}" {% endif %}
   {% if include.height %} height="{{ include.height }}" {% endif %}
-  style="aspect-ratio: {{ include.aspect | default: 1.5 }};"
+  {% if include.aspect %} style="aspect-ratio: {{ include.aspect }};" {% endif %}>
   allowfullscreen>
 </iframe>
