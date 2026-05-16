@@ -464,7 +464,7 @@
         //   exactly once, after the slowest/most important dimension is done.
 
         function notifyHeight() {
-            comparer.style.display = 'block'; 
+            comparer.style.display = 'block';
             if (isMax) {
                 // Width is fixed by the dialog; derive comparer height from aspect ratio,
                 // then resize the iframe to fit comparer + caption + alignment panel.
@@ -474,19 +474,32 @@
                     : (comparer.clientWidth > 0 && comparer.clientHeight > 0
                         ? comparer.clientWidth / comparer.clientHeight : 1);
 
-                const comparerH = Math.round(availableW / ar);
-                comparer.style.width  = `${availableW}px`;
-                comparer.style.height = `${comparerH}px`;
-                comparer.style.margin = 'auto';
-
                 // offsetHeight is 0 when panel is closed (max-height: 0), actual height when open.
                 const panelIsOpen = $panel.classList.contains('open');
                 const panelH = $panel.offsetHeight + (panelIsOpen ? 10 : 0); // +10 for margin-top
                 const captionH = ($caption && $caption.textContent.trim()) ? ($caption.offsetHeight || 0) : 0;
-                const captionGap = captionH > 0 ? 10 : 0; // figure gap between comparer and caption
-                const totalH = comparerH + captionGap + captionH + panelH;
+                const captionGap = captionH > 0 ? 10 : 0;
 
                 const iframe = window.frameElement;
+                let comparerH, comparerW;
+
+                if (panelIsOpen && iframe) {
+                    // Panel open: keep iframe at its current height and shrink the comparer
+                    // to make room for the panel — avoids growing past the dialog height.
+                    const iframeH = iframe.offsetHeight || (Math.round(availableW / ar) + captionGap + captionH);
+                    comparerH = Math.max(50, iframeH - panelH - captionGap - captionH);
+                    comparerW = Math.min(availableW, Math.round(comparerH * ar));
+                } else {
+                    // Panel closed: size comparer to fill full width at aspect ratio.
+                    comparerH = Math.round(availableW / ar);
+                    comparerW = availableW;
+                }
+
+                comparer.style.width  = `${comparerW}px`;
+                comparer.style.height = `${comparerH}px`;
+                comparer.style.margin = 'auto';
+
+                const totalH = comparerH + captionGap + captionH + panelH;
                 if (iframe) iframe.style.height = `${totalH}px`;
             }
             requestAnimationFrame(() => {
@@ -716,7 +729,7 @@
             lines.push(`    before="${beforeVal}"`);
             lines.push(`    after="${afterVal}"`);
             if (caption)  lines.push(`    caption="${caption}"`);
-            lines.push(`    aspect="${aspect || ""}"`);
+            if (aspect)   lines.push(`    aspect="${aspect}"`);
             lines.push(`    position="${position || "50"}"`);
             lines.push(`%}`);
 
