@@ -186,7 +186,6 @@ Positive offset values shift the image right (X) or down (Y). Negative values sh
     before="Westgate_Towers_c1905.jpg&bx=-8&by=-6&bs=1.31"
     after="Westgate_Towers_2021.jpg&ax=-4&ay=-2&as=1.17"
     caption="Westgate Towers — c.1905 vs 2021"
-    aspect="1.5"
     position="50"
 %}
 </div>
