@@ -4,7 +4,7 @@ description: A guide for configuring the StoryKit Preview Tool.  The tool uses a
 permalink: /admin/storykit-preview-setup
 date: 2026-02-15
 toc: true
-order: 11
+order: 12
 storykit:
     mode: flat
     toolbar: false
@@ -160,6 +160,30 @@ Without a token, GitHub limits you to a handful of preview loads per hour. Addin
 > ✅ The token is saved in your browser. You won't need to enter it again unless you clear your browser data or switch to a different browser.
 
 ---
+
+## What the Preview Can and Can't Show
+
+The preview tool renders your post with a fast, lightweight simulation of the real site build. It is accurate for the things authors change most — text, front matter, viewer tags, captions, action links — but it is not a pixel-perfect copy of the published site. Keep these expectations in mind:
+
+**What previews accurately:**
+
+* Your Markdown text, headings, footnotes, and formatting
+* Front matter changes (title, description, images, StoryKit settings)
+* Viewer includes — images, maps, comparisons, videos — with your parameters
+* Action links and entity popups (they run the same code as the live site)
+
+**Where small differences are possible:**
+
+* **Unusual Markdown edge cases.** The preview uses a different Markdown engine than the published site. Everyday writing renders identically; rare constructs (exotic attribute lists, complex tables) can differ slightly. The published site is always the authority.
+* **Site-wide features are absent.** The preview builds only your one post, so related-post lists, tag pages, search, and comments don't appear.
+* **A just-committed change can take a moment.** The preview reads your file from GitHub's servers, which can lag a few seconds (occasionally a few minutes) behind a commit. Reload again if you see stale content.
+* **The preview shows committed content only.** Edits still open in the GitHub editor don't appear until you commit them.
+
+**One rule of thumb:** if something looks wrong in the preview, first check it on the published site after the next deploy. Investigate further only if it's wrong there too.
+
+> **For framework developers:** the preview loads the site's JavaScript and CSS from the *deployed* site, so edits to those files aren't visible in preview by default. Add `?dev` to the preview URL to load them from a local Jekyll server (`http://localhost:4000`, or `?dev=<origin>` for another address) while developing.
+{: .prompt-info }
+
 ---
 
 

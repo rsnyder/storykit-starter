@@ -7,9 +7,9 @@ media_subpath: /assets/posts/storykit
 # image: map.png
 # show_header_image: false
 toc: true
-order: 24
+order: 22
 storykit:
-    mode: 2col
+    mode: flat
     toolbar: false
 ---
 <style>
@@ -123,7 +123,7 @@ You must provide a **center** attribute to the map tag.  This defines the map lo
 ### center
 {: .attribute }
 
-The for the map center attribute.
+Defines the location the map is centered on.
 
 You can use:
 
@@ -170,6 +170,13 @@ These improve presentation but are not required.
 
 Defines an Allmaps ID referencing an IIIF image to use as a map layer.  This is often used to create a historical map overlay.
 
+## aspect
+{: .attribute }
+
+The width-to-height ratio of the map. Defaults to `1.0` (square).
+
+    aspect="1.5"
+
 ## basemap
 {: .attribute }
 
@@ -180,21 +187,95 @@ Defines a basemap to add to the map.
 
 Defines a caption to add to the map viewer.
 
+## class
+{: .attribute }
+
+Size and position words like `medium right float` — see [Formatting Tips](storykit-formatting-tips).
+
+    class="medium right"
+
 ## geojson
 {: .attribute }
 
 Defines a URL to a GeoJSON file to apply as a map layer.
+
+## id
+{: .attribute }
+
+An identifier for the viewer, **required when using action links** such as `flyto` (see below).
+
+    id="map1"
 
 ## markers
 {: .attribute }
 
 Defines markers to add to the map.  Multiple markers are delimited with the pipe ('|') character.  A marker can be defined using a Wikidata ID or lat/lon position coordinates.  When using coordinates a label and image can also be provided using a tilde ('~') delimited values for the marker.
 
+    markers="37.01056,-110.2425~Monument Valley"
+
+## src
+{: .attribute }
+
+An image or IIIF resource to use as a map layer.
+
 ## zoom
 {: .attribute }
 
-Defines initial zoom level.  This is a number between 1 and 20, where the higher number reveals more detail.
+Defines initial zoom level.  This is a number between 1 and 20, where the higher number reveals more detail.  Defaults to `8`.
 
     zoom="10"
+
+---
+
+# Action Links — Flying the Map from Your Text
+
+The map's distinguishing interactive feature is the `flyto` action: a normal-looking Markdown link that animates the map to a new location when clicked. To use it, the map must declare an `id`.
+
+<div class="example">
+
+<div markdown="1">
+{% raw %}
+```liquid
+{% include embed/map.html
+    id="map1"
+    center="37.01056, -110.2425"
+    zoom="9"
+%}
+```
+{: .nolineno }
+{% endraw %}
+
+Note the `id` attribute — the action links below target it.
+
+```markdown
+[Monument Valley](map1/flyto/37.02828,-110.23819,11)
+[Grand Canyon](map1/flyto/Q118841,12)
+```
+{: .nolineno }
+
+</div>
+
+<div>
+{% include embed/map.html
+    id="map1"
+    center="37.01056, -110.2425"
+    zoom="9"
+%}
+</div>
+
+</div>
+
+The link URL has three segments: the map's `id`, the action name `flyto`, and the destination. The destination can be either:
+
+| Form | Example | Meaning |
+|---|---|---|
+| `lat,lng,zoom` | `map1/flyto/37.02828,-110.23819,11` | Fly to exact coordinates at the given zoom level |
+| `wikidata-id,zoom` | `map1/flyto/Q118841,12` | Look up the location of a Wikidata entity and fly there |
+
+Try it: fly to [Monument Valley](map1/flyto/37.02828,-110.23819,11), or to the [Grand Canyon](map1/flyto/Q118841,12) by its Wikidata ID.
+
+Clicking the **same** link a second time returns the map to the view it had before — readers can peek at a location and come right back.
+
+The full action-link syntax, including custom labels, is in the [Action Links reference](storykit-action-links).
 
 ---

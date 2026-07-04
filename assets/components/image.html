@@ -10,7 +10,11 @@
   <title>Image Viewer</title>
 
   <!-- OpenSeadragon -->
-  <script src="https://cdn.jsdelivr.net/npm/openseadragon@5.0.1/build/openseadragon/openseadragon.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/openseadragon@5.0.1/build/openseadragon/openseadragon.min.js"
+    integrity="sha384-Vh4b5HGyvDGMp6lVeYZe1zCqqyhS8oLTUC4SKIWmOuYH7nEuWiGIpSACopwLu9UD" crossorigin="anonymous"></script>
+
+  <!-- StoryKit component runtime (postMessage protocol) -->
+  <script src="../js/storykit-component.js"></script>
 
   <style>
     html,
@@ -275,7 +279,7 @@
 
   <script type="module">
     import 'https://cdn.jsdelivr.net/npm/js-md5@0.8.3/src/md5.min.js';
-    import { marked } from "https://cdn.jsdelivr.net/npm/marked/lib/marked.esm.js";
+    import { marked } from "https://cdn.jsdelivr.net/npm/marked@18.0.5/lib/marked.esm.js";
 
 
     // =========================================================================
@@ -404,13 +408,6 @@
     // =========================================================================
     // Small utilities
     // =========================================================================
-    function safeParseMessageData(data) {
-      if (!data) return null;
-      if (typeof data === "object") return data;
-      if (typeof data !== "string") return null;
-      try { return JSON.parse(data); } catch { return null; }
-    }
-
     function hexToRgba(hex, alpha) {
       let h = String(hex).replace('#', '');
       if (h.length === 3) h = h.split('').map(c => c + c).join('');
@@ -1118,13 +1115,9 @@
       setTimeout(() => viewer.viewport.goHome(false), 50);
     }).observe(window.frameElement);
 
-    window.addEventListener('message', (event) => {
-      const data = safeParseMessageData(event.data);
-      if (!data) return;
-
-      const action = String(data.action || '').toLowerCase();
-      if (action === 'zoomto' && Array.isArray(data.args) && data.args[0]) {
-        zoomto(String(data.args[0]), data.text);
+    StoryKit.onAction(({ action, args, label }) => {
+      if (action === 'zoomto' && args[0]) {
+        zoomto(String(args[0]), label);
       }
     });
 
@@ -1454,10 +1447,7 @@
         e.stopPropagation();
 
         // Same behavior you already use in static mode:
-        window.parent.postMessage(
-          { type: "showDialog", aspect: 1.0, src: `${location.href}&max` },
-          "*"
-        );
+        StoryKit.showDialog(`${location.href}&max`, 1.0);
       });
       enableModifierWheelZoom(viewer);
     }

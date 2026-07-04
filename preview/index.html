@@ -37,6 +37,11 @@
     · site.posts / site.pages / site.tags are empty arrays (no site-wide build)
     · raw.githubusercontent.com content may lag ~5 min after a commit (CDN cache)
     · 60 API requests/hour unauthenticated; set a GitHub PAT via ⚙ to get 5000/hr
+    · Markdown is rendered by markdown-it, production by Kramdown — rare edge
+      cases (unusual attribute lists, table quirks) can differ; deployed wins
+    · Site assets (storykit.js/css, viewer components) load from the DEPLOYED
+      site by default; add ?dev to the preview URL to use a local Jekyll
+      server instead (see Dev mode below)
 
   EXTENDING / DEBUGGING
     · To add a new Liquid filter: engine.registerFilter() in buildLiquidEngine()
@@ -146,12 +151,12 @@
 
   <!-- ── Client-side libraries ──────────────────────────────────────────────
        Pinned to major versions for stability. Update deliberately, not automatically. -->
-  <script src="https://cdn.jsdelivr.net/npm/liquidjs@10/dist/liquid.browser.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/markdown-it@14/dist/markdown-it.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/markdown-it-footnote@3/dist/markdown-it-footnote.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/markdown-it-sub@1/dist/markdown-it-sub.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/markdown-it-sup@1/dist/markdown-it-sup.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4/dist/js-yaml.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/liquidjs@10.27.1/dist/liquid.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.3.0/dist/markdown-it.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/markdown-it-footnote@3.0.3/dist/markdown-it-footnote.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/markdown-it-sub@1.0.0/dist/markdown-it-sub.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/markdown-it-sup@1.0.0/dist/markdown-it-sup.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.3.0/dist/js-yaml.min.js"></script>
 </head>
 <body>
 
@@ -242,6 +247,25 @@ function parsePayload() {
   if (!h) return null;
   try { return JSON.parse(decodeURIComponent(h)); } catch { return null; }
 }
+
+// ── Dev mode ────────────────────────────────────────────────────────────────
+// By default site assets (storykit.js/css, viewer component pages) load from
+// the DEPLOYED site, so edits to JS/CSS are not visible in preview until
+// deployed. For framework development, add ?dev (or ?dev=<origin>) to the
+// preview URL to load those assets from a locally running Jekyll server
+// instead (default http://localhost:4000):
+//
+//     .../preview/index.html?dev#<payload>          → http://localhost:4000
+//     .../preview/index.html?dev=http://localhost:4001#<payload>
+//
+// Content (the post markdown, includes, layouts) still comes from the repo —
+// dev mode only changes where /assets/... style URLs resolve.
+const DEV_ASSET_ORIGIN = (() => {
+  const params = new URLSearchParams(location.search);
+  if (!params.has('dev')) return null;
+  const v = (params.get('dev') || '').trim();
+  return v && v !== '1' ? v.replace(/\/$/, '') : 'http://localhost:4000';
+})();
 
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -1064,8 +1088,9 @@ async function render() {
   // ── 2. Load site config ──────────────────────────────────────────────────
   setStatus('Loading _config.yml…');
   const siteConfig     = await loadSiteConfig(o, r, ref);
-  const deployedOrigin = siteConfig.url || location.origin;
+  const deployedOrigin = DEV_ASSET_ORIGIN || siteConfig.url || location.origin;
   const baseurl        = siteConfig.baseurl || '';
+  if (DEV_ASSET_ORIGIN) setStatus(`Dev mode: site assets from ${DEV_ASSET_ORIGIN}${baseurl}`, 'warn');
 
   // ── 3. Load _data (i18n strings, CDN origins) ───────────────────────────
   setStatus('Loading _data…');

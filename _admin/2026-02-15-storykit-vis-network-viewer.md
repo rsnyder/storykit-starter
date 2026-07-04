@@ -1,11 +1,10 @@
 ---
 title: "StoryKit: Network Viewer"
-description: How to use the StoryKit Network Viewer to display graph and network diagrams in your Markdown posts.
+description: How to use the StoryKit network viewer to draw node-and-edge relationship diagrams from simple CSV data in your Markdown posts.
 permalink: /admin/storykit-vis-network-viewer
 date: 2026-02-15
-media_subpath: /assets/posts/storykit
 toc: true
-order: 26
+order: 25
 storykit:
     mode: flat
     toolbar: false
@@ -45,274 +44,135 @@ storykit:
 
 ## Overview
 
-The StoryKit Network Viewer renders interactive **node-and-edge diagrams** directly in your post. It is suited to any content where relationships between things matter: family trees, concept maps, dependency graphs, organisational charts, and similar structures.
+The StoryKit Network Viewer draws an interactive node-and-edge diagram — the kind of picture you'd use to show relationships: people connected to places, plants to the countries that use them, concepts to related concepts.
 
-The viewer is powered by [vis.js](https://visjs.github.io/vis-network/docs/network/), a library designed for large, interactive networks. Nodes can be dragged, the whole graph can be panned and zoomed, and the layout is computed automatically from the data you provide.
+You provide the relationships as a few lines of simple comma-separated data placed right in your post. The viewer lays the diagram out automatically; readers can drag nodes around and click the diagram to open a larger version.
 
-You define the graph using a simple CSV block placed in the same post. No separate files, no JSON configuration — just rows of comma-separated values written directly in Markdown.
+Use it for:
 
-### Preview Mode and Expanded Mode
+- Family, social, or influence networks
+- A subject's connections to places, names, or uses
+- Any "this relates to that" structure that's clearer as a picture than as prose
 
-The viewer operates in two modes:
+## How It Works
 
-**Preview mode** (default) shows the graph embedded in the page at a compact size. A set of controls in the caption bar lets the reader open additional information or expand the viewer.
+The network viewer has two parts that work together in your Markdown:
 
-**Expanded mode** opens when the reader clicks the expand icon in the caption bar. The graph is shown in a larger dialog at full screen width, making it easier to explore complex networks.
+1. **A data block** — a paragraph of CSV lines describing the nodes and edges, tagged with a special ID so StoryKit can find it (and hide it from readers).
+2. **The include tag** — declares the viewer and connects it to the data block by ID.
 
----
+The connection is a naming convention: if the viewer has `id="my_network"`, its data block must be tagged `{: #my_network-csv }` — the viewer's ID plus `-csv`.
 
-## Defining Graph Data
+## The Data Format
 
-Graph data is written as a fenced code block in your post with the `id` matching the viewer's `dataid` attribute (with `-csv` appended). Each row in the block defines either a node or an edge.
-
-### Node rows
-
-```
-node, id, label
-```
-
-| Column | Description |
-|---|---|
-| `node` | Literal word `node` — identifies this row as a node definition |
-| `id` | A unique identifier for this node. Used when defining edges. |
-| `label` | The text displayed on the node in the diagram |
-
-### Edge rows
+Each line of the data block is either a node or an edge:
 
 ```
-edge, from, to, label
+node,<node-id>,<label>
+edge,<from-node-id>,<to-node-id>,<label>
 ```
 
-| Column | Description |
-|---|---|
-| `edge` | Literal word `edge` — identifies this row as an edge definition |
-| `from` | The `id` of the node where the edge starts |
-| `to` | The `id` of the node where the edge ends |
-| `label` | *(optional)* Text displayed on the edge itself |
+| Line type | Fields | Meaning |
+|---|---|---|
+| `node` | id, label | A circle in the diagram. The `id` is how edges refer to it; the `label` is the text shown. |
+| `edge` | from, to, label | A line connecting two nodes, with optional text along it. |
 
-Blank lines and lines that do not start with `node` or `edge` are ignored, so you can add spacing for readability.
+Node IDs can be numbers or short codes — they just need to be consistent between the `node` lines and the `edge` lines that reference them.
 
----
+## A Complete Example
+
+This describes a tiny network of a plant and two countries that use it:
+
+{% raw %}
+```markdown
+node,1,Tamarind
+node,2,India
+node,3,Mexico
+edge,1,2,used in cuisine
+edge,1,3,used in aguas frescas
+{: #plant_network-csv }
+
+{% include embed/vis-network.html id="plant_network" caption="Tamarind connections" %}
+```
+{: .nolineno }
+{% endraw %}
+
+And here is that example rendered:
+
+<div markdown="1">
+node,1,Tamarind
+node,2,India
+node,3,Mexico
+edge,1,2,used in cuisine
+edge,1,3,used in aguas frescas
+{: #plant_network-csv }
+</div>
+
+{% include embed/vis-network.html id="plant_network" caption="Tamarind connections" %}
+
+The data paragraph is invisible on the published page — StoryKit hides any element whose ID ends in `-csv`. Readers only see the diagram. Click the diagram to open the expanded version.
+
+> The `{: #plant_network-csv }` line is a kramdown *attribute block* — it attaches the ID to the paragraph of CSV lines directly above it. It must come immediately after the last CSV line, with no blank line between.
+{: .prompt-info }
 
 ## Attributes
 
 ### Required Attributes
 
-You must provide a **dataid** attribute (or allow the viewer to locate its data automatically — see [Automatic Data Lookup](#automatic-data-lookup) below).
+#### id
+{: .attribute }
+
+The viewer's identifier. Also determines which data block is used: the viewer looks for an element with the ID `<id>-csv`.
+
+    id="plant_network"
+
+---
+
+### Optional Attributes
+
+#### caption
+{: .attribute }
+
+Text displayed below the diagram.
+
+    caption="Tamarind connections"
 
 ---
 
 #### dataid
 {: .attribute }
 
-The identifier used to locate the CSV data block in the page. The viewer looks for an element with an `id` equal to this value followed by `-csv`.
+Points the viewer at a data block with a different ID, instead of the default `<id>-csv` convention. Useful if several viewers share one data block.
 
-    dataid="my-graph"
-
-If your `dataid` is `my-graph`, name your data block `my-graph-csv`.
-
----
-
-### Optional Attributes
-
----
-
-#### caption
-{: .attribute }
-
-Text displayed in the caption bar below the viewer. Supports Markdown inline formatting.
-
-    caption="Relationships between key figures"
+    dataid="shared_data-csv"
 
 ---
 
 #### aspect
 {: .attribute }
 
-Controls the height of the viewer iframe by setting its CSS `aspect-ratio`. Expressed as a decimal (width divided by height). Defaults to a wide landscape ratio if omitted.
+The width-to-height ratio of the viewer. Defaults to `1.0` (square).
 
     aspect="1.5"
-    aspect="1"
-
-Use `aspect="1"` for a square viewer, `aspect="0.75"` for a taller portrait layout.
 
 ---
 
-#### id
+#### class
 {: .attribute }
 
-An HTML `id` applied to the iframe element. Not normally required unless you need to target the viewer with CSS or JavaScript.
+Size and position words like `medium right float` — see [Formatting Tips](storykit-formatting-tips).
 
-    id="network1"
-
----
-
-## Automatic Data Lookup
-
-If you omit `dataid`, the viewer asks the parent page for its own iframe `id` and then looks for a data element named `{id}-csv`. This means you can let StoryKit assign the id automatically and name your data block to match.
-
-In practice it is simpler to set `dataid` explicitly so the relationship between viewer and data is obvious in your Markdown source.
+    class="medium right"
 
 ---
 
-## Examples
+## Troubleshooting
 
-### Simple Example
+**The diagram is empty.**
+The viewer couldn't find its data. Check that the data block's attribute tag is exactly the viewer's `id` plus `-csv` (e.g. `id="plant_network"` → `{: #plant_network-csv }`), and that the tag sits immediately after the last CSV line with no blank line in between.
 
-This example draws a small graph showing three people and the relationships between them.
+**Some nodes or edges are missing.**
+Check that every `edge` line refers to node IDs that exist in `node` lines, and that each line starts with exactly `node,` or `edge,` (lowercase, no leading spaces).
 
-The data block uses the id `people-graph-csv` to match `dataid="people-graph"` on the viewer.
-
-<div class="example">
-
-<div markdown="1">
-{% raw %}
-```liquid
-{% include embed/vis-network.html
-    dataid="people-graph"
-    caption="A simple relationship graph"
-    aspect="1.2"
-%}
-```
-{: .nolineno }
-{% endraw %}
-
-~~~markdown
-```
-{: #people-graph-csv }
-node, alice, Alice
-node, bob, Bob
-node, carol, Carol
-edge, alice, bob, knows
-edge, bob, carol, manages
-edge, alice, carol, mentors
-```
-~~~
-{: .nolineno }
-
-</div>
-
-<div>
-{% include embed/vis-network.html
-    dataid="people-graph"
-    caption="A simple relationship graph"
-    aspect="1.2"
-%}
-</div>
-
-</div>
-
-```
-{: #people-graph-csv }
-node, alice, Alice
-node, bob, Bob
-node, carol, Carol
-edge, alice, bob, knows
-edge, bob, carol, manages
-edge, alice, carol, mentors
-```
-
-The graph is interactive — nodes can be dragged to rearrange the layout. The viewer computes an initial layout automatically.
-
----
-
-### Concept Map Example
-
-This example shows a concept map connecting a central idea to related topics.
-
-<div class="example">
-
-<div markdown="1">
-{% raw %}
-```liquid
-{% include embed/vis-network.html
-    dataid="concepts"
-    caption="Core concepts and their relationships"
-    aspect="1"
-%}
-```
-{: .nolineno }
-{% endraw %}
-
-~~~markdown
-```
-{: #concepts-csv }
-node, core,    Digital Humanities
-node, text,    Text Analysis
-node, viz,     Visualization
-node, data,    Data Curation
-node, collab,  Collaboration
-edge, core, text,   includes
-edge, core, viz,    includes
-edge, core, data,   requires
-edge, core, collab, enables
-edge, text, viz,    informs
-edge, data, text,   supports
-```
-~~~
-{: .nolineno }
-
-</div>
-
-<div>
-{% include embed/vis-network.html
-    dataid="concepts"
-    caption="Core concepts and their relationships"
-    aspect="1"
-%}
-</div>
-
-</div>
-
-```
-{: #concepts-csv }
-node, core,    Digital Humanities
-node, text,    Text Analysis
-node, viz,     Visualization
-node, data,    Data Curation
-node, collab,  Collaboration
-edge, core, text,   includes
-edge, core, viz,    includes
-edge, core, data,   requires
-edge, core, collab, enables
-edge, text, viz,    informs
-edge, data, text,   supports
-```
-
-Edge labels describe the nature of each relationship. Extra spaces in the CSV are ignored, so you can align columns for readability.
-
----
-
-## Data Block Reference
-
-The data block is a standard Markdown fenced code block with a Kramdown `id` attribute applied to it. The id must follow this naming convention:
-
-```
-{dataid}-csv
-```
-
-For example, if `dataid="family-tree"`, the block must be:
-
-~~~markdown
-```
-{: #family-tree-csv }
-node, ...
-edge, ...
-```
-~~~
-
-### Row Format Summary
-
-| Row type | Format | Required columns |
-|---|---|---|
-| Node | `node, id, label` | All three |
-| Edge | `edge, from, to` | First three; `label` is optional |
-| Edge with label | `edge, from, to, label` | All four |
-
-### Rules
-
-- Each node `id` must be unique within the graph.
-- Edge `from` and `to` values must match existing node ids.
-- Column order is fixed — do not reorder columns.
-- Leading and trailing whitespace around values is trimmed automatically.
-- Lines that do not start with `node` or `edge` are silently ignored.
+**The raw CSV text shows on the page.**
+The attribute block didn't attach — usually a blank line crept in between the CSV lines and the `{: #...-csv }` tag, or the `#` is missing.

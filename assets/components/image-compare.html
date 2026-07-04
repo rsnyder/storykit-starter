@@ -7,8 +7,11 @@
     <title>Image Compare</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400&family=Source+Sans+Pro:wght@400;600;700;900&display=swap">
 
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.15.0/cdn/themes/light.css">
-    <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.15.0/cdn/shoelace.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.18.0/cdn/themes/light.css">
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.18.0/cdn/shoelace.js"></script>
+
+    <!-- StoryKit component runtime (postMessage protocol) -->
+    <script src="../js/storykit-component.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
@@ -449,8 +452,8 @@
         const $toast    = document.getElementById("toast");
 
         // ── Height signaling to parent iframe ────────────────────────────
-        // Sends { type:"image-compare:height", height:<px> } via postMessage.
-        // Parent page should listen and set iframe.style.height accordingly.
+        // Sends storykit:height via StoryKit.reportHeight (see
+        // docs/postmessage-protocol.md). The host sets iframe.style.height.
         //
         // WHY NOT scrollHeight:
         //   scrollHeight on documentElement counts the *content* height of every
@@ -507,7 +510,7 @@
                     // body.offsetHeight sees the clipped panel box, not its scrollable content
                     const h = document.body.offsetHeight;
                     if (!isMax) {
-                        window.parent.postMessage({ type: "image-compare:height", height: h }, "*");
+                        StoryKit.reportHeight(h);
                         const iframe = window.frameElement;
                         if (iframe) {
                             if (!iframe.style.width) iframe.style.width = '100%';
@@ -610,11 +613,7 @@
                 // Prefer the aspect ratio we detected from the loaded images;
                 // fall back to the explicit ?aspect= param, then 1.0.
                 const dialogAspect = detectedAr || (aspect ? parseFloat(aspect) : 1.0);
-                window.parent.postMessage({
-                    type:   "showDialog",
-                    src:    maxSrc,
-                    aspect: dialogAspect,
-                }, "*");
+                StoryKit.showDialog(maxSrc, dialogAspect);
             }
 
         } else {
@@ -749,18 +748,13 @@
     ═══════════════════════════════════════════════════════════════════
     PARENT PAGE INTEGRATION — iframe auto-resize
     ═══════════════════════════════════════════════════════════════════
-    Add to your host page to let the iframe grow/shrink when the
-    alignment panel opens or closes:
-
-        window.addEventListener("message", (e) => {
-            if (e.data?.type === "image-compare:height") {
-                const iframe = document.getElementById("your-iframe-id");
-                if (iframe) iframe.style.height = e.data.height + "px";
-            }
-        });
-
-    Message payload: { type: "image-compare:height", height: <number> }
+    This component reports its desired height with the StoryKit protocol
+    message { type: "storykit:height", payload: { height: <px> } }.
+    The StoryKit host page (assets/js/storykit.js) handles it
+    automatically; a custom host page would need an equivalent listener.
+    See docs/postmessage-protocol.md.
     ═══════════════════════════════════════════════════════════════════
     -->
+
 </body>
 </html>
