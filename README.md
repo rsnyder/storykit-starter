@@ -1,222 +1,121 @@
-# StoryKit
+# StoryKit Starter
 
-This repository powers a Jekyll site built on the **[Chirpy](https://github.com/cotes2020/jekyll-theme-chirpy)** theme, extended with a set of components for creating rich, interactive content.
+A Jekyll website template for creating **interactive visual narratives** — essays that combine Markdown prose with zoomable images, maps, video, network diagrams, and text-driven media interactions. It is built on the **[Chirpy](https://github.com/cotes2020/jekyll-theme-chirpy)** theme and extended with the **StoryKit** component layer.
 
-At its core, this is a standard Chirpy-based site. If you are already familiar with Chirpy, most of the structure will look familiar. What makes this repository different is the addition of reusable viewer components and supporting scripts that allow content authors to build more visual, interactive essays without writing custom HTML or JavaScript.
+StoryKit evolved from [Juncture](https://labs.jstor.org/projects/juncture/), a digital humanities collaboration between JSTOR Labs and Dumbarton Oaks, with one straightforward goal: *enable students and scholars to create interactive visual narratives using Markdown — without requiring coding skills.*
 
----
+The framework is explicitly designed for **web-only authoring**: authors need nothing but a browser and a GitHub account. Content is written in GitHub's web editor, previewed in seconds with a bookmarklet-based preview tool, and published automatically by GitHub Pages. No local installation of any kind is required to author and publish.
 
-## What This Repository Contains
-
-### 1. The Chirpy Foundation
-
-The site follows the normal Chirpy conventions for:
-
-* Posts in `_posts`
-* Configuration in `_config.yml`
-* Data files in `_data`
-* Static assets in `assets/`
-
-If you are new to Chirpy, review:
-
-* **[Getting Started](https://rsnyder.github.io/storykit-starter/admin/getting-started)** 
-* **[Writing a New Post](https://rsnyder.github.io/storykit-starter/admin/write-a-new-post)** 
-* **[Text and Typography](https://rsnyder.github.io/storykit-starter/admin/text-and-typography)** 
-
-Those documents describe the baseline structure and expectations for posts.
+**Live demo and documentation:** <https://rsnyder.github.io/storykit-starter>
 
 ---
 
-### 2. StoryKit Extensions
+## Key Features
 
-On top of Chirpy, this repository adds:
+**Viewer components** — added to a post with a one-line Liquid include tag:
 
-* Single-page iframe viewer components (image viewer, map viewer, etc.)
-* Liquid include wrappers that simplify usage
-* Supporting JavaScript for:
+* **Image viewer** — click-to-open deep zoom and pan; built-in support for Wikimedia Commons (automatic captions, attribution, and licensing) and IIIF manifests
+* **Image compare viewer** — before/after pairs with a draggable divider and an interactive alignment tool
+* **Map viewer** — markers, multiple basemaps, GeoJSON overlays, and historical map layers via Allmaps; locations can be given as coordinates or Wikidata Q-ids
+* **YouTube viewer** — clean click-to-play previews with timed start/end playback
+* **Network viewer** — node-and-edge relationship diagrams from a few lines of CSV placed right in the post
+* **Iframe viewer** — embed any external page (Timeline JS, Internet Archive, Datawrapper, …)
 
-  * DOM restructuring where needed
-  * Communication between the parent page and iframe components
-  * Action links that trigger component behavior
+**Text-driven interaction:**
 
-The design goal is separation of concerns:
+* **Action links** — ordinary Markdown links that control viewers: zoom an image to a region, fly a map to a location, jump a video to a timestamp
+* **Entity popups** — link a phrase to a Wikidata Q-id and readers get an in-place information popover instead of a trip to Wikipedia
 
-* Content authors work in Markdown.
-* Viewer logic lives in self-contained iframe pages.
-* Liquid includes bridge the two.
+**Layout and workflow:**
 
-Authors should not need to understand how the components are implemented — only how to invoke them.
-
----
-
-## Setup
-
-Create new repository using the template at https://github.com/rsnyder/storykit-starter.
-
-In the new repository, go to Settings -> Pages, and in the "Build and deployment" section of the form select "GitHub Actions" in the "Source" dropdown menu.
-
-Click on the "Code" tab at the top of the page and then click on the _config-template.yml file.  Click the pencil icon to open the GitHub file editor.
-
-- Change the filename to _config.yml in the filename input at the top of the page.
-- Change the value of the following fields in the file
-    - **url** - Change the <your-github-username> text to your GitHib username
-    - **baseurl** - Change this to the name of your repository with a preceding '/' character, for instance, '/demo'
-    - **title** (optional) - This is the title of your site.  It can be updated later.
-    - **tagline** (optional) -  This is the tagline of your site.  It appears below the title and avatar in the left sidebar and can be updated later.
-    - **description** (optional) -  This is the description for your site.  It is used for search indexing and SEO.  It can be updated later.
-    - **avatar** (optional) -  This is the location of the avatar used for your your site.  It can be updated later.
-
-Commit (save) the file changes.  After committing the changes a site rebuild will automatically be initiated by GitHub.  The rebuild can take a couple of minutes.  After the rebuild is complete the site will be live at https://<your-github-username>.github.io/<repository-name>
+* **Two display modes** — a traditional *flat* page layout (with automatic viewer floating) and a two-column *scrollytelling* layout where media stays pinned while the text scrolls
+* **Live preview tool** — renders a committed post directly from the repository in seconds, bypassing the 1–5 minute GitHub Pages rebuild
+* **Self-documenting** — the site ships with a full set of author guides at `/admin`, including a start-to-finish tutorial that assumes no prior GitHub, Jekyll, or Markdown experience
+* **Everything Chirpy provides** — search, tags and categories, dark mode, Mermaid diagrams, MathJax equations, responsive typography
 
 ---
 
-## Authoring Workflows
+## Getting Started
 
-StoryKit supports two primary authoring workflows:
+### Option 1 — Copy the template (recommended)
 
-* **Local Development Workflow** — best for users comfortable with Jekyll and Git.
-* **Web-Based Workflow** — designed for non-technical authors using GitHub’s web editor and the StoryKit Preview Tool.
+Creating a repository from the template gives you a clean copy with no shared git history — the right choice for classes, projects, and production sites.
 
-Choose the approach that fits your level of comfort and setup.
+1. Go to <https://github.com/rsnyder/storykit-starter>, click **Use this template → Create a new repository**, and give your repository a name.
+2. In the new repository, go to **Settings → Pages** and, under "Build and deployment", set **Source** to **GitHub Actions**.
+3. Back on the **Code** tab, open `_config-template.yml` and click the pencil icon to edit it:
+   * Change the filename to `_config.yml` in the filename input at the top of the page.
+   * **url** — replace `<your-github-username>` with your GitHub username
+   * **baseurl** — set to your repository name with a leading `/` (e.g. `/my-stories`); leave empty if publishing to `<username>.github.io` itself
+   * **github.username** and **github.repository** — your GitHub username and repository name (these drive repository links and the preview tool)
+   * **title**, **tagline**, **description**, **avatar** — optional site branding; all can be updated later
+4. Commit the file. GitHub automatically builds and deploys the site — the first build takes a couple of minutes — after which it is live at `https://<your-github-username>.github.io/<repository-name>`.
 
----
+### Option 2 — Fork
 
-### Option 1: Local Development (Full Jekyll Environment)
+Fork the repository instead if you want to keep a git connection to this project so you can pull in future framework updates (**Sync fork** on GitHub). The configuration steps are the same as above, starting at step 2. Note that a fork is tied to the upstream repository and is less suited to diverging content-heavy sites; for most users the template copy is the better starting point.
 
-Recommended for users who want complete control and fast iteration.
+### Adding authors
 
-1. Create a new post in `_posts`.
-
-2. Add required front matter.
-
-3. Write content in Markdown.
-
-4. Insert StoryKit components using documented include tags.
-
-5. Preview locally with:
-
-   ```bash
-   bundle exec jekyll serve
-   ```
-
-6. Review at `http://127.0.0.1:4000`.
-
-7. Commit and push changes to deploy.
-
-**Advantages**
-
-* Instant rebuilds
-* Full theme rendering
-* Works offline
-* Ideal for advanced customization
+Give each content author write access under **Settings → Collaborators**. Authors work on their own branches and submit pull requests; the live site rebuilds only when changes are merged into `main`.
 
 ---
 
-### Option 2: Web-Based Workflow (GitHub + StoryKit Preview Tool)
+## Authoring Content
 
-Designed for authors who prefer not to install Jekyll locally.
+Authoring is designed to happen entirely on the web:
 
-1. Navigate to your repository on GitHub.
-2. Create or edit a post directly in the `_posts` directory.
-3. Add required front matter.
-4. Write content in Markdown.
-5. Commit changes in GitHub.
+1. **Write** — create a Markdown file in `_posts` using GitHub's web editor (copy `_posts/.template.md` to start).
+2. **Preview** — click the StoryKit preview bookmarklet to render the committed post in seconds, without waiting for a site rebuild.
+3. **Publish** — set `published: true` and open a pull request; the site rebuilds automatically when it is merged.
 
-Because GitHub Pages must rebuild the site after each commit, there is normally a delay before changes appear on the live site.
+The complete author documentation is published on the site itself at `/admin` (also reachable by clicking the README icon ![README icon](assets/posts/storykit/readme-icon.png) in the left sidebar footer):
 
-To avoid waiting:
+* **[Authoring a Visual Narrative](https://rsnyder.github.io/storykit-starter/admin/storykit-authoring-a-visual-narrative)** — a start-to-finish tutorial assuming no prior GitHub, Jekyll, or Markdown experience
+* **[Authors Guide](https://rsnyder.github.io/storykit-starter/admin/storykit-authors-guide)** — the day-to-day web authoring workflow
+* **[Preview Setup](https://rsnyder.github.io/storykit-starter/admin/storykit-preview-setup)** — one-time bookmarklet installation
+* Reference guides for every viewer, action links, formatting, display modes, and troubleshooting
 
-6. While viewing the post in GitHub’s editor, click the **StoryKit Preview bookmarklet** previously added to your browser.
-7. The preview opens in a new tab and renders the post using the production theme.
-8. Position the preview next to the editor.
-9. After each commit, simply refresh the preview tab.
-
-**Advantages**
-
-* No local setup required
-* Works from any device
-* Suitable for non-technical contributors
-* Avoids GitHub Pages rebuild delay during editing
+For a working example that uses most of the framework's features on one page, see the [Monument Valley post](https://rsnyder.github.io/storykit-starter/monument-valley/) and its [source](_posts/2026-01-10-monument-valley.md).
 
 ---
 
-### Which Should You Use?
+## Running Locally (optional)
 
-* If you are modifying layouts, includes, or theme files → use **Local Development**.
-* If you are primarily writing content → the **Web-Based Workflow** is usually sufficient.
+You do not need a local environment to author content — that is the point of the framework. A local Jekyll server is only useful if you are developing the framework itself or customizing layouts, includes, or styles.
 
-Both workflows produce identical published results.
+Prerequisites: [Ruby](https://www.ruby-lang.org/) 3.x with Bundler.
 
----
+```bash
+bundle install
+bundle exec jekyll serve --livereload
+```
 
-## Design Principles
+The site is served at `http://127.0.0.1:4000<baseurl>/` (e.g. `http://127.0.0.1:4000/storykit-starter/`) and rebuilds automatically as files change.
 
-This repository follows a few clear principles:
-
-* **Keep posts readable.** Markdown should remain the primary authoring format.
-* **Encapsulate complexity.** Interactive behavior lives in isolated components.
-* **Favor reuse over duplication.** Liquid includes act as stable interfaces.
-* **Minimize coupling to theme internals.** StoryKit additions extend Chirpy rather than rewriting it.
+For framework development, the preview tool can also load JavaScript and CSS from your local server instead of the deployed site — append `?dev` to the preview URL (see the [Preview Setup guide](https://rsnyder.github.io/storykit-starter/admin/storykit-preview-setup)).
 
 ---
 
-## Admin Documentation
+## Repository Structure
 
-This repository includes an **Admin** section containing practical guides for maintaining the site and authoring posts.
+| Path | Contents |
+|---|---|
+| `_posts/` | Content posts, including `.template.md` and the Monument Valley example |
+| `_admin/` | Author documentation published at `/admin` |
+| `_includes/embed/` | Liquid include wrappers authors invoke (`image.html`, `map.html`, …) |
+| `assets/components/` | Self-contained iframe viewer implementations |
+| `assets/js/` | StoryKit runtime: DOM restructuring, action-link wiring, parent↔iframe messaging, display modes |
+| `preview/` | The live preview tool |
+| `_config.yml` / `_config-template.yml` | Site configuration and the template new sites start from |
+| `docs/`, `technical-overview.md` | Developer documentation: architecture, dependencies, postMessage protocol |
+| `tools/` | Maintenance scripts |
 
-The Admin area includes:
-
-* Chirpy documentation adapted for this repository
-* StoryKit-specific authoring guides
-* Workflow documentation (including the Preview tool)
-* Maintenance and configuration references
-
-You can access the Admin section directly from the site interface:
-
-1. Look at the **left sidebar footer**.
-2. Click the **README icon** ![README icon](assets/posts/storykit/readme-icon.png) icon in the left sidebar footer..
-3. This opens the `/admin` section of the site.
-
-The Admin area is intended for:
-
-* Content authors who need step-by-step guidance
-* Maintainers configuring the site
-* Anyone learning how StoryKit extends Chirpy
-
-If you are new to the system, start there.
+The design goal is separation of concerns: authors work in Markdown, viewer logic lives in isolated iframe pages, and Liquid includes bridge the two. Authors never need to understand how the components are implemented — only how to invoke them.
 
 ---
 
-If you want it slightly tighter and more minimal (more in keeping with the current README tone), here’s a leaner version:
+## Credits
 
----
-
-## Admin Section
-
-The site includes an `/admin` section containing authoring and maintenance documentation, including both Chirpy basics and StoryKit-specific guides.
-
-Access it by clicking the **README icon** ![README icon](assets/posts/storykit/readme-icon.png) in the left sidebar footer.
-
-Content authors should begin there before creating posts.
-
----
-
-## Important Notes
-
-* Some features depend on specific front matter variables.
-* File paths must be accurate — most issues stem from incorrect paths.
-* If action links are used, components may require an `id` attribute.
-* The admin documentation section explains usage in detail.
-
----
-
-## Summary
-
-This is a Chirpy-based publishing platform with enhanced capabilities for interactive storytelling.
-
-If you are writing content, focus on the documentation and examples.
-If you are extending the system, treat the viewer components and include files as the primary integration layer.
-
-The goal is straightforward: make it easy to create visually rich content without making authors learn the underlying implementation.
-
-Jekyll website template using the Chirpy theme with storytelling extensions.  Designed for web-only authoring and administration.
+* [Chirpy](https://github.com/cotes2020/jekyll-theme-chirpy) provides the theme foundation: layouts, navigation, typography, search, and the build pipeline.
+* StoryKit's approach to Markdown-first visual narratives originated with [Juncture](https://labs.jstor.org/projects/juncture/) (JSTOR Labs / Dumbarton Oaks).
