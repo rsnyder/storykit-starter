@@ -1,0 +1,12 @@
+# Jekyll
+_site/
+.jekyll-cache/
+.jekyll-metadata
+
+# Bundler
+bin/
+.bundle/
+vendor/bundle/
+
+# OS
+.DS_Store
