@@ -8,6 +8,11 @@ bin/
 .bundle/
 vendor/bundle/
 
+# Python (render-regression harness venv)
+.venv-render/
+venv/
+__pycache__/
+
 # OS
 .DS_Store
 
