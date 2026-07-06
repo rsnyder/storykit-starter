@@ -10,7 +10,7 @@ order: 0
 
 This is the documentation home for authors writing content on this site. It covers everything you need to create posts — from plain Markdown articles to interactive visual essays with zoomable images, maps, video, and text-driven interactions.
 
-**New here?** Start with the **[Authors Guide](storykit-authors-guide)** — it walks you through creating, previewing, and publishing your first post entirely from GitHub's web interface.
+**New here?** Start with the **[Authors Guide](storykit-authors-guide)** — it walks you through creating, previewing, and publishing your first post entirely from GitHub's web interface. If you are brand new to GitHub and Markdown as well, the **[Authoring a Visual Narrative](storykit-authoring-a-visual-narrative)** tutorial assumes no prior experience at all and takes you from creating a GitHub account to publishing a first essay.
 
 ## Finding Your Way
 
@@ -20,6 +20,7 @@ The guides are organized in the order most authors need them:
 
 | Guide | What it covers |
 |---|---|
+| [Authoring a Visual Narrative](storykit-authoring-a-visual-narrative) | A start-to-finish tutorial for first-time authors — no GitHub, Jekyll, or Markdown experience assumed |
 | [StoryKit Overview](storykit-overview) | What StoryKit is, what it adds, and how it is enabled |
 | [Authors Guide](storykit-authors-guide) | Creating, previewing, and publishing a post step by step |
 | [Preview Setup](storykit-preview-setup) | One-time setup for the fast live-preview tool |
