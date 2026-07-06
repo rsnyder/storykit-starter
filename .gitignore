@@ -10,3 +10,8 @@ vendor/bundle/
 
 # OS
 .DS_Store
+
+# Python (tools/run_browser_tests.py venv; see docs/editor-plan.md §0.6)
+venv/
+__pycache__/
+*.pyc

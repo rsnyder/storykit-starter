@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>StoryKit editor — unit tests</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<!--
+  Import map for modules under test. Buildless per docs/editor-spec.md §6.1 /
+  docs/editor-plan.md §0.4 — no bundler, pinned exact versions from esm.sh
+  when a WP needs one (register new pins in docs/dependencies.md too).
+  Empty for now (WP-0.1); later WPs (0.3, 2.x, ...) add entries here as their
+  modules under test acquire dependencies.
+-->
+<script type="importmap">
+{
+  "imports": {}
+}
+</script>
+</head>
+<body>
+<h1 style="font: 16px -apple-system, system-ui, sans-serif; padding: 16px 16px 0;">
+  StoryKit editor — unit tests
+</h1>
+<div id="test-results">
+  <p style="font: 14px -apple-system, system-ui, sans-serif; padding: 0 16px; color: #666;">
+    Running…
+  </p>
+</div>
+
+<script type="module">
+  import { run } from './runner.js';
+
+  // ---- BEGIN TEST MANIFEST -------------------------------------------
+  // Every tests/unit/*.test.js module must be listed here to run. Later
+  // WPs: append your new test file's relative path to this array (keep
+  // one entry per line, alphabetical is fine but not required).
+  const TEST_MODULES = [
+    './sample-pass.test.js',
+  ];
+  // ---- END TEST MANIFEST ---------------------------------------------
+
+  // Self-test hook: ?selftest=fail loads an additional, deliberately
+  // failing test module so tools/run_browser_tests.py (or a human) can
+  // verify the harness correctly reports failures / exit code 1 without
+  // a permanently-failing test living in the normal seed suite.
+  const params = new URLSearchParams(location.search);
+  const modules = [...TEST_MODULES];
+  if (params.get('selftest') === 'fail') {
+    modules.push('./selftest-fail.test.js');
+  }
+
+  for (const path of modules) {
+    await import(path);
+  }
+
+  await run();
+</script>
+</body>
+</html>
