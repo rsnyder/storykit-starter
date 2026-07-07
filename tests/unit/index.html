@@ -9,12 +9,41 @@
   Import map for modules under test. Buildless per docs/editor-spec.md §6.1 /
   docs/editor-plan.md §0.4 — no bundler, pinned exact versions from esm.sh
   when a WP needs one (register new pins in docs/dependencies.md too).
-  Empty for now (WP-0.1); later WPs (0.3, 2.x, ...) add entries here as their
-  modules under test acquire dependencies.
+
+  WP-2.1: mirrors editor/index.html's pinned map exactly so editor modules
+  import identically under test (`?external=*` dedupe — see the strategy
+  comment in editor/index.html; tools/check_editor_pins.py validates the
+  editor page's copy). Keep the two maps in sync when bumping pins.
 -->
 <script type="importmap">
 {
-  "imports": {}
+  "imports": {
+    "@codemirror/state": "https://esm.sh/@codemirror/state@6.7.1?external=*",
+    "@codemirror/view": "https://esm.sh/@codemirror/view@6.43.6?external=*",
+    "@codemirror/language": "https://esm.sh/@codemirror/language@6.12.4?external=*",
+    "@codemirror/commands": "https://esm.sh/@codemirror/commands@6.10.4?external=*",
+    "@codemirror/search": "https://esm.sh/@codemirror/search@6.7.1?external=*",
+    "@codemirror/autocomplete": "https://esm.sh/@codemirror/autocomplete@6.20.3?external=*",
+    "@codemirror/lint": "https://esm.sh/@codemirror/lint@6.9.7?external=*",
+    "@codemirror/lang-markdown": "https://esm.sh/@codemirror/lang-markdown@6.5.0?external=*",
+    "@codemirror/lang-yaml": "https://esm.sh/@codemirror/lang-yaml@6.1.3?external=*",
+    "@codemirror/lang-html": "https://esm.sh/@codemirror/lang-html@6.4.11?external=*",
+    "@codemirror/lang-css": "https://esm.sh/@codemirror/lang-css@6.3.1?external=*",
+    "@codemirror/lang-javascript": "https://esm.sh/@codemirror/lang-javascript@6.2.5?external=*",
+    "@lezer/common": "https://esm.sh/@lezer/common@1.5.2?external=*",
+    "@lezer/highlight": "https://esm.sh/@lezer/highlight@1.2.3?external=*",
+    "@lezer/lr": "https://esm.sh/@lezer/lr@1.4.10?external=*",
+    "@lezer/markdown": "https://esm.sh/@lezer/markdown@1.6.4?external=*",
+    "@lezer/html": "https://esm.sh/@lezer/html@1.3.13?external=*",
+    "@lezer/css": "https://esm.sh/@lezer/css@1.3.4?external=*",
+    "@lezer/javascript": "https://esm.sh/@lezer/javascript@1.5.4?external=*",
+    "@lezer/yaml": "https://esm.sh/@lezer/yaml@1.0.4?external=*",
+    "style-mod": "https://esm.sh/style-mod@4.1.3?external=*",
+    "w3c-keyname": "https://esm.sh/w3c-keyname@2.2.8?external=*",
+    "crelt": "https://esm.sh/crelt@1.0.7?external=*",
+    "@marijn/find-cluster-break": "https://esm.sh/@marijn/find-cluster-break@1.0.3?external=*",
+    "idb": "https://esm.sh/idb@8.0.3?external=*"
+  }
 }
 </script>
 </head>
@@ -37,6 +66,7 @@
   // one entry per line, alphabetical is fine but not required).
   const TEST_MODULES = [
     './sample-pass.test.js',
+    './scaffold.test.js',
     './url-grammars.test.js',
   ];
   // ---- END TEST MANIFEST ---------------------------------------------
