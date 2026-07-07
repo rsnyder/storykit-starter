@@ -93,6 +93,7 @@ that must be mapped for the graph to be closed.
 | crelt | 1.0.7 | CM6 tiny DOM helper (transitive leaf) |
 | @marijn/find-cluster-break | 1.0.3 | Grapheme cluster breaks used by @codemirror/state (transitive leaf) |
 | idb | 8.0.3 | IndexedDB promise wrapper for editor/store.js (FR-DOC.1) |
+| js-yaml | 4.1.0 | YAML parsing for editor/context.js (`_config.yml`, `_data/locales/*`, `_data/origin/default.yml`) — WP-3.2 |
 
 ## Live web services (runtime data, not code)
 
