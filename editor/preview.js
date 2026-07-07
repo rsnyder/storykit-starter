@@ -543,15 +543,43 @@ export function createPreviewPane({
   }
 
   // ── render() — the frozen entry point ───────────────────────────────────
+  //
+  // WP-3.4 RECONCILIATION (module-poisoning race between this file and
+  // context.js — found while wiring the app, see docs/editor-plan.md WP-3.4
+  // handoff for the full writeup): `ensureRenderPost()` and `buildCtx()` were
+  // originally run via `Promise.all(...)`, i.e. truly in parallel. But
+  // context.js's `getResolveFileCacheWrapper()` ALSO speculatively does
+  // `import('../assets/js/skrender.js')` (to reuse skrender's own
+  // `createResolveFileCache`, falling back to a local copy if that import
+  // isn't safe yet) — and `assets/js/skrender.js` calls `window.markdownit(…)`
+  // at module-EVALUATION time (see this file's header). On a real network
+  // (unlike the render_regression.py harness's near-instant jsdelivr
+  // fixtures), the classic-script injection this file does in
+  // `ensureRenderPost()` reliably takes tens-to-hundreds of ms longer than
+  // context.js's plain same-origin `import()` of the (locally-served)
+  // skrender.js module. So context.js's import routinely WINS the race and
+  // evaluates skrender.js before `window.markdownit` exists, throwing at
+  // module top level. Per the ES module spec, a module whose evaluation
+  // throws is cached PERMANENTLY in that "errored" state — every subsequent
+  // `import()` of the same URL (including THIS file's own, later, correctly-
+  // sequenced one) immediately rethrows the same error without re-running,
+  // for the rest of the page's lifetime. The result: the very first Preview
+  // render after a cold load could permanently break preview until a full
+  // page reload, no retry possible. Fix: `ensureRenderPost()` MUST fully
+  // resolve (libraries injected, skrender.js successfully imported) before
+  // anything else gets a chance to import skrender.js — hence the sequential
+  // awaits below instead of Promise.all. This only costs latency on the
+  // very first render (both caches are warm for every render after); once
+  // skrender.js has been imported successfully once, context.js's own import
+  // resolves the SAME cached, successful module instantly.
   async function render({ content, path, binding } = {}) {
     const token = tokenTracker.next();
     const diagnostics = [];
     try {
       const buildCtx = buildContextFn || defaultBuildContext;
-      const [renderPostImpl, context] = await Promise.all([
-        ensureRenderPost(),
-        buildCtx({ binding }),
-      ]);
+      const renderPostImpl = await ensureRenderPost();
+      if (destroyed || !tokenTracker.isCurrent(token)) return;
+      const context = await buildCtx({ binding });
       if (destroyed || !tokenTracker.isCurrent(token)) return;
 
       if (context && Array.isArray(context.diagnostics)) diagnostics.push(...context.diagnostics);

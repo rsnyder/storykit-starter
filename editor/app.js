@@ -20,6 +20,28 @@
  *   - durable storage is requested on boot (FR-DOC.8), with a non-blocking
  *     notice when the browser declines.
  *
+ * WP-3.4 (M3 integration) wires the preview pane in:
+ *   - `preview.createPreviewPane({ mount: #preview-mount })` is created once
+ *     at boot (test seams omitted — this is the real app);
+ *   - entering Preview, or entering Split, calls `pane.render(...)`
+ *     immediately (spec FR-PRE.1/3); `doc:changed` while already in Split
+ *     calls the ~1s-debounced `pane.schedule(...)` instead;
+ *   - `binding` is `appState.binding` (always `null` until WP-5.1 lands
+ *     GitHub sync); `path` is the open document's `path`, falling back to a
+ *     synthetic `_posts/<yyyy-mm-dd-slug>.md` (reusing doclist.js's
+ *     `buildFilename`) when the document has none yet (e.g. an imported or
+ *     not-yet-named draft) — preview.js/context.js need SOME path to resolve
+ *     relative links and to pick a layout, and unbound docs still preview
+ *     against the starter's own defaults (FR-PRE.4) regardless of the exact
+ *     filename;
+ *   - `preview:goto-line` (dispatched by preview.js's diagnostics panel) is
+ *     heard here and moves the CM6 selection to that line, scrolls it into
+ *     view, and focuses the editor.
+ *   - context.diagnostics ARE already merged into renderPost()'s diagnostics
+ *     by preview.js itself (see that file's `render()`) — no reconciliation
+ *     was needed here; both WP-3.2 and WP-3.3 already implemented the
+ *     contract delta documented in context.js's header.
+ *
  * This file is edited only by WP-2.1 and the integration WPs (2.6, 3.4, 4.3).
  * Feature WPs code against `bus` / `appState` and their own module files.
  *
@@ -326,6 +348,7 @@ function showEditorEmptyState() {
     editorHandle.destroy();
     editorHandle = null;
   }
+  currentDocRecord = null;
   const mount = getEditorMount();
   if (!mount) return;
   mount.classList.add('is-empty');
@@ -344,11 +367,96 @@ function showEditorEmptyState() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Preview pane (WP-3.4). Created once at boot; fed the live buffer + the open
+// document's path/binding on mode entry and (debounced) on every doc:changed
+// while already in Split mode.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** @type {ReturnType<typeof preview.createPreviewPane>|null} */
+let previewHandle = null;
+
+/**
+ * The path fed to preview.render()/schedule(): the open document's `path`
+ * when it has one, else a synthetic `_posts/<yyyy-mm-dd-slug>.md` derived
+ * from its title (doclist.js's own New Post naming rule, reused here so an
+ * unbound/imported draft with no path yet still gets a plausible one — the
+ * unbound context (FR-PRE.4) doesn't need this path to exist anywhere, only
+ * to look like a post so the layout/URL-rewrite logic behaves normally).
+ * @param {object|null} record
+ * @returns {string}
+ */
+function previewPathFor(record) {
+  if (record && record.path) return record.path;
+  const title = (record && record.title) || 'untitled';
+  const seed = (record && (record.updatedAt || record.createdAt)) || new Date();
+  const date = new Date(seed);
+  return `_posts/${doclist.buildFilename(Number.isNaN(date.getTime()) ? new Date() : date, title)}`;
+}
+
+/** @param {string} content @returns {{content:string, path:string, binding:object|null}} */
+function previewArgsFor(content) {
+  return { content, path: previewPathFor(currentDocRecord), binding: appState.binding };
+}
+
+/** Render immediately (Preview entry, Split entry, opening a doc while in either). */
+function renderPreviewNow(content) {
+  if (!previewHandle || !currentDocRecord) return;
+  previewHandle.render(previewArgsFor(content));
+}
+
+/** ~1s-debounced re-render for Split-mode live edits (FR-PRE.3). */
+function schedulePreviewUpdate(content) {
+  if (!previewHandle || !currentDocRecord) return;
+  previewHandle.schedule(previewArgsFor(content));
+}
+
+/** Re-render (immediately) if the current mode shows the preview pane at all. */
+function refreshPreviewForCurrentMode() {
+  if (!editorHandle) return;
+  if (appState.mode === 'preview' || appState.mode === 'split') {
+    renderPreviewNow(editorHandle.getContent());
+  }
+}
+
+function wirePreview() {
+  const mount = document.getElementById('preview-mount');
+  if (!mount) return;
+  previewHandle = preview.createPreviewPane({ mount });
+
+  // Entering Preview, or entering Split, renders immediately (FR-PRE.1/3).
+  bus.addEventListener('mode:changed', (e) => {
+    const mode = e.detail && e.detail.mode;
+    if (mode === 'preview' || mode === 'split') refreshPreviewForCurrentMode();
+  });
+
+  // While already in Split, every debounced doc:changed schedules a re-render.
+  bus.addEventListener('doc:changed', (e) => {
+    if (appState.mode === 'split' && e.detail && typeof e.detail.content === 'string') {
+      schedulePreviewUpdate(e.detail.content);
+    }
+  });
+
+  // Diagnostics-panel "Line N" buttons (preview.js) move the CM6 selection.
+  bus.addEventListener('preview:goto-line', (e) => {
+    const line = e.detail && e.detail.line;
+    if (!editorHandle || !Number.isFinite(line)) return;
+    const view = editorHandle.view;
+    const total = view.state.doc.lines;
+    const ln = Math.max(1, Math.min(Math.trunc(line), total));
+    const pos = view.state.doc.line(ln).from;
+    view.dispatch({ selection: { anchor: pos, head: pos }, scrollIntoView: true });
+    view.focus();
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Document lifecycle: store → doclist → autosave → last-open restore.
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** @type {ReturnType<typeof doclist.createDocList>|null} */
 let docListHandle = null;
+/** @type {object|null} the full record for appState.currentDocId (path/title for preview) */
+let currentDocRecord = null;
 
 /**
  * Switch the editing surface to `docId`: flush + dispose the outgoing
@@ -383,12 +491,17 @@ export async function openDoc(docId) {
   appState.currentDocId = docId;
   appState.prefs.lastDocId = docId;
   savePrefs();
+  currentDocRecord = record;
 
   mountEditor(record.content || '');
   updateDocChrome(record);
 
   currentAutosaver = store.createAutosaver(docId);
   editorHandle?.focus();
+
+  // Switching documents while Preview/Split is already showing must reflect
+  // the newly-opened buffer right away, not wait for the next edit/mode flip.
+  refreshPreviewForCurrentMode();
 }
 
 /** Reflect the open document in the top-bar title and status-bar path. */
@@ -561,6 +674,7 @@ export async function init() {
   wireStatusBar();
   wireAutosave();
   wireToasts();
+  wirePreview();
 
   // Open the local store, then wire the document list against it.
   try {
