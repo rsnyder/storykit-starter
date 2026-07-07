@@ -112,11 +112,14 @@ describe('scaffold: stub modules importable with contracted exports', () => {
   });
 
   it('inert-default stubs return composable values', async () => {
-    // lang-storykit.js is implemented (WP-2.4): storykit() now returns real
-    // extensions — assert its implemented shape instead of the inert [].
+    // lang-storykit.js is implemented (WP-2.4), but storykit() without a
+    // catalog intentionally stays inert ([]); with a catalog it returns
+    // real extensions. Assert both behaviors.
     const langStorykit = await import('../../editor/lang-storykit.js');
-    assert.ok(Array.isArray(langStorykit.storykit({})) && langStorykit.storykit({}).length > 0,
-      'storykit() should return a non-empty Extension[]');
+    const { catalog } = await import('../../editor/viewer-catalog.js');
+    assert.deepEqual(langStorykit.storykit({}), [], 'storykit() without catalog stays inert');
+    assert.ok(langStorykit.storykit({ catalog }).length > 0,
+      'storykit({catalog}) should return a non-empty Extension[]');
     const dnd = await import('../../editor/dnd.js');
     assert.deepEqual(dnd.dndExtension({}), [], 'dndExtension() should return an inert []');
     const wikidata = await import('../../editor/wikidata.js');
