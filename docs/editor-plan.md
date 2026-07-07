@@ -28,6 +28,8 @@ export async function renderPost({ content, path, context })
 //   resolveFile: async (repoRelPath) => string|null, // THE injection seam — called lazily MID-RENDER
 //   assetOrigin: string,                        // deployed origin for URL rewriting (?dev override lives in caller)
 //   baseurl:     string,
+//   origin:      object|null,                   // parsed _data/origin/default.yml (WP-1.2 delta; omit → origin-driven <link> tags absent)
+//   rawContentBase: string,                     // base URL for rewriting relative content links (WP-1.2 delta; '' for unbound drafts)
 // }
 // Diagnostic: { level:'error'|'warn'|'info',
 //               stage:'frontmatter'|'liquid'|'markdown'|'layout'|'fetch',
@@ -40,6 +42,8 @@ export function createResolveFileCache(resolveFile) // memoizing wrapper (per-se
 Owns pipeline steps 4–5 and 7–10 of the current `preview/index.html` `render()` (:1064): Liquid engine build, multiline-tag collapse, kramdown IAL handling, markdown render, layout-chain application (walking layouts via `resolveFile('_layouts/<name>.html')` when not pre-seeded), URL rewriting, footnote-CSS/Font-Awesome/banner injection. **No fetches except through `context.resolveFile`; no DOM access** — the caller writes `html` into its iframe and surfaces `diagnostics`.
 
 Critical constraint (verified in exploration): Liquid includes resolve **lazily during template expansion** (`include` tag → `renderInclude` → fetch, `preview/index.html:743–784`), and includes nest (`embed/_iframe.html`). `resolveFile` must therefore be async and callable mid-render; the `layouts`/`includes` maps are optional cache layers only.
+
+**As-built notes (WP-1.2, authoritative for WP-3.2/2.6):** layout-chain walking lives inside skrender via `resolveFile('_layouts/<name>.html')` (max depth 8, `compress` skipped); `resolveFile` returns `null` on miss (never throws); the host page must load the classic-script globals `window.liquidjs`, `window.markdownit` (+ optional footnote/sub/sup plugins), `window.jsyaml` before importing the module; `parseFrontMatter` returns `{frontMatter, body, fmEndLine}`; a final `info`-level `layout` diagnostic carries the applied layout-chain summary.
 
 ### 1.2 Editor modules
 
