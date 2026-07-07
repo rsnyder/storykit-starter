@@ -45,6 +45,9 @@
   --sk-shadow-2:      0 8px 24px rgba(31, 35, 40, 0.18);
   --sk-skeleton-a:    #eaeef2;
   --sk-skeleton-b:    #f2f5f8;
+  /* Modal/backdrop scrim — formalized from the identical fallback literal
+     conflict.js/palette.js/sync-panel already used inline (WP-6.2). */
+  --sk-backdrop:      rgba(15, 18, 22, 0.45);
 
   /* Spacing — 8 px grid */
   --sk-space-xs: 4px;
@@ -101,6 +104,7 @@
     --sk-shadow-2:      0 8px 24px rgba(0, 0, 0, 0.55);
     --sk-skeleton-a:    #22272e;
     --sk-skeleton-b:    #2c333c;
+    --sk-backdrop:      rgba(0, 0, 0, 0.6);
     color-scheme: dark;
   }
 }
@@ -115,6 +119,7 @@
   --sk-selection:rgba(9,105,218,0.14);
   --sk-shadow-1:0 1px 2px rgba(31,35,40,0.10); --sk-shadow-2:0 8px 24px rgba(31,35,40,0.18);
   --sk-skeleton-a:#eaeef2; --sk-skeleton-b:#f2f5f8;
+  --sk-backdrop:rgba(15,18,22,0.45);
   color-scheme: light;
 }
 :root[data-theme='dark'] {
@@ -126,6 +131,7 @@
   --sk-selection:rgba(56,139,253,0.28);
   --sk-shadow-1:0 1px 2px rgba(0,0,0,0.40); --sk-shadow-2:0 8px 24px rgba(0,0,0,0.55);
   --sk-skeleton-a:#22272e; --sk-skeleton-b:#2c333c;
+  --sk-backdrop:rgba(0,0,0,0.6);
   color-scheme: dark;
 }
 
@@ -486,6 +492,21 @@ body .cm-editor.cm-focused .cm-selectionBackground { background: var(--sk-select
 }
 .empty-title { margin: 0; font-weight: 600; color: var(--sk-text); }
 .empty-hint  { margin: 0; font-size: var(--sk-fs-sm); color: var(--sk-text-muted); }
+.empty-icon {
+  align-self: center;
+  color: var(--sk-text-faint);
+  margin-bottom: var(--sk-space-xs);
+}
+.empty-state .btn { align-self: center; margin-top: var(--sk-space-1); }
+
+/* Sidebar's empty-doclist variant is the same block, just tighter (it lives
+   inside the ~244px-wide sidebar, not the full editor pane). */
+.dl-empty-state {
+  max-width: 100%;
+  margin: var(--sk-space-2) auto;
+  padding: var(--sk-space-2) var(--sk-space-1);
+}
+.dl-empty-state .empty-icon svg { width: 28px; height: 28px; }
 
 /* ── Skeleton (no layout shift on async load) ──────────────────────────── */
 .skeleton { padding: var(--sk-space-3); }
@@ -546,22 +567,35 @@ body .cm-editor.cm-focused .cm-selectionBackground { background: var(--sk-select
 }
 .app-notice-dismiss:hover { background: var(--sk-bg-sunken); color: var(--sk-text); }
 
-/* ── Toasts (bus `toast` events) ───────────────────────────────────────── */
+/* ── Toasts (bus `toast` events) ─────────────────────────────────────────
+   Policy (WP-6.2, documented per the "pick one" brief):
+     - success / warning / info auto-dismiss after a consistent 5s.
+     - error toasts do NOT auto-dismiss — they persist until the author
+       clicks the close (×) button, since an error usually means something
+       needs their attention/action.
+     - every toast (any level) always has a close button for manual dismiss.
+     - newest toast is appended last, i.e. nearest the bottom edge (closest
+       to where the eye already is); multiple toasts visibly stack upward.
+   ───────────────────────────────────────────────────────────────────────── */
 .toast-region {
   position: fixed;
   right: var(--sk-space-2);
   bottom: calc(var(--sk-statusbar-h) + var(--sk-space-2));
-  z-index: 40;
+  z-index: 9000;
   display: flex;
   flex-direction: column;
   gap: var(--sk-space-1);
-  max-width: min(360px, 90vw);
+  max-width: min(360px, calc(100vw - 2 * var(--sk-space-2)));
   pointer-events: none;
 }
 .sk-toast {
   pointer-events: auto;
-  padding: var(--sk-space-1) var(--sk-space-2);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sk-space-1);
+  padding: var(--sk-space-1) var(--sk-space-1) var(--sk-space-1) var(--sk-space-2);
   font-size: var(--sk-fs-sm);
+  line-height: 1.4;
   color: var(--sk-text);
   background: var(--sk-elevated);
   border: 1px solid var(--sk-border);
@@ -569,12 +603,41 @@ body .cm-editor.cm-focused .cm-selectionBackground { background: var(--sk-select
   border-radius: var(--sk-radius);
   box-shadow: var(--sk-shadow-2);
   opacity: 1;
-  transition: opacity 0.35s ease, transform 0.35s ease;
+  transform: translateY(0) scale(1);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.sk-toast-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  margin-top: 1px;
 }
 .sk-toast-success { border-left-color: var(--sk-success); }
+.sk-toast-success .sk-toast-icon { color: var(--sk-success); }
 .sk-toast-error   { border-left-color: var(--sk-danger); }
+.sk-toast-error   .sk-toast-icon { color: var(--sk-danger); }
 .sk-toast-warning { border-left-color: var(--sk-warning); }
-.sk-toast.is-leaving { opacity: 0; transform: translateY(6px); }
+.sk-toast-warning .sk-toast-icon { color: var(--sk-warning); }
+.sk-toast-info    { border-left-color: var(--sk-accent); }
+.sk-toast-info    .sk-toast-icon { color: var(--sk-accent); }
+.sk-toast-message { flex: 1 1 auto; min-width: 0; padding-top: 1px; word-break: break-word; }
+.sk-toast-close {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  line-height: 1;
+  font-size: 15px;
+  color: var(--sk-text-faint);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--sk-radius-sm);
+  cursor: pointer;
+}
+.sk-toast-close:hover { background: var(--sk-bg-sunken); color: var(--sk-text); }
+/* Enter: starts here, then the region-appender flips these off next frame so
+   the transition above animates opacity/transform back to their defaults. */
+.sk-toast.is-entering { opacity: 0; transform: translateY(6px) scale(0.98); }
+.sk-toast.is-leaving   { opacity: 0; transform: translateY(6px) scale(0.98); }
 @media (prefers-reduced-motion: reduce) {
   .sk-toast { transition: none; }
 }
@@ -591,7 +654,7 @@ body .cm-editor.cm-focused .cm-selectionBackground { background: var(--sk-select
   box-shadow: var(--sk-shadow-2);
   overflow: auto;
 }
-.sk-dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
+.sk-dialog::backdrop { background: var(--sk-backdrop); }
 .sk-dialog-body { display: flex; flex-direction: column; gap: var(--sk-space-3); padding: var(--sk-space-3); }
 .sk-dialog-head { display: flex; align-items: center; justify-content: space-between; }
 .sk-dialog-title { margin: 0; font-size: var(--sk-fs-base); font-weight: 600; }
@@ -636,17 +699,54 @@ body .cm-editor.cm-focused .cm-selectionBackground { background: var(--sk-select
 .sk-field-note { margin: 0; font-size: var(--sk-fs-xs); color: var(--sk-text-muted); }
 .sk-link { font-size: var(--sk-fs-sm); color: var(--sk-accent); }
 
-/* ── Responsive: collapse sidebar on narrow widths ─────────────────────── */
+/* ── Responsive: sidebar becomes an overlay drawer on narrow widths ─────────
+   (WP-6.2 — `toggleSidebar()` in app.js switches which class it flips
+   at this breakpoint: `sidebar-collapsed` on wide viewports, `sidebar-open`
+   here. `#sidebar-scrim` is created lazily by app.js only when needed —
+   click-outside and Esc both close the drawer.) */
 @media (max-width: 820px) {
-  .sidebar { flex-basis: 0; opacity: 0; border-right-color: transparent; }
+  .sidebar {
+    flex-basis: 0;
+    opacity: 0;
+    border-right-color: transparent;
+  }
   body.sidebar-open .sidebar {
     position: absolute;
     z-index: 30;
     inset: var(--sk-topbar-h) auto var(--sk-statusbar-h) 0;
-    flex-basis: var(--sk-sidebar-w);
+    width: min(var(--sk-sidebar-w), 85vw);
+    flex-basis: min(var(--sk-sidebar-w), 85vw);
     opacity: 1;
     box-shadow: var(--sk-shadow-2);
     border-right-color: var(--sk-border);
   }
+  #sidebar-scrim {
+    display: none;
+    position: absolute;
+    z-index: 29;
+    inset: var(--sk-topbar-h) 0 var(--sk-statusbar-h) 0;
+    background: var(--sk-backdrop);
+  }
+  body.sidebar-open #sidebar-scrim { display: block; }
   .brand { display: none; }
 }
+
+/* ── Responsive: condense the top bar further on very small phones ────────── */
+@media (max-width: 480px) {
+  .topbar { gap: var(--sk-space-1); padding: 0 var(--sk-space-1); }
+  .doc-title { max-width: 16ch; }
+  .seg-btn { padding: 4px var(--sk-space-1); }
+  .sk-dialog-body { padding: var(--sk-space-2); gap: var(--sk-space-2); }
+  .toast-region {
+    right: var(--sk-space-1);
+    left: var(--sk-space-1);
+    max-width: none;
+    bottom: calc(var(--sk-statusbar-h) + var(--sk-space-1));
+  }
+}
+
+/* Belt-and-braces: never let any fixed/absolute chrome force a horizontal
+   scrollbar on the page itself (spec §5.5 "light editing must work" on
+   narrow viewports — dialogs/menus already clamp their own width, this is
+   the backstop for anything that doesn't). */
+html, body { max-width: 100%; overflow-x: hidden; }
