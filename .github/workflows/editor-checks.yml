@@ -39,7 +39,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install Playwright (Python)
-        run: pip install playwright
+        run: pip install playwright pytest
 
       - name: Resolve Playwright version
         id: playwright-version
@@ -67,3 +67,10 @@ jobs:
 
       - name: Editor import-map pin check
         run: python tools/check_editor_pins.py
+
+      - name: M2 persistence e2e (Playwright)
+        # Drives editor/index.html end to end: create → type → restart the
+        # persistent browser context → assert nothing is lost; autosave window;
+        # 50 KB responsiveness; StoryKit tag highlighting. esm.sh module loads
+        # run live (as the browser unit suite already does).
+        run: python -m pytest tests/e2e/ -v
