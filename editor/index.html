@@ -98,12 +98,10 @@
       <button class="seg-btn" type="button" data-mode-btn="split" aria-pressed="false">Split</button>
       <button class="seg-btn" type="button" data-mode-btn="preview" aria-pressed="false">Preview</button>
     </div>
-    <button id="link-entity-btn" class="icon-btn" type="button" aria-label="Link entity (⌘⇧K)" title="Link entity (⌘⇧K)">
-      <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
-        <path d="M8.5 11.5a3 3 0 004.24 0l2-2a3 3 0 00-4.24-4.24l-1 1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M11.5 8.5a3 3 0 00-4.24 0l-2 2a3 3 0 004.24 4.24l1-1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </button>
+    <!-- WP-6.1: the standalone "Link entity" icon button that lived here
+         (WP-4.3) was removed once the toolbar's own Link-entity button (and
+         the command palette's "Link entity" entry) covered the same action
+         — ⌘⇧K still works either way; see editor/app.js's wireControls(). -->
     <button id="theme-toggle" class="icon-btn" type="button" aria-label="Theme: system (click to change)" data-theme-pref="system">
       <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
         <path d="M10 3a7 7 0 100 14 5 5 0 010-14z" fill="currentColor"/>
@@ -136,23 +134,31 @@
 
   <!-- Main editor region -->
   <main class="editor-region" aria-label="Editor">
-    <div id="editor-mount" class="editor-mount" role="textbox" aria-label="Markdown editor" aria-multiline="true">
-      <!-- Skeleton shown until CM6 mounts (no layout shift). -->
-      <div class="skeleton" aria-hidden="true">
-        <div class="skeleton-line w-40"></div>
-        <div class="skeleton-line w-20"></div>
-        <div class="skeleton-line w-80"></div>
-        <div class="skeleton-line w-70"></div>
-        <div class="skeleton-line w-60"></div>
-        <div class="skeleton-line w-50"></div>
-      </div>
-    </div>
+    <!-- WP-6.1: toolbar.js's createToolbar() renders the §7 minimal set
+         here (bold/italic/link/heading/list/Insert viewer/Link entity).
+         Static content below is a pre-JS placeholder only. Hidden in
+         Preview mode (styles.css) — nothing to format there. -->
+    <div id="toolbar-mount" class="editor-toolbar" role="toolbar" aria-label="Formatting"></div>
 
-    <!-- Preview pane placeholder (WP-3.3 renders here in Split/Preview) -->
-    <div id="preview-mount" class="preview-mount" aria-label="Preview">
-      <div class="empty-state">
-        <p class="empty-title">Preview arrives in M3</p>
-        <p class="empty-hint">Toggle back to Edit. High-fidelity preview (the same pipeline the published site uses) lands with WP-3.3.</p>
+    <div class="editor-panes">
+      <div id="editor-mount" class="editor-mount" role="textbox" aria-label="Markdown editor" aria-multiline="true">
+        <!-- Skeleton shown until CM6 mounts (no layout shift). -->
+        <div class="skeleton" aria-hidden="true">
+          <div class="skeleton-line w-40"></div>
+          <div class="skeleton-line w-20"></div>
+          <div class="skeleton-line w-80"></div>
+          <div class="skeleton-line w-70"></div>
+          <div class="skeleton-line w-60"></div>
+          <div class="skeleton-line w-50"></div>
+        </div>
+      </div>
+
+      <!-- Preview pane placeholder (WP-3.3 renders here in Split/Preview) -->
+      <div id="preview-mount" class="preview-mount" aria-label="Preview">
+        <div class="empty-state">
+          <p class="empty-title">Preview arrives in M3</p>
+          <p class="empty-hint">Toggle back to Edit. High-fidelity preview (the same pipeline the published site uses) lands with WP-3.3.</p>
+        </div>
       </div>
     </div>
   </main>

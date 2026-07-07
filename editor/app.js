@@ -40,9 +40,10 @@
  *     for the `[text](Qnnnn)` hover cards (FR-WD.3);
  *   - `linkEntityCommand` is bound to Mod-Shift-k (⌘⇧K) via a `keymap.of([...])`
  *     entry in `buildExtraExtensions()` (FR-WD.1) — no conflict with
- *     commands.js's Mod-k (`insertLink`); a small "Link entity" icon button
- *     is also added to the top bar next to the mode segmented control (spec
- *     §7 permits a plain, token-styled button ahead of M6's full toolbar).
+ *     commands.js's insertLink binding (WP-6.1 moved that to Mod-Shift-l).
+ *     WP-4.3 also added a small "Link entity" icon button to the top bar;
+ *     WP-6.1 removed it once the toolbar's own "Link entity" button
+ *     superseded it (avoid duplicate affordances).
  *
  * WP-3.4 (M3 integration) wires the preview pane in:
  *   - `preview.createPreviewPane({ mount: #preview-mount })` is created once
@@ -109,12 +110,14 @@ import * as dnd from './dnd.js';
 import * as sync from './sync.js';
 import * as conflict from './conflict.js';
 import { catalog } from './viewer-catalog.js';
+import * as palette from './palette.js';
+import * as toolbar from './toolbar.js';
 
 // Keep tree-shakers / linters from flagging the skeleton imports as unused, and
 // give integration WPs a single object to reach the module namespaces through.
 export const modules = {
   store, editor, commands, langStorykit, doclist, preview, statusbar,
-  github, context, wikidata, dnd, sync, conflict,
+  github, context, wikidata, dnd, sync, conflict, palette, toolbar,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -354,6 +357,13 @@ langStorykit.storykit.setEntityResolver(entityResolver);
  *
  * getIncludeList / getDocViewerIds are intentionally left undefined — repo
  * binding that would populate them arrives in M3 (context.js).
+ *
+ * WP-6.1 additionally splices in `toolbar.viewerSnippetExtension()` — the
+ * small StateField + Prec.high Tab-jump keymap that lets a freshly-inserted
+ * Insert-viewer snippet's SUBSEQUENT required-attribute placeholders (only
+ * embed/image-compare.html has more than one) be reached with Tab, one
+ * placeholder at a time, instead of indenting — see toolbar.js's header for
+ * the full design note.
  */
 function buildExtraExtensions() {
   return [
@@ -363,6 +373,7 @@ function buildExtraExtensions() {
     dnd.dndExtension({ onNotice: (n) => emit('toast', n) }),
     wikidata.qidHoverExtension(),
     Prec.highest(keymap.of([{ key: 'Mod-Shift-k', run: wikidata.linkEntityCommand, preventDefault: true }])),
+    toolbar.viewerSnippetExtension(),
   ];
 }
 
@@ -973,6 +984,155 @@ function wireSyncPanel() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Command palette + toolbar (WP-6.1 · spec §5.4/§7).
+//
+// Both surfaces are thin UI shells (palette.js / toolbar.js) driven by
+// zero-arg callbacks defined HERE, so they always operate on the CURRENT
+// `editorHandle`/`currentDocRecord` (both destroyed/recreated over the
+// app's lifetime — theme change, doc switch) rather than a stale captured
+// reference, mirroring the pre-existing "Link entity" top-bar button
+// precedent this WP removes (see wireControls() below).
+//
+// ── ⌘K → command palette; ⌘K → insertLink is GONE (WP-6.1 remap) ─────────
+// Spec §5.4 gives ⌘K to the palette; FR-EDIT.6 originally gave ⌘K to
+// insertLink (editor/commands.js). Integrator decision (docs/editor-plan.md
+// WP-6.1 brief, restated in commands.js's header): the palette wins ⌘K
+// GLOBALLY — bound at the WINDOW level, capture phase, in wireControls()
+// below — and insertLink moves to Mod-Shift-l (⌘⇧L) in commands.js's
+// `editorKeymap`. Capture phase is load-bearing: it lets this listener see
+// (and preventDefault + stopPropagation) the keystroke BEFORE it can reach
+// CM6's own contentDOM keydown listener, so the editor never gets a chance
+// to run whatever (if anything) is bound to bare Mod-k, and BEFORE the
+// browser's own Ctrl/Cmd+K default (address-bar focus in some browsers)
+// fires. Both the old (⌘K) and new (⌘⇧L) insert-link muscle memory paths
+// stay reachable: ⌘⇧L directly, or "Insert link" via the palette/toolbar.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** @type {ReturnType<typeof palette.createPalette>|null} */
+let paletteHandle = null;
+/** @type {ReturnType<typeof toolbar.createToolbar>|null} */
+let toolbarHandle = null;
+
+/** Minimal Blob-download export for the currently open document — the
+ * palette's "Export document" entry. Deliberately NOT delegated to
+ * doclist.js (its per-item export logic is private to createDocList()'s
+ * closure, and doclist.js is outside this WP's file ownership) — this is a
+ * small, independent reimplementation of the same idea for the open doc. */
+function exportCurrentDoc() {
+  const rec = currentDocRecord;
+  if (!rec) return;
+  try {
+    const filename = rec.path
+      ? String(rec.path).split('/').pop()
+      : doclist.buildFilename(new Date(rec.updatedAt || rec.createdAt || Date.now()), rec.title || 'untitled');
+    const blob = new Blob([rec.content || ''], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+    emit('toast', { message: `Exported ${filename}`, level: 'success' });
+  } catch (err) {
+    emit('toast', { message: `Export failed: ${err?.message || err}`, level: 'error' });
+  }
+}
+
+/** Clicks a sync-panel button by id after ensuring the panel is open/fresh —
+ * reuses the panel's own commit/pull handlers rather than duplicating the
+ * network logic (they already guard on `appState.currentDocId`/disabled
+ * state). Used by the palette's "Commit" / "Pull latest" entries. */
+function triggerSyncPanelAction(buttonId) {
+  openSyncPanel();
+  const btn = document.getElementById(buttonId);
+  if (btn && !btn.disabled) btn.click();
+}
+
+/**
+ * The full command registry (docs/editor-plan.md WP-6.1 brief's AT-MINIMUM
+ * list): New post, mode switches, theme cycle, sidebar toggle, Bold/Italic/
+ * Insert link/Heading cycle/Insert list item, the six Insert-viewer
+ * commands, Link entity, Open sync panel/Commit/Pull, Export document.
+ * Built ONCE at boot — entries are stable closures over the module-level
+ * mutable state above; `when()` is re-evaluated live on every palette open()
+ * so gating (e.g. "Commit" only once bound) always reflects the current
+ * app state without rebuilding the array.
+ * @returns {Array<{id:string,label:string,group:string,shortcut?:string,when?:()=>boolean,run:()=>void}>}
+ */
+function buildCommandRegistry() {
+  const hasEditor = () => !!editorHandle;
+  const hasBoundDoc = () => !!(currentDocRecord && currentDocRecord.github);
+
+  /** @type {Array<{id:string,label:string,group:string,shortcut?:string,when?:()=>boolean,run:()=>void}>} */
+  const registry = [
+    { id: 'doc.new', label: 'New post', group: 'Document', when: () => !!docListHandle,
+      run: () => docListHandle && docListHandle.openNewPostForm() },
+    { id: 'doc.export', label: 'Export document', group: 'Document', when: () => !!currentDocRecord,
+      run: exportCurrentDoc },
+
+    { id: 'view.mode.edit', label: 'Edit mode', group: 'View', run: () => setMode('edit') },
+    { id: 'view.mode.split', label: 'Split mode', group: 'View', run: () => setMode('split') },
+    { id: 'view.mode.preview', label: 'Preview mode', group: 'View', run: () => setMode('preview') },
+    { id: 'view.theme', label: 'Cycle theme', group: 'View', run: cycleTheme },
+    { id: 'view.sidebar', label: 'Toggle document sidebar', group: 'View', run: toggleSidebar },
+
+    { id: 'format.bold', label: 'Bold', group: 'Format', shortcut: '⌘B', when: hasEditor,
+      run: () => commands.toggleBold(editorHandle.view) },
+    { id: 'format.italic', label: 'Italic', group: 'Format', shortcut: '⌘I', when: hasEditor,
+      run: () => commands.toggleItalic(editorHandle.view) },
+    { id: 'format.link', label: 'Insert link', group: 'Format', shortcut: '⌘⇧L', when: hasEditor,
+      run: () => commands.insertLink(editorHandle.view) },
+    { id: 'format.heading', label: 'Heading level', group: 'Format', when: hasEditor,
+      run: () => commands.cycleHeading(editorHandle.view) },
+    { id: 'format.list', label: 'Insert list item', group: 'Format', when: hasEditor,
+      run: () => toolbar.insertListItem(editorHandle.view) },
+
+    { id: 'entity.link', label: 'Link entity', group: 'Entity', shortcut: '⌘⇧K', when: hasEditor,
+      run: () => wikidata.linkEntityCommand(editorHandle.view) },
+
+    { id: 'sync.panel', label: 'Open sync panel', group: 'Sync', run: () => openSyncPanel() },
+    { id: 'sync.commit', label: 'Commit', group: 'Sync', when: hasBoundDoc,
+      run: () => triggerSyncPanelAction('sync-commit-btn') },
+    { id: 'sync.pull', label: 'Pull latest', group: 'Sync', when: hasBoundDoc,
+      run: () => triggerSyncPanelAction('sync-pull-btn') },
+  ];
+
+  for (const key of toolbar.VIEWER_KEYS) {
+    registry.push({
+      id: `insert.viewer.${key}`,
+      label: `Insert ${toolbar.VIEWER_LABELS[key]} viewer`,
+      group: 'Insert',
+      when: hasEditor,
+      run: () => toolbar.insertViewerTag(editorHandle.view, key),
+    });
+  }
+
+  return registry;
+}
+
+/** Zero-arg toolbar action callbacks — see the section header note above. */
+const toolbarActions = {
+  bold: () => editorHandle && commands.toggleBold(editorHandle.view),
+  italic: () => editorHandle && commands.toggleItalic(editorHandle.view),
+  link: () => editorHandle && commands.insertLink(editorHandle.view),
+  heading: () => editorHandle && commands.cycleHeading(editorHandle.view),
+  list: () => editorHandle && toolbar.insertListItem(editorHandle.view),
+  linkEntity: () => editorHandle && wikidata.linkEntityCommand(editorHandle.view),
+  insertViewer: (key) => editorHandle && toolbar.insertViewerTag(editorHandle.view, key),
+};
+
+function wireCommandSurface() {
+  paletteHandle = palette.createPalette({ mount: document.body, commands: buildCommandRegistry() });
+
+  const toolbarMount = document.getElementById('toolbar-mount');
+  if (toolbarMount) {
+    toolbarHandle = toolbar.createToolbar({ mount: toolbarMount, actions: toolbarActions });
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Bootstrap.
 // ─────────────────────────────────────────────────────────────────────────────
 export async function init() {
@@ -1006,6 +1166,7 @@ export async function init() {
   wireToasts();
   wirePreview();
   wireSyncPanel();
+  wireCommandSurface();
 
   // Open the local store, then wire the document list against it.
   try {
@@ -1060,10 +1221,11 @@ function wireControls() {
   document.getElementById('sidebar-toggle')?.addEventListener('click', toggleSidebar);
   document.getElementById('theme-toggle')?.addEventListener('click', cycleTheme);
 
-  // WP-4.3: top-bar "Link entity" affordance (FR-WD.1) — mirrors ⌘⇧K.
-  document.getElementById('link-entity-btn')?.addEventListener('click', () => {
-    if (editorHandle) wikidata.linkEntityCommand(editorHandle.view);
-  });
+  // WP-4.3 added a top-bar "Link entity" affordance (FR-WD.1); WP-6.1
+  // REMOVED it (and its #link-entity-btn markup in index.html) once the
+  // toolbar's own "Link entity" button — and the palette's "Link entity"
+  // entry — covered the same action, avoiding a duplicate control (⌘⇧K
+  // still works either way; only the standalone top-bar icon is gone).
 
   // ⌘E / Ctrl-E cycles Edit → Split → Preview (spec FR-PRE.1).
   window.addEventListener('keydown', (e) => {
@@ -1073,6 +1235,22 @@ function wireControls() {
       setMode(order[(order.indexOf(appState.mode) + 1) % order.length]);
     }
   });
+
+  // WP-6.1: ⌘K / Ctrl-K opens the command palette. WINDOW-level, CAPTURE
+  // phase (the `true` 3rd arg) — see the "Command palette + toolbar"
+  // section header above for why capture phase is load-bearing (it lets
+  // this listener preventDefault+stopPropagation the keystroke before it
+  // can reach CM6's own contentDOM keydown handling OR the browser's own
+  // Ctrl/Cmd+K default). Works regardless of what currently has focus
+  // (editor, sidebar, toolbar, body) — spec §5.4's "works outside editor
+  // focus too".
+  window.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'k') {
+      e.preventDefault();
+      e.stopPropagation();
+      paletteHandle?.open();
+    }
+  }, true);
 }
 
 function wireLifecycle() {
