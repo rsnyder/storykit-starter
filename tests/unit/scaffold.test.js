@@ -104,10 +104,9 @@ describe('scaffold: stub modules importable with contracted exports', () => {
   }
 
   it('not-implemented stubs throw the WP-x.y marker', async () => {
-    // store.js (WP-2.2) and github.js (WP-3.1) are implemented; their marker
-    // assertions were removed at merge time by the integrator.
-    const editor = await import('../../editor/editor.js');
-    assert.throws(() => editor.createEditor({}), /WP-2\.3: not implemented/);
+    // store.js (WP-2.2), github.js (WP-3.1), and editor.js/commands.js
+    // (WP-2.3) are implemented; their marker assertions were removed at
+    // merge time by the integrator.
     const conflict = await import('../../editor/conflict.js');
     await assert.rejects(() => conflict.resolveConflict({ local: 'a', remote: 'b' }), /WP-5\.2: not implemented/);
   });
@@ -120,9 +119,11 @@ describe('scaffold: stub modules importable with contracted exports', () => {
     const wikidata = await import('../../editor/wikidata.js');
     assert.deepEqual(wikidata.qidHoverExtension(), [], 'qidHoverExtension() should return an inert []');
     assert.equal(wikidata.linkEntityCommand(null), false, 'linkEntityCommand stub should return false');
+    // commands.js is implemented (WP-2.3): editorKeymap is now a real,
+    // non-empty KeyBinding[] — assert its implemented shape instead.
     const commands = await import('../../editor/commands.js');
-    assert.ok(Array.isArray(commands.editorKeymap) && commands.editorKeymap.length === 0,
-      'editorKeymap stub should be an empty array');
+    assert.ok(Array.isArray(commands.editorKeymap) && commands.editorKeymap.length > 0,
+      'editorKeymap should be a non-empty KeyBinding[]');
   });
 
   it('GitHubError carries status and kind', async () => {
