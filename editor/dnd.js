@@ -723,8 +723,8 @@ const dndTheme = EditorView.baseTheme({
     margin: '2px 0 4px',
     width: 'fit-content',
   },
-  '.sk-dnd-hint-label': { color: 'var(--sk-text-faint, #6e7781)' },
-  '.sk-dnd-hint-sep': { color: 'var(--sk-text-faint, #6e7781)' },
+  '.sk-dnd-hint-label': { color: 'var(--sk-text-faint, #656d76)' },
+  '.sk-dnd-hint-sep': { color: 'var(--sk-text-faint, #656d76)' },
   '.sk-dnd-hint-btn': {
     appearance: 'none',
     border: 'none',

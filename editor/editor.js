@@ -217,6 +217,10 @@ export function createEditor({ parent, initialContent = '', extraExtensions = []
       syntaxHighlighting(makeHighlightStyle(dark), { fallback: true }),
       docLanguage,
       EditorView.lineWrapping,
+      // Accessible name for the contenteditable textbox CM6 renders
+      // (.cm-content, role="textbox") — without it, axe flags
+      // aria-input-field-name on every surface (WP-6.3, WCAG 4.1.2).
+      EditorView.contentAttributes.of({ 'aria-label': 'Markdown editor' }),
       keymap.of([
         ...closeBracketsKeymap,
         ...editorKeymap,

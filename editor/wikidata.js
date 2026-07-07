@@ -224,7 +224,7 @@ function ensureStyles() {
 .sk-wd-result-text { min-width: 0; }
 .sk-wd-result-label { font-weight: 600; color: var(--sk-text, #1f2328); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sk-wd-result-desc { color: var(--sk-text-muted, #57606a); font-size: var(--sk-fs-xs, 12px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sk-wd-empty, .sk-wd-loading { color: var(--sk-text-faint, #6e7781); padding: 8px 6px; font-size: var(--sk-fs-sm, 13px); }
+.sk-wd-empty, .sk-wd-loading { color: var(--sk-text-faint, #656d76); padding: 8px 6px; font-size: var(--sk-fs-sm, 13px); }
 .sk-wd-notice {
   margin-top: var(--sk-space-1, 8px); padding: 6px 8px; border-radius: var(--sk-radius, 6px);
   background: var(--sk-bg-sunken, #f6f8fa); color: var(--sk-warning, #9a6700); font-size: var(--sk-fs-xs, 12px);
@@ -238,7 +238,7 @@ function ensureStyles() {
 .sk-wd-hover-label { font-weight: 600; }
 .sk-wd-hover-desc { color: var(--sk-text-muted, #57606a); margin: 2px 0 4px; }
 .sk-wd-hover-link { color: var(--sk-accent, #0056b2); }
-.sk-wd-hover-loading, .sk-wd-hover-notice { color: var(--sk-text-faint, #6e7781); }
+.sk-wd-hover-loading, .sk-wd-hover-notice { color: var(--sk-text-faint, #656d76); }
 `;
   document.head.appendChild(style);
 }

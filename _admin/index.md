@@ -26,6 +26,10 @@ The guides are organized in the order most authors need them:
 | [Preview Setup](storykit-preview-setup) | One-time setup for the fast live-preview tool |
 | [Formatting Tips](storykit-formatting-tips) | Controlling viewer size, position, and text wrapping |
 
+### Tools
+
+The **[StoryKit Editor]({{ site.baseurl }}/editor/)** (beta) is a browser-based Markdown editor for StoryKit posts: live preview, viewer-tag autocomplete, drag-and-drop media, and GitHub sync — a one-window alternative to the GitHub web editor + preview tool workflow.
+
 ### Viewers
 
 Viewers are the interactive elements you add to a post with a simple include tag. The **[Viewers Overview](storykit-viewers-overview)** lists them all at a glance; each then has its own reference page:
