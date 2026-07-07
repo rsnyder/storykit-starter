@@ -38,6 +38,32 @@ MODES
                          into the fixtures dir, report what was recorded
     --only <slug>        restrict to corpus entry/entries (comma-separated)
 
+TARGETS  (--target preview [default] | editor)
+    --target preview      drives preview/index.html via its `#<payload>` hash API
+                           (the M1 gate — unchanged behaviour, all of the above).
+    --target editor        THE M3 FIDELITY PROOF (WP-3.4). Drives editor/index.html
+                           through the real UI/store: creates a document whose
+                           content + path are the corpus entry's WORKING-TREE
+                           source, opens it, switches to Preview mode, and captures
+                           the resulting `<iframe class="pv-frame">` srcdoc — then
+                           byte-compares it against the SAME golden the preview
+                           target uses (tests/render/golden/<slug>.html). Because
+                           both targets ultimately call the one shared
+                           assets/js/skrender.js renderPost() with equivalent
+                           context shapes (editor/context.js's unbound mode fetches
+                           this starter's own raw.githubusercontent content, same
+                           as the preview shell's payload here), the two outputs
+                           are expected to be byte-IDENTICAL. --target editor only
+                           supports --check (the golden is a fixed M1 artifact this
+                           harness must never write) and additionally lets
+                           https://esm.sh/** reach the live network — CodeMirror's
+                           buildless module graph has no local/fixture form, and
+                           every other editor/e2e suite in this repo (conftest.py,
+                           run_browser_tests.py) already accepts that exception;
+                           it never touches the render pipeline's own inputs and is
+                           excluded from the hermeticity (live-request) failure
+                           check below, though it IS printed in the summary.
+
 DETERMINISM / HERMETICITY
     * Fresh ``browser.new_context()`` per entry => no localStorage PAT carry-over.
     * A route audit fails the run if any request escapes to the live internet
@@ -154,12 +180,14 @@ class RouteAudit:
         self.continued_local = 0    # our own static server (localhost)
         self.blocked_hosts: set[str] = set()   # external hosts whose requests were aborted
         self.missing_fixtures: list[str] = []  # jsdelivr fixture absent in check/capture
+        self.esm_live = 0           # --target editor only: esm.sh module graph (documented exception)
 
     def summary(self) -> str:
+        extra = f" esm={self.esm_live}" if self.esm_live else ""
         return (
             f"tree={self.served_tree} tree404={self.tree_404} "
             f"fixture={self.served_fixture} recorded={self.recorded_fixture} "
-            f"localhost={self.continued_local} aborted={self.aborted}"
+            f"localhost={self.continued_local} aborted={self.aborted}{extra}"
         )
 
     def live_request_count(self) -> int:
@@ -282,6 +310,30 @@ def install_routes(page, audit: RouteAudit):
     page.route("https://cdn.jsdelivr.net/**", jsdelivr)
 
 
+def install_editor_extra_routes(page, audit: RouteAudit):
+    """--target editor only: on top of install_routes' tree/fixture/abort
+    routes, let esm.sh's live CDN through for the editor's own CM6 module
+    graph (see the file header TARGETS section for why this is an accepted,
+    tracked, non-hermetic exception rather than a fixture set — it is the
+    editor app shell loading, not a render-pipeline input, and every other
+    editor test suite in this repo already takes the same live-esm.sh path).
+    Registered AFTER install_routes so Playwright (LIFO route matching)
+    checks this — more specific — route before the catch-all abort.
+    """
+    main_frame = page.main_frame
+
+    def esm_passthrough(route):
+        req = route.request
+        if req.frame != main_frame:
+            audit.aborted += 1
+            route.abort()
+            return
+        audit.esm_live += 1
+        route.continue_()
+
+    page.route("https://esm.sh/**", esm_passthrough)
+
+
 # ── Capture one corpus entry ─────────────────────────────────────────────────
 def capture_entry(browser, base_url: str, entry: dict, record_fixtures: bool):
     payload = {"o": OWNER, "r": REPO, "ref": REF, "p": entry["path"]}
@@ -300,6 +352,71 @@ def capture_entry(browser, base_url: str, entry: dict, record_fixtures: bool):
         page.goto(url, wait_until="domcontentloaded", timeout=POLL_TIMEOUT_MS)
 
         frame_el = page.locator("#__preview-frame")
+        srcdoc = _poll_srcdoc(page, frame_el)
+        return srcdoc, audit
+    finally:
+        context.close()
+
+
+def capture_entry_editor(browser, base_url: str, entry: dict, record_fixtures: bool):
+    """--target editor: drive editor/index.html's real UI/store to reproduce a
+    corpus entry's preview, then capture the resulting `<iframe class="pv-frame">`
+    srcdoc for a byte-compare against the SAME golden `capture_entry` (the
+    preview/index.html path) produces it for.
+
+    DRIVING ROUTE (documented per the WP-3.4 brief's "how you drive the UI"
+    obligation): editor/doclist.js's "+ New" form only takes a title and always
+    assigns TODAY's date in the generated `_posts/<yyyy-mm-dd>-<slug>.md` path —
+    there is no UI control that sets an arbitrary `path` and pastes a large
+    Markdown buffer in one atomic step. Rather than fight the UI (paste + a
+    second "Rename path" round-trip, both real controls but slower and no more
+    faithful), this calls the exact same entry points a click would —
+    `app.modules.store.docs.create(...)` (the identical store call
+    doclist.js's New Post form makes, just with an explicit `path`),
+    `app.openDoc(id)` (the exact function doclist's onOpen callback invokes),
+    and `app.setMode('preview')` (the exact function the segmented-control
+    button's click handler invokes) — from `page.evaluate`, via a dynamic
+    `import('/editor/app.js')` that resolves to the SAME module singleton the
+    page's own `<script type="module" src="./app.js">` already instantiated
+    (proven pattern: tests/e2e/test_m2_persistence.py's `_read_store_docs`).
+    Everything downstream of that (mode:changed -> preview.render() -> context
+    build -> renderPost() -> srcdoc write) runs exactly as it would from a real
+    click, per docs/editor-plan.md WP-3.4 wiring.
+    """
+    path = entry["path"]
+    data = _tree_file_bytes(path)
+    if data is None:
+        raise RuntimeError(f"corpus source missing in working tree: {path}")
+    content = data.decode("utf-8")
+
+    context = browser.new_context(locale="en-US", timezone_id="UTC")
+    audit = RouteAudit(record_fixtures)
+    try:
+        page = context.new_page()
+        page.clock.set_fixed_time(FIXED_TIME)
+        install_routes(page, audit)
+        install_editor_extra_routes(page, audit)
+
+        page.goto(f"{base_url}/editor/index.html", wait_until="load", timeout=POLL_TIMEOUT_MS)
+
+        # App booted: doclist.createDocList() has enabled #new-doc (same signal
+        # tests/e2e/conftest.py's _wait_booted uses).
+        page.wait_for_selector("#new-doc:not([disabled])", timeout=POLL_TIMEOUT_MS)
+
+        page.evaluate(
+            """async ({ content, path }) => {
+                const app = await import('/editor/app.js');
+                const rec = await app.modules.store.docs.create({
+                    title: 'Render-regression fixture', path, content,
+                });
+                await app.openDoc(rec.id);
+                app.setMode('preview');
+            }""",
+            {"content": content, "path": path},
+        )
+
+        frame_el = page.locator("#preview-mount iframe.pv-frame")
+        frame_el.wait_for(state="attached", timeout=POLL_TIMEOUT_MS)
         srcdoc = _poll_srcdoc(page, frame_el)
         return srcdoc, audit
     finally:
@@ -353,7 +470,7 @@ def run(args) -> int:
 
     mode = ("record-fixtures" if args.record_fixtures else
             "capture" if args.capture else "check")
-    print(f"mode={mode}  entries={len(corpus)}  repo_root={REPO_ROOT}")
+    print(f"mode={mode}  target={args.target}  entries={len(corpus)}  repo_root={REPO_ROOT}")
 
     if args.record_fixtures or args.capture:
         GOLDEN_DIR.mkdir(parents=True, exist_ok=True)
@@ -363,14 +480,17 @@ def run(args) -> int:
     all_missing_fixtures: set[str] = set()
     all_blocked_hosts: set[str] = set()
     live_requests = 0
+    esm_live_total = 0
+    capture_fn = capture_entry_editor if args.target == "editor" else capture_entry
+    entry_page = "editor/index.html" if args.target == "editor" else "preview/index.html"
 
     with contextlib.ExitStack() as stack:
         if args.url:
             base_url = args.url.rstrip("/")
             print(f"server: using --url {base_url}")
         else:
-            if not (SITE_DIR / "preview" / "index.html").is_file():
-                sys.exit(f"built site missing at {SITE_DIR}/preview/index.html — "
+            if not (SITE_DIR / entry_page).is_file():
+                sys.exit(f"built site missing at {SITE_DIR}/{entry_page} — "
                          f"run `bundle exec jekyll build` first")
             base_url = stack.enter_context(serve_site(SITE_DIR))
             print(f"server: serving {SITE_DIR} at {base_url}")
@@ -384,8 +504,8 @@ def run(args) -> int:
         for entry in corpus:
             slug = entry["slug"]
             try:
-                srcdoc, audit = capture_entry(browser, base_url, entry,
-                                              args.record_fixtures)
+                srcdoc, audit = capture_fn(browser, base_url, entry,
+                                           args.record_fixtures)
             except Exception as exc:  # report per entry, continue
                 print(f"  [ERROR] {slug}: {exc}")
                 failures.append(slug)
@@ -394,6 +514,7 @@ def run(args) -> int:
             all_missing_fixtures.update(audit.missing_fixtures)
             all_blocked_hosts.update(audit.blocked_hosts)
             live_requests += audit.live_request_count()
+            esm_live_total += audit.esm_live
 
             data = srcdoc.encode("utf-8")
             gp = golden_path(slug)
@@ -425,6 +546,10 @@ def run(args) -> int:
     if all_blocked_hosts:
         print(f"\nroute audit: blocked external hosts (aborted, never contacted): "
               f"{', '.join(sorted(all_blocked_hosts))}")
+    if esm_live_total:
+        print(f"\nnote: {esm_live_total} live esm.sh request(s) — --target editor's "
+              f"documented, tracked exception (editor app-shell module graph, not a "
+              f"render-pipeline input); excluded from the hermeticity check below.")
     exit_code = 0
     if live_requests and not args.record_fixtures:
         print(f"\n[HERMETIC FAIL] {live_requests} request(s) reached the live internet")
@@ -443,8 +568,12 @@ def run(args) -> int:
     if exit_code == 0:
         outcome = ("recorded" if args.record_fixtures else
                    "captured" if args.capture else "match golden")
-        net = (f"{live_requests} live fixture request(s)" if args.record_fixtures
-               else "zero live network")
+        if args.record_fixtures:
+            net = f"{live_requests} live fixture request(s)"
+        elif esm_live_total:
+            net = f"zero render-pipeline live network ({esm_live_total} esm.sh module request(s))"
+        else:
+            net = "zero live network"
         print(f"\nOK — {len(corpus)} entr{'y' if len(corpus)==1 else 'ies'} "
               f"{outcome}, {net}.")
     return exit_code
@@ -484,7 +613,12 @@ def main(argv=None):
     g.add_argument("--record-fixtures", action="store_true",
                    help="one-time: let cdn.jsdelivr.net through, save fixtures + goldens")
     p.add_argument("--only", metavar="SLUG",
-                   help="restrict to corpus slug(s) (comma-separated)")
+                   help="restrict to corpus slug(s) (comma-separated); --target editor "
+                        "defaults to 'monument-valley' when omitted")
+    p.add_argument("--target", choices=["preview", "editor"], default="preview",
+                   help="preview (default): drive preview/index.html (the M1 gate). "
+                        "editor: drive editor/index.html's real UI (the M3 fidelity "
+                        "proof — WP-3.4); --check only.")
     p.add_argument("--url", metavar="ORIGIN",
                    help="use an already-running server instead of serving _site")
     p.add_argument("--executable-path", metavar="PATH",
@@ -492,6 +626,12 @@ def main(argv=None):
     args = p.parse_args(argv)
     if not (args.capture or args.record_fixtures):
         args.check = True
+    if args.target == "editor":
+        if args.capture or args.record_fixtures:
+            sys.exit("--target editor only supports --check — the golden is a fixed "
+                     "M1 artifact this harness must never write from the editor path.")
+        if not args.only:
+            args.only = "monument-valley"
     return run(args)
 
 
