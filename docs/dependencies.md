@@ -94,6 +94,7 @@ that must be mapped for the graph to be closed.
 | @marijn/find-cluster-break | 1.0.3 | Grapheme cluster breaks used by @codemirror/state (transitive leaf) |
 | idb | 8.0.3 | IndexedDB promise wrapper for editor/store.js (FR-DOC.1) |
 | js-yaml | 4.1.0 | YAML parsing for editor/context.js (`_config.yml`, `_data/locales/*`, `_data/origin/default.yml`) — WP-3.2 |
+| diff | 9.0.0 | jsdiff `diffLines` for editor/conflict.js's side-by-side conflict diff (FR-GH.4) — WP-5.2; zero runtime dependencies of its own |
 
 ## Live web services (runtime data, not code)
 
