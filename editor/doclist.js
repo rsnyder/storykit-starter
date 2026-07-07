@@ -251,8 +251,11 @@ export function deriveSyncStatus(doc) {
   const gh = doc && doc.github;
   if (gh == null) return 'local';
   if (gh.remoteChanged === true) return 'remote-changed';
+  // Bound but never committed (sync.js leaves syncedAt null until the first
+  // successful commit): there IS local work the remote doesn't have.
+  if (!gh.syncedAt) return 'local-changes';
   const updatedAt = doc && doc.updatedAt ? Date.parse(doc.updatedAt) : NaN;
-  const syncedAt = gh.syncedAt ? Date.parse(gh.syncedAt) : NaN;
+  const syncedAt = Date.parse(gh.syncedAt);
   if (Number.isFinite(updatedAt) && Number.isFinite(syncedAt) && updatedAt > syncedAt) {
     return 'local-changes';
   }
