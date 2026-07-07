@@ -318,7 +318,7 @@ def test_link_entity_darwin_resolves_to_q1035_in_at_most_3_interactions(browser,
             # "Charles Darwin" occupies exactly the first 14 characters.
             _new_empty_doc(page, "Darwin entity")
             page.keyboard.type("Charles Darwin was a naturalist.")
-            page.keyboard.press("Meta+Home")
+            page.keyboard.press("ControlOrMeta+Home")
             page.keyboard.down("Shift")
             for _ in range(len("Charles Darwin")):
                 page.keyboard.press("ArrowRight")
@@ -327,7 +327,7 @@ def test_link_entity_darwin_resolves_to_q1035_in_at_most_3_interactions(browser,
             interactions = 0
 
             # Interaction 1: invoke the Link Entity command (⌘⇧K).
-            page.keyboard.press("Meta+Shift+k")
+            page.keyboard.press("ControlOrMeta+Shift+k")
             interactions += 1
 
             popup = page.locator(".sk-wd-popup")
@@ -415,7 +415,7 @@ def test_offline_wikidata_shows_notice_and_manual_qid_still_inserts(browser, sit
             _boot_editor(page, base_url)
 
             _new_empty_doc(page, "Offline entity")
-            page.keyboard.press("Meta+Shift+k")
+            page.keyboard.press("ControlOrMeta+Shift+k")
 
             popup = page.locator(".sk-wd-popup")
             popup.wait_for(state="visible", timeout=5000)
