@@ -43,6 +43,8 @@ Owns pipeline steps 4–5 and 7–10 of the current `preview/index.html` `render
 
 Critical constraint (verified in exploration): Liquid includes resolve **lazily during template expansion** (`include` tag → `renderInclude` → fetch, `preview/index.html:743–784`), and includes nest (`embed/_iframe.html`). `resolveFile` must therefore be async and callable mid-render; the `layouts`/`includes` maps are optional cache layers only.
 
+**Caller obligation (WP-3.3 finding):** `skrender.js` calls `window.markdownit(...)` at module-evaluation time — consumers must ensure the classic-script globals exist BEFORE the module is imported (dynamic `import()` after script injection; a static top-level import crashes).
+
 **As-built notes (WP-1.2, authoritative for WP-3.2/2.6):** layout-chain walking lives inside skrender via `resolveFile('_layouts/<name>.html')` (max depth 8, `compress` skipped); `resolveFile` returns `null` on miss (never throws); the host page must load the classic-script globals `window.liquidjs`, `window.markdownit` (+ optional footnote/sub/sup plugins), `window.jsyaml` before importing the module; `parseFrontMatter` returns `{frontMatter, body, fmEndLine}`; a final `info`-level `layout` diagnostic carries the applied layout-chain summary.
 
 ### 1.2 Editor modules
