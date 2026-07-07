@@ -20,6 +20,30 @@
  *   - durable storage is requested on boot (FR-DOC.8), with a non-blocking
  *     notice when the browser declines.
  *
+ * WP-4.3 (M4 integration) wires drag/drop tag insertion and Wikidata entity
+ * linking in:
+ *   - `dnd.dndExtension({ onNotice })` is spliced into `buildExtraExtensions()`
+ *     — `onNotice` routes dnd.js's degrade/fallback notices onto the shared
+ *     `toast` bus event (its `{ message, level: 'warning' }` payload shape
+ *     already matches doclist.js/app.js's existing toast consumers, so no
+ *     translation is needed);
+ *   - `wikidata.createEntityResolver()` is created ONCE at module-evaluation
+ *     time (below, well before `init()` runs) and its `resolver` is registered
+ *     into lang-storykit's synchronous QID-decoration hook via
+ *     `storykit.setEntityResolver(resolver)` — this must happen before any
+ *     editor mounts, which module-level placement guarantees; `prime(view)`
+ *     is then called once per (re)created CM6 view from `mountEditor()`
+ *     itself (covering both the `openDoc` and `rethemeEditor` paths for
+ *     free), per the "one call per view is enough" contract in wikidata.js's
+ *     header;
+ *   - `wikidata.qidHoverExtension()` is spliced into `buildExtraExtensions()`
+ *     for the `[text](Qnnnn)` hover cards (FR-WD.3);
+ *   - `linkEntityCommand` is bound to Mod-Shift-k (⌘⇧K) via a `keymap.of([...])`
+ *     entry in `buildExtraExtensions()` (FR-WD.1) — no conflict with
+ *     commands.js's Mod-k (`insertLink`); a small "Link entity" icon button
+ *     is also added to the top bar next to the mode segmented control (spec
+ *     §7 permits a plain, token-styled button ahead of M6's full toolbar).
+ *
  * WP-3.4 (M3 integration) wires the preview pane in:
  *   - `preview.createPreviewPane({ mount: #preview-mount })` is created once
  *     at boot (test seams omitted — this is the real app);
@@ -51,7 +75,7 @@
  */
 
 // ── CodeMirror 6 (single-instance assertion + extraExtensions helpers) ──────
-import { EditorState, StateField } from '@codemirror/state';
+import { EditorState, StateField, Prec } from '@codemirror/state';
 import { keymap, lineNumbers, highlightActiveLine } from '@codemirror/view';
 import {
   defaultKeymap, history, historyKeymap, historyField,
@@ -293,9 +317,21 @@ let editorHandle = null;
 /** @type {ReturnType<typeof store.createAutosaver>|null} */
 let currentAutosaver = null;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Wikidata entity resolver (WP-4.3). Created once at module-evaluation time —
+// well before init()/mountEditor() ever run — and registered into
+// lang-storykit's synchronous QID-decoration hook. `primeEntityResolver(view)`
+// is called from mountEditor() below for every (re)created CM6 view; queued
+// qids from later decoration passes auto-flush via microtask against that
+// same remembered view (see wikidata.js's createEntityResolver header note).
+// ─────────────────────────────────────────────────────────────────────────────
+const { resolver: entityResolver, prime: primeEntityResolver } = wikidata.createEntityResolver();
+langStorykit.storykit.setEntityResolver(entityResolver);
+
 /**
  * The extensions createEditor splices in LAST — StoryKit highlight/complete/
- * lint plus the autocomplete plugin lang-storykit's completion source needs.
+ * lint plus the autocomplete plugin lang-storykit's completion source needs,
+ * plus the WP-4.1/4.2 drag-drop and Wikidata extensions.
  *
  * lang-storykit registers its completion source via EditorState.languageData
  * (so it composes with lang-markdown's own completions), which requires the
@@ -304,15 +340,29 @@ let currentAutosaver = null;
  * here (the extraExtensions route) rather than editing editor.js. completionKeymap
  * makes the popup navigable/acceptable.
  *
+ * `dnd.dndExtension({ onNotice })` deliberately omits its own drop cursor —
+ * editor.js's base extension set already includes CM6's dropCursor()
+ * unconditionally (see dnd.js's module header).
+ *
+ * The Mod-Shift-k binding is wrapped in `Prec.highest` — @codemirror/commands'
+ * `defaultKeymap` (spliced into editor.js's BASE keymap, ahead of
+ * extraExtensions in the extension list) already binds bare `Shift-Mod-k` to
+ * `deleteLine`. Without an explicit higher precedence that base binding wins
+ * the CM6 keymap facet's provider-order tie-break and `linkEntityCommand`
+ * never fires (verified empirically: the unprefixed binding silently deleted
+ * the current line instead of opening the popup).
+ *
  * getIncludeList / getDocViewerIds are intentionally left undefined — repo
- * binding that would populate them arrives in M3 (context.js); setEntityResolver
- * is WP-4.2's job, not called here.
+ * binding that would populate them arrives in M3 (context.js).
  */
 function buildExtraExtensions() {
   return [
     autocompletion(),
     keymap.of(completionKeymap),
     langStorykit.storykit({ catalog }),
+    dnd.dndExtension({ onNotice: (n) => emit('toast', n) }),
+    wikidata.qidHoverExtension(),
+    Prec.highest(keymap.of([{ key: 'Mod-Shift-k', run: wikidata.linkEntityCommand, preventDefault: true }])),
   ];
 }
 
@@ -339,6 +389,9 @@ function mountEditor(content) {
     initialContent: content ?? '',
     extraExtensions: buildExtraExtensions(),
   });
+  // WP-4.3: one prime() call per (re)created view is enough — later queued
+  // qids auto-flush against this same view via microtask (wikidata.js).
+  if (editorHandle) primeEntityResolver(editorHandle.view);
   return editorHandle;
 }
 
@@ -728,6 +781,11 @@ function wireControls() {
   }
   document.getElementById('sidebar-toggle')?.addEventListener('click', toggleSidebar);
   document.getElementById('theme-toggle')?.addEventListener('click', cycleTheme);
+
+  // WP-4.3: top-bar "Link entity" affordance (FR-WD.1) — mirrors ⌘⇧K.
+  document.getElementById('link-entity-btn')?.addEventListener('click', () => {
+    if (editorHandle) wikidata.linkEntityCommand(editorHandle.view);
+  });
 
   // ⌘E / Ctrl-E cycles Edit → Split → Preview (spec FR-PRE.1).
   window.addEventListener('keydown', (e) => {
