@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft for review |
+| **Status** | Implemented (M1–M6 complete; M6 audit results in [`editor-plan.md`](editor-plan.md) §7) |
 | **Date** | 2026-07-06 |
 | **Component** | `editor/` (new top-level page, sibling of `preview/`) |
 | **Related docs** | `preview/index.html` (client-side renderer), `docs/postmessage-protocol.md`, `docs/dependencies.md` |

@@ -13,6 +13,10 @@ invariants that keep that safe, and is wired into CI by WP-1.3:
       EXACTLY ONE version across every URL in the map, including any versions
       embedded in `?deps=`/`?external=` query params. Two versions of either
       silently breaks every CodeMirror 6 extension.
+  (d) PRELOAD HINTS MATCH — every esm.sh `<link rel="modulepreload">` hint
+      (WP-6.3 §6.1 decision) points at exactly an import-map URL, and every
+      import-map URL has a hint. A version bump that updates one but not the
+      other would silently preload a dead URL (wasted fetch) or drop a hint.
 
 Stdlib only (the dev machine has no Node.js). Exits 0 when clean, 1 with
 specific messages on any violation.
@@ -167,6 +171,26 @@ def main() -> int:
         errors.append(
             f"{pkg}: registered in docs/dependencies.md but not present as an exact "
             f"pin in the import map (stale entry?)"
+        )
+
+    # (d) modulepreload hints ↔ import map (bidirectional).
+    html = INDEX_HTML.read_text()
+    hint_urls = set(
+        re.findall(
+            r'<link\s+rel=["\']modulepreload["\']\s+href=["\'](https://esm\.sh/[^"\']+)["\']',
+            html,
+        )
+    )
+    map_urls = {url for url in imports.values() if isinstance(url, str)}
+    for url in sorted(hint_urls - map_urls):
+        errors.append(
+            f"modulepreload hint {url} does not match any import-map URL "
+            f"(stale hint after a version bump?)"
+        )
+    for url in sorted(map_urls - hint_urls):
+        errors.append(
+            f"import-map URL {url} has no <link rel=\"modulepreload\"> hint "
+            f"(add one — see the hints block in editor/index.html)"
         )
 
     # (c) single-instance invariant for the shared graph roots.

@@ -69,6 +69,65 @@
   }
 }
 </script>
+
+<!--
+  MODULEPRELOAD HINTS (WP-6.3 §6.1 bundle decision — see docs/editor-plan.md §7)
+  Without hints the boot graph is discovered serially: parse app.js → fetch the
+  16 local modules → parse those → fetch the 27 esm.sh wrapper modules → parse
+  those → fetch the real payload modules. Each level is a network round trip;
+  on a Fast-3G profile that measured 6.0 s cold. Preloading BOTH statically
+  known levels (every local boot module + every import-map wrapper URL) lets
+  the browser start them all at HTML-parse time. The esm.sh second-level
+  payload URLs (/v135/…) are deliberately NOT pinned here — they are an esm.sh
+  build artifact that changes without the version changing.
+  MUST mirror the import map above (tools/check_editor_pins.py cross-checks)
+  and app.js's static import list.
+-->
+<link rel="modulepreload" href="./app.js" />
+<link rel="modulepreload" href="./store.js" />
+<link rel="modulepreload" href="./editor.js" />
+<link rel="modulepreload" href="./commands.js" />
+<link rel="modulepreload" href="./lang-storykit.js" />
+<link rel="modulepreload" href="./doclist.js" />
+<link rel="modulepreload" href="./preview.js" />
+<link rel="modulepreload" href="./statusbar.js" />
+<link rel="modulepreload" href="./github.js" />
+<link rel="modulepreload" href="./context.js" />
+<link rel="modulepreload" href="./wikidata.js" />
+<link rel="modulepreload" href="./dnd.js" />
+<link rel="modulepreload" href="./sync.js" />
+<link rel="modulepreload" href="./conflict.js" />
+<link rel="modulepreload" href="./viewer-catalog.js" />
+<link rel="modulepreload" href="./palette.js" />
+<link rel="modulepreload" href="./toolbar.js" />
+<link rel="modulepreload" href="./url-grammars.js" />
+<link rel="modulepreload" href="https://esm.sh/@codemirror/state@6.7.1?external=*" />
+<link rel="modulepreload" href="https://esm.sh/@codemirror/view@6.43.6?external=*" />
+<link rel="modulepreload" href="https://esm.sh/@codemirror/language@6.12.4?external=*" />
+<link rel="modulepreload" href="https://esm.sh/@codemirror/commands@6.10.4?external=*" />
+<link rel="modulepreload" href="https://esm.sh/@codemirror/search@6.7.1?external=*" />
+<link rel="modulepreload" href="https://esm.sh/@codemirror/autocomplete@6.20.3?external=*" />
+<link rel="modulepreload" href="https://esm.sh/@codemirror/lint@6.9.7?external=*" />
+<link rel="modulepreload" href="https://esm.sh/@codemirror/lang-markdown@6.5.0?external=*" />
+<link rel="modulepreload" href="https://esm.sh/@codemirror/lang-yaml@6.1.3?external=*" />
+<link rel="modulepreload" href="https://esm.sh/@codemirror/lang-html@6.4.11?external=*" />
+<link rel="modulepreload" href="https://esm.sh/@codemirror/lang-css@6.3.1?external=*" />
+<link rel="modulepreload" href="https://esm.sh/@codemirror/lang-javascript@6.2.5?external=*" />
+<link rel="modulepreload" href="https://esm.sh/@lezer/common@1.5.2?external=*" />
+<link rel="modulepreload" href="https://esm.sh/@lezer/highlight@1.2.3?external=*" />
+<link rel="modulepreload" href="https://esm.sh/@lezer/lr@1.4.10?external=*" />
+<link rel="modulepreload" href="https://esm.sh/@lezer/markdown@1.6.4?external=*" />
+<link rel="modulepreload" href="https://esm.sh/@lezer/html@1.3.13?external=*" />
+<link rel="modulepreload" href="https://esm.sh/@lezer/css@1.3.4?external=*" />
+<link rel="modulepreload" href="https://esm.sh/@lezer/javascript@1.5.4?external=*" />
+<link rel="modulepreload" href="https://esm.sh/@lezer/yaml@1.0.4?external=*" />
+<link rel="modulepreload" href="https://esm.sh/style-mod@4.1.3?external=*" />
+<link rel="modulepreload" href="https://esm.sh/w3c-keyname@2.2.8?external=*" />
+<link rel="modulepreload" href="https://esm.sh/crelt@1.0.7?external=*" />
+<link rel="modulepreload" href="https://esm.sh/@marijn/find-cluster-break@1.0.3?external=*" />
+<link rel="modulepreload" href="https://esm.sh/idb@8.0.3?external=*" />
+<link rel="modulepreload" href="https://esm.sh/js-yaml@4.1.0?external=*" />
+<link rel="modulepreload" href="https://esm.sh/diff@9.0.0?external=*" />
 </head>
 
 <body data-mode="edit">
@@ -145,7 +204,11 @@
     <div id="toolbar-mount" class="editor-toolbar" role="toolbar" aria-label="Formatting"></div>
 
     <div class="editor-panes">
-      <div id="editor-mount" class="editor-mount" role="textbox" aria-label="Markdown editor" aria-multiline="true">
+      <!-- Plain container: CM6 renders the REAL textbox (role="textbox"
+           .cm-content, named via EditorView.contentAttributes in
+           editor.js). A textbox role here would nest textboxes —
+           flagged by the WP-6.3 axe audit. -->
+      <div id="editor-mount" class="editor-mount">
         <!-- Skeleton shown until CM6 mounts (no layout shift). -->
         <div class="skeleton" aria-hidden="true">
           <div class="skeleton-line w-40"></div>

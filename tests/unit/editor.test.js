@@ -227,6 +227,20 @@ describe('createEditor(): smoke test', () => {
     }
   });
 
+  it('names the contenteditable textbox for assistive tech (WP-6.3 axe fix)', () => {
+    // CM6's .cm-content carries role="textbox"; without an accessible name
+    // axe flags aria-input-field-name (WCAG 4.1.2) on every surface. The
+    // name is supplied via EditorView.contentAttributes in createEditor.
+    const parent = document.createElement('div');
+    const ed = createEditor({ parent, initialContent: 'x' });
+    try {
+      assert.equal(ed.view.contentDOM.getAttribute('aria-label'), 'Markdown editor');
+      assert.equal(ed.view.contentDOM.getAttribute('role'), 'textbox');
+    } finally {
+      ed.destroy();
+    }
+  });
+
   it('getContent/setContent round-trip', () => {
     const parent = document.createElement('div');
     const ed = createEditor({ parent, initialContent: 'one' });

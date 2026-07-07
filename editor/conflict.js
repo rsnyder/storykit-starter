@@ -143,7 +143,7 @@ function ensureStyles() {
 .sk-conflict-action-primary:hover { background: var(--sk-accent-hover, #00408a); }
 .sk-conflict-action-ghost { background: transparent; }
 .sk-conflict-action-ghost[aria-expanded="true"] { background: var(--sk-selection, rgba(9, 105, 218, .14)); }
-.sk-conflict-hint { margin: var(--sk-space-1, 8px) 0 0; color: var(--sk-text-faint, #6e7781); font-size: var(--sk-fs-xs, 12px); }
+.sk-conflict-hint { margin: var(--sk-space-1, 8px) 0 0; color: var(--sk-text-faint, #656d76); font-size: var(--sk-fs-xs, 12px); }
 .sk-conflict-diff {
   margin-top: var(--sk-space-2, 16px); border-top: 1px solid var(--sk-border, #d8dee4);
   padding-top: var(--sk-space-2, 16px); min-height: 0; display: flex; flex-direction: column; flex: 1 1 auto;
@@ -161,7 +161,7 @@ function ensureStyles() {
   white-space: pre;
 }
 .sk-conflict-linenum {
-  flex: 0 0 auto; width: 40px; text-align: right; padding: 0 8px; color: var(--sk-text-faint, #6e7781);
+  flex: 0 0 auto; width: 40px; text-align: right; padding: 0 8px; color: var(--sk-text-faint, #656d76);
   user-select: none; background: var(--sk-bg-sunken, #f6f8fa);
 }
 .sk-conflict-linecode { flex: 1 1 auto; padding: 0 8px; }
@@ -170,7 +170,14 @@ function ensureStyles() {
 .sk-diff-changed-old { background: color-mix(in srgb, var(--sk-warning, #9a6700) 18%, transparent); }
 .sk-diff-changed-new { background: color-mix(in srgb, var(--sk-warning, #9a6700) 18%, transparent); }
 .sk-diff-empty .sk-conflict-linecode { background: var(--sk-skeleton-a, #eaeef2); }
-.sk-conflict-diff-empty-msg { padding: var(--sk-space-2, 16px); color: var(--sk-text-faint, #6e7781); }
+.sk-conflict-diff-empty-msg { padding: var(--sk-space-2, 16px); color: var(--sk-text-faint, #656d76); }
+/* Screen-reader-only status prefix on diff lines ("Added:", "Removed:", …) —
+   replaces the former aria-label (prohibited on role-less divs; WP-6.3 axe
+   finding aria-prohibited-attr). */
+.sk-conflict-sr-status {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
 @media (max-width: 640px) {
   .sk-conflict-diff-panes { flex-direction: column; }
   .sk-conflict-pane { max-height: 200px; }
@@ -281,10 +288,19 @@ function renderPane(rows, side, label) {
       code.textContent = content;
       const cls = classFor(row.type, side);
       if (cls) line.classList.add(cls);
+      // Announce change status via a visually-hidden prefix span rather
+      // than an aria-label: aria-label is PROHIBITED on role-less divs
+      // (axe aria-prohibited-attr, WP-6.3), and real text content is the
+      // more robust way to reach screen readers anyway. The line number
+      // stays aria-hidden (visual affordance only); the code text is real,
+      // readable content.
       const status = statusWordFor(row.type, side);
-      line.setAttribute('aria-label', status ? `${status}: ${content || '(blank line)'}` : (content || '(blank line)'));
-      num.setAttribute('aria-hidden', 'true');
-      code.setAttribute('aria-hidden', 'true');
+      if (status) {
+        const sr = document.createElement('span');
+        sr.className = 'sk-conflict-sr-status';
+        sr.textContent = `${status}: `;
+        line.appendChild(sr);
+      }
     }
 
     line.append(num, code);

@@ -307,6 +307,38 @@ describe('conflict.js: accessibility roles/attributes', () => {
     await assert.rejects(() => p, ConflictCancelled);
   });
 
+  it('diff lines announce status via visually-hidden text, not aria-label (WP-6.3 axe fix)', async () => {
+    // aria-label is PROHIBITED on role-less divs (axe aria-prohibited-attr);
+    // the change status is real (visually hidden) text content instead.
+    const p = resolveConflict({
+      local: 'same\nlocal only\n',
+      remote: 'same\nremote only\n',
+    });
+    const dialog = dialogEl();
+    dialog.querySelector('[data-sk-conflict-action="diff"]').click();
+
+    const lines = [...dialog.querySelectorAll('.sk-conflict-diffline')];
+    assert.ok(lines.length > 0, 'diff lines rendered');
+    for (const line of lines) {
+      assert.equal(line.getAttribute('aria-label'), null,
+        'no diffline carries a (prohibited) aria-label');
+    }
+    const changedOld = dialog.querySelector('.sk-diff-changed-old .sk-conflict-sr-status');
+    const changedNew = dialog.querySelector('.sk-diff-changed-new .sk-conflict-sr-status');
+    assert.ok(changedOld, 'changed local line carries the SR status prefix');
+    assert.ok(changedNew, 'changed remote line carries the SR status prefix');
+    assert.equal(changedOld.textContent, 'Changed, previous version: ');
+    assert.equal(changedNew.textContent, 'Changed, new version: ');
+    // Unchanged lines have no prefix; their code text is readable content.
+    const sameLine = lines.find((l) => !l.className.includes('sk-diff-'));
+    assert.ok(sameLine.querySelector('.sk-conflict-sr-status') === null);
+    assert.equal(sameLine.querySelector('.sk-conflict-linecode').getAttribute('aria-hidden'), null,
+      'code text is no longer aria-hidden');
+
+    dialog.querySelector('.sk-conflict-close').click();
+    await assert.rejects(() => p, ConflictCancelled);
+  });
+
   it('diff panes stay scroll-synced', async () => {
     const local = Array.from({ length: 40 }, (_, i) => `local line ${i}`).join('\n') + '\n';
     const remote = Array.from({ length: 40 }, (_, i) => `remote line ${i}`).join('\n') + '\n';

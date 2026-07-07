@@ -211,3 +211,81 @@ Model tally: 8 Opus (1.1, 1.2, 2.1, 2.4, 2.6, 3.2, 5.1, 6.3) · 17 Sonnet.
 | R-6 | Shared `jekyllPreviewPAT` key: Forget-token affects the preview tool too | Dialog copy states the shared scope (WP-5.1) |
 | R-7 | Cross-origin drags untestable in Playwright | Grammar layer exhaustively unit-tested; handler layer tested with synthetic `DataTransfer`; manual checklist per source site |
 | R-8 | Moving preview logic into an external module changes its deployment shape | `assets/js/*.js` is copied unprocessed by Jekyll (precedent: `storykit.js`); regression runs against built `_site` |
+
+## 7. M6 audit results (WP-6.3, 2026-07-07)
+
+### 7.1 Accessibility (axe-core 4.10.2, WCAG 2.1 A + AA)
+
+Audited via `tests/e2e/test_a11y.py` (axe injected from the vendored
+`tests/e2e/vendor/axe.min.js`; see `docs/dependencies.md`) against six
+surfaces: booted editor + populated doclist, command palette, sync panel,
+conflict dialog, Wikidata popup, 390 px mobile drawer. Scope excludes the
+preview iframe's inner document (Chirpy content, not this product's surface).
+**Final state: zero violations on every surface** (the suite asserts zero of
+any impact, not just serious/critical). Violations found and fixed:
+
+| Finding (axe rule, impact) | Where | Fix |
+|---|---|---|
+| `aria-input-field-name` (serious) — CM6's `.cm-content` textbox had no accessible name | every surface | `EditorView.contentAttributes.of({ 'aria-label': 'Markdown editor' })` in `editor/editor.js`; removed the misleading nested `role="textbox"`/`aria-label` from the `#editor-mount` wrapper div in `editor/index.html` (CM6 renders the real textbox) |
+| `color-contrast` (serious) — `--sk-text-faint` #6e7781 on `--sk-bg-sunken` #f6f8fa = 4.27:1 (`.sidebar-title`, `.dl-path`, `.dl-item-meta`) | editor + doclist, light theme | token darkened to **#656d76** (4.93:1 on sunken, 5.25:1 on white). Dark-theme counterpart pre-emptively lightened #768390 → **#98a2ae** (it measured 3.88:1 on `--sk-surface` and would have failed the same rule in dark mode; now 5.14:1 on `--sk-elevated`, the lightest dark background it sits on). All four token blocks + JS fallback literals updated |
+| `aria-prohibited-attr` (serious) — diff lines carried `aria-label` on role-less `<div>`s | conflict dialog | status is now a visually-hidden `.sk-conflict-sr-status` text prefix ("Added: ", "Removed: ", …) and the code text is real readable content (`editor/conflict.js`); covered by a new unit test |
+
+WP-6.2 handoff items assessed: the flagged `--sk-warning` dark (#daaa3f) badge
+text and `.dl-badge[data-status]` colors all measure ≥ 4.57:1 in both themes —
+no change needed (axe confirms). Toast auto-dismiss vs WCAG 2.2.1: success/
+warning/info toasts auto-dismiss, but they are status notifications duplicated
+by persistent UI state (status-bar badge, doclist badges), error toasts
+persist until dismissed, and every toast has a close button — assessed as
+conforming (2.2.1 non-essential-content exception; no interaction happens
+inside a toast). Mobile filmstrip toolbar scroll affordance: functional via
+touch scroll plus full keyboard reachability through the palette;
+cosmetic-only, no WCAG criterion implicated. One axe needs-review item remains
+(mobile drawer: axe cannot compute contrast for editor text overlapped by the
+open drawer — inherent to overlay drawers, not a defect).
+
+### 7.2 Performance budgets (spec §5.3)
+
+Measured by `tests/e2e/test_perf_budgets.py` (strict spec thresholds enforced
+on local dev runs; CI/container runs get documented tolerant ceilings — 3 s /
+50 ms / 4 s — with the measured number always printed). Local numbers, Apple
+Silicon dev machine, 2026-07-07:
+
+| Budget | Spec | Measured (local) | Verdict |
+|---|---|---|---|
+| First interactive, warm cache | < 1.5 s | **0.29 s** (nav start → `.cm-content` mounted, in-page MutationObserver) | pass, ×5 margin |
+| Keystroke-to-paint p95, 50 KB doc, full decorations | < 16 ms | **8.5 ms** p95 (median 5.0 ms) over 43 real CDP keystrokes | pass, ×2 margin |
+| Edit-to-preview, split, cached context | < 2.5 s incl. ~1 s debounce | **1.32 s** | pass |
+
+### 7.3 Bundle decision (spec §6.1)
+
+Cold-load measurements (hermetic harness, esm.sh live, editor page served
+from `_site`): **78 requests total — 58 esm.sh (736 KB) + 20 local (447 KB)**.
+Boot-to-interactive: 0.52 s cold / 0.31 s warm unthrottled; **6.0 s cold on a
+Fast-3G CDP profile** (1.44 Mbps down, 280 ms latency — worst case, throttle
+applied to all origins).
+
+Decision: **keep buildless, add `<link rel="modulepreload">` hints** for both
+statically-known levels of the boot graph (the 18 local `editor/*.js` boot
+modules + all 27 esm.sh import-map wrapper URLs). After: 0.43 s cold / 0.28 s
+warm / **5.47 s Fast-3G cold** (−9 %). Rationale: the warm-cache spec budget
+was already met ×5 before any change; on Fast-3G the raw ~1.2 MB transfer
+dominates (~4.5 s of pure bandwidth), so a vendored bundle (§6.1 fallback)
+would save request overhead but could not materially beat ~5 s cold on that
+profile — not worth abandoning the no-build discipline. The esm.sh
+second-level payload URLs (`/v135/…`) are deliberately not preloaded (esm.sh
+build artifacts; they change without a version bump). `tools/check_editor_pins.py`
+now enforces hints ↔ import-map bidirectional consistency (check d).
+
+### 7.4 Keyboard operability
+
+`tests/e2e/test_m6_keyboard.py` (spec §3 workflows 1–4, keyboard-only)
+re-verified green after all remediations — 8/8 with `test_m6_visual.py`. No
+keyboard-broken findings from the audit; the WP-6.1 fixes (palette ⌘K, paste
+affordance autofocus, native `<dialog>` focus traps) held.
+
+### 7.5 Ship-it
+
+Editor linked from the site (`_admin/index.md` → Tools section), spec status
+flipped to Implemented. Full verification matrix (unit, e2e local + Linux
+container, render regression both targets, pins/catalog/consistency, Jekyll
+build + htmlproofer) green at merge — see the WP-6.3 handoff notes.

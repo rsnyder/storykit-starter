@@ -32,7 +32,7 @@
   --sk-border-strong: #c2c9d1;
   --sk-text:          #1f2328;
   --sk-text-muted:    #57606a;
-  --sk-text-faint:    #6e7781;
+  --sk-text-faint:    #656d76;   /* ≥4.5:1 on --sk-bg-sunken (WP-6.3 axe fix) */
   --sk-accent:        #0056b2;   /* Chirpy light --link-color */
   --sk-accent-hover:  #00408a;
   --sk-accent-contrast:#ffffff;
@@ -91,7 +91,7 @@
     --sk-border-strong: #444c56;
     --sk-text:          #e6edf3;
     --sk-text-muted:    #adbac7;
-    --sk-text-faint:    #768390;
+    --sk-text-faint:    #98a2ae;   /* ≥4.5:1 on --sk-elevated (WP-6.3 axe fix) */
     --sk-accent:        #8ab4f8;   /* Chirpy dark --link-color */
     --sk-accent-hover:  #a8c7fa;
     --sk-accent-contrast:#0b1220;
@@ -113,7 +113,7 @@
 :root[data-theme='light'] {
   --sk-bg:#ffffff; --sk-bg-sunken:#f6f8fa; --sk-surface:#ffffff; --sk-elevated:#ffffff;
   --sk-border:#d8dee4; --sk-border-strong:#c2c9d1;
-  --sk-text:#1f2328; --sk-text-muted:#57606a; --sk-text-faint:#6e7781;
+  --sk-text:#1f2328; --sk-text-muted:#57606a; --sk-text-faint:#656d76;
   --sk-accent:#0056b2; --sk-accent-hover:#00408a; --sk-accent-contrast:#ffffff;
   --sk-focus:#0969da; --sk-danger:#b3261e; --sk-warning:#9a6700; --sk-success:#0a7d2c;
   --sk-selection:rgba(9,105,218,0.14);
@@ -125,7 +125,7 @@
 :root[data-theme='dark'] {
   --sk-bg:#1b1f24; --sk-bg-sunken:#14171b; --sk-surface:#22272e; --sk-elevated:#2a3038;
   --sk-border:#373e47; --sk-border-strong:#444c56;
-  --sk-text:#e6edf3; --sk-text-muted:#adbac7; --sk-text-faint:#768390;
+  --sk-text:#e6edf3; --sk-text-muted:#adbac7; --sk-text-faint:#98a2ae;
   --sk-accent:#8ab4f8; --sk-accent-hover:#a8c7fa; --sk-accent-contrast:#0b1220;
   --sk-focus:#539bf5; --sk-danger:#f47067; --sk-warning:#daaa3f; --sk-success:#57ab5a;
   --sk-selection:rgba(56,139,253,0.28);

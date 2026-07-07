@@ -96,6 +96,12 @@ that must be mapped for the graph to be closed.
 | js-yaml | 4.1.0 | YAML parsing for editor/context.js (`_config.yml`, `_data/locales/*`, `_data/origin/default.yml`) — WP-3.2 |
 | diff | 9.0.0 | jsdiff `diffLines` for editor/conflict.js's side-by-side conflict diff (FR-GH.4) — WP-5.2; zero runtime dependencies of its own |
 
+## Test-only (vendored, never shipped to the site)
+
+| Dependency | Version | Referenced in | Notes |
+|---|---|---|---|
+| axe-core | 4.10.2 | `tests/e2e/vendor/axe.min.js` (injected by `tests/e2e/test_a11y.py`) | Committed copy — the a11y audit never fetches from a CDN at test time (hermeticity). Bump by replacing the vendored file and updating this row. |
+
 ## Live web services (runtime data, not code)
 
 | Service | Used by | Resilience |
