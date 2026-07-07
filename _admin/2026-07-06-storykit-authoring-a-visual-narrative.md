@@ -794,6 +794,7 @@ markers="37.01056, -110.2425~Monument Valley|36.0544, -112.1401~Grand Canyon"
 | Value | Description |
 |---|---|
 | `OpenStreetMap` | Default. Standard street and place-name map |
+| `OpenTopoMap` | Topographic map with contour lines and terrain shading |
 | `Esri_WorldPhysical` | Physical relief map — well suited to natural features, historical routes, and distribution ranges |
 | `Esri_WorldImagery` | Satellite / aerial imagery |
 | `CartoDB_Positron` | Minimalist light-grey map — good when markers or GeoJSON overlays should stand out against a quiet background |
