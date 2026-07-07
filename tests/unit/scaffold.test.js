@@ -104,8 +104,8 @@ describe('scaffold: stub modules importable with contracted exports', () => {
   }
 
   it('not-implemented stubs throw the WP-x.y marker', async () => {
-    const store = await import('../../editor/store.js');
-    await assert.rejects(() => store.initStore(), /WP-2\.2: not implemented/);
+    // store.js (WP-2.2) and github.js (WP-3.1) are implemented; their marker
+    // assertions were removed at merge time by the integrator.
     const editor = await import('../../editor/editor.js');
     assert.throws(() => editor.createEditor({}), /WP-2\.3: not implemented/);
     const conflict = await import('../../editor/conflict.js');
