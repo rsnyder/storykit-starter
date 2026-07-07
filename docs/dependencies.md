@@ -53,6 +53,47 @@ Shoelace loads an internal lazy module graph, so it is pinned but not SRI'd.
 | js-yaml | 4.3.0 |
 | jekyll-theme-chirpy (via jsDelivr gh) | `CHIRPY_VERSION` — must match `Gemfile.lock`; enforced by `tools/check_consistency.py` |
 
+## Editor (import map)
+
+Pins for the buildless StoryKit editor (`editor/index.html`), loaded from
+esm.sh via the page's import map. Every package is requested with `?external=*`
+so cross-package dependencies become bare specifiers the map resolves to a
+single URL — this guarantees exactly one instance of `@codemirror/state` and
+`@lezer/common` at runtime (risk R-3). Enforced by `tools/check_editor_pins.py`
+(exact pins, registration here, single-instance) and a runtime assertion in
+`editor/app.js`. When bumping any version, update the pin in both places and
+re-run the checker + `tools/run_browser_tests.py`. `@marijn/find-cluster-break`,
+`style-mod`, `w3c-keyname` and `crelt` are transitive leaves of the CM6 graph
+that must be mapped for the graph to be closed.
+
+| Dependency | Version | Purpose |
+|---|---|---|
+| @codemirror/state | 6.7.1 | CM6 core editor state (shared graph root — single-instance) |
+| @codemirror/view | 6.43.6 | CM6 DOM view / rendering |
+| @codemirror/language | 6.12.4 | Language/highlighting/indent infrastructure |
+| @codemirror/commands | 6.10.4 | Editing commands, history, default keymap |
+| @codemirror/search | 6.7.1 | Search/replace panel |
+| @codemirror/autocomplete | 6.20.3 | Completion + bracket closing |
+| @codemirror/lint | 6.9.7 | Diagnostics/gutter for tag linting (FR-EDIT.4) |
+| @codemirror/lang-markdown | 6.5.0 | GFM Markdown language (FR-EDIT.1) |
+| @codemirror/lang-yaml | 6.1.3 | YAML front-matter sub-language (FR-EDIT.1/7) |
+| @codemirror/lang-html | 6.4.11 | Embedded-HTML support pulled in by lang-markdown |
+| @codemirror/lang-css | 6.3.1 | Embedded CSS in Markdown HTML blocks (transitive) |
+| @codemirror/lang-javascript | 6.2.5 | Embedded JS in Markdown HTML blocks (transitive) |
+| @lezer/common | 1.5.2 | Lezer tree core (shared graph root — single-instance) |
+| @lezer/highlight | 1.2.3 | Highlight tag system |
+| @lezer/lr | 1.4.10 | LR parser runtime |
+| @lezer/markdown | 1.6.4 | Markdown parser (lang-markdown) |
+| @lezer/html | 1.3.13 | HTML parser (lang-html) |
+| @lezer/css | 1.3.4 | CSS parser (lang-css) |
+| @lezer/javascript | 1.5.4 | JS parser (lang-javascript) |
+| @lezer/yaml | 1.0.4 | YAML parser (lang-yaml) |
+| style-mod | 4.1.3 | CM6 style injection (transitive leaf) |
+| w3c-keyname | 2.2.8 | CM6 key-name normalisation (transitive leaf) |
+| crelt | 1.0.7 | CM6 tiny DOM helper (transitive leaf) |
+| @marijn/find-cluster-break | 1.0.3 | Grapheme cluster breaks used by @codemirror/state (transitive leaf) |
+| idb | 8.0.3 | IndexedDB promise wrapper for editor/store.js (FR-DOC.1) |
+
 ## Live web services (runtime data, not code)
 
 | Service | Used by | Resilience |

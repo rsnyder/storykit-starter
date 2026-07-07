@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>StoryKit Editor</title>
+<meta name="robots" content="noindex" />
+<link rel="stylesheet" href="./styles.css" />
+
+<!--
+  ══════════════════════════════════════════════════════════════════════════════
+  PINNED IMPORT MAP  (WP-2.1 · docs/editor-plan.md §0.4, §1, risk R-3)
+  ══════════════════════════════════════════════════════════════════════════════
+  Buildless: no bundler, no npm. Every module resolves from esm.sh at an EXACT
+  pinned version. Every pin is registered in docs/dependencies.md and enforced by
+  tools/check_editor_pins.py (also run in CI by WP-1.3).
+
+  SINGLE-INSTANCE STRATEGY (risk R-3 — the thing that must be right)
+  ------------------------------------------------------------------
+  esm.sh's `?external=*` makes a package import ALL of its dependencies as *bare*
+  specifiers (e.g. `import {EditorState} from "@codemirror/state"`) instead of
+  inlining its own private copy. Because every package below is requested with
+  `?external=*`, every cross-package dependency edge becomes a bare specifier that
+  this import map resolves to exactly ONE URL. Therefore exactly one instance of
+  each package — critically @codemirror/state and @lezer/common — is ever loaded,
+  no matter how deep the graph. The map must be CLOSED: every bare specifier that
+  any package can emit has an entry here (the CM6 + Lezer core, the language
+  packages lang-markdown transitively pulls in — html/css/javascript — and the
+  leaf helpers style-mod / w3c-keyname / crelt / @marijn/find-cluster-break).
+
+  editor/app.js additionally runs a runtime single-instance ASSERTION at boot
+  (assertSingleInstance): a cross-package `historyField instanceof StateField`
+  identity check plus a functional EditorState.create() over the whole extension
+  graph. On failure it renders a visible fatal banner instead of a broken editor.
+
+  When bumping a version: update the pin here AND docs/dependencies.md, and re-run
+  tools/check_editor_pins.py + tools/run_browser_tests.py.
+-->
+<script type="importmap">
+{
+  "imports": {
+    "@codemirror/state": "https://esm.sh/@codemirror/state@6.7.1?external=*",
+    "@codemirror/view": "https://esm.sh/@codemirror/view@6.43.6?external=*",
+    "@codemirror/language": "https://esm.sh/@codemirror/language@6.12.4?external=*",
+    "@codemirror/commands": "https://esm.sh/@codemirror/commands@6.10.4?external=*",
+    "@codemirror/search": "https://esm.sh/@codemirror/search@6.7.1?external=*",
+    "@codemirror/autocomplete": "https://esm.sh/@codemirror/autocomplete@6.20.3?external=*",
+    "@codemirror/lint": "https://esm.sh/@codemirror/lint@6.9.7?external=*",
+    "@codemirror/lang-markdown": "https://esm.sh/@codemirror/lang-markdown@6.5.0?external=*",
+    "@codemirror/lang-yaml": "https://esm.sh/@codemirror/lang-yaml@6.1.3?external=*",
+    "@codemirror/lang-html": "https://esm.sh/@codemirror/lang-html@6.4.11?external=*",
+    "@codemirror/lang-css": "https://esm.sh/@codemirror/lang-css@6.3.1?external=*",
+    "@codemirror/lang-javascript": "https://esm.sh/@codemirror/lang-javascript@6.2.5?external=*",
+    "@lezer/common": "https://esm.sh/@lezer/common@1.5.2?external=*",
+    "@lezer/highlight": "https://esm.sh/@lezer/highlight@1.2.3?external=*",
+    "@lezer/lr": "https://esm.sh/@lezer/lr@1.4.10?external=*",
+    "@lezer/markdown": "https://esm.sh/@lezer/markdown@1.6.4?external=*",
+    "@lezer/html": "https://esm.sh/@lezer/html@1.3.13?external=*",
+    "@lezer/css": "https://esm.sh/@lezer/css@1.3.4?external=*",
+    "@lezer/javascript": "https://esm.sh/@lezer/javascript@1.5.4?external=*",
+    "@lezer/yaml": "https://esm.sh/@lezer/yaml@1.0.4?external=*",
+    "style-mod": "https://esm.sh/style-mod@4.1.3?external=*",
+    "w3c-keyname": "https://esm.sh/w3c-keyname@2.2.8?external=*",
+    "crelt": "https://esm.sh/crelt@1.0.7?external=*",
+    "@marijn/find-cluster-break": "https://esm.sh/@marijn/find-cluster-break@1.0.3?external=*",
+    "idb": "https://esm.sh/idb@8.0.3?external=*"
+  }
+}
+</script>
+</head>
+
+<body data-mode="edit">
+<a class="skip-link" href="#editor-mount">Skip to editor</a>
+
+<!-- ── Top bar (spec §7) ─────────────────────────────────────────────────── -->
+<header class="topbar" role="banner">
+  <div class="topbar-left">
+    <button id="sidebar-toggle" class="icon-btn" type="button"
+            aria-label="Toggle document sidebar" aria-expanded="true" aria-controls="sidebar">
+      <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+        <path d="M3 5h14M3 10h14M3 15h14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+      </svg>
+    </button>
+    <span class="brand">StoryKit&nbsp;Editor</span>
+    <button id="doc-title-menu" class="doc-title" type="button" aria-haspopup="menu" aria-disabled="true" disabled>
+      <span class="doc-title-text">Untitled draft</span>
+      <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true">
+        <path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="topbar-right">
+    <div class="segmented" role="group" aria-label="Editor mode">
+      <button class="seg-btn is-active" type="button" data-mode-btn="edit" aria-pressed="true">Edit</button>
+      <button class="seg-btn" type="button" data-mode-btn="split" aria-pressed="false">Split</button>
+      <button class="seg-btn" type="button" data-mode-btn="preview" aria-pressed="false">Preview</button>
+    </div>
+    <button id="theme-toggle" class="icon-btn" type="button" aria-label="Theme: system (click to change)" data-theme-pref="system">
+      <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+        <path d="M10 3a7 7 0 100 14 5 5 0 010-14z" fill="currentColor"/>
+      </svg>
+    </button>
+    <button id="overflow-menu" class="icon-btn" type="button" aria-haspopup="menu" aria-label="More: GitHub, settings, help">
+      <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+        <path d="M10 3.2a1.8 1.8 0 011.66 1.1l.2.5 .55.12a1.8 1.8 0 011.36 1.36l.12.55.5.2a1.8 1.8 0 010 3.32l-.5.2-.12.55a1.8 1.8 0 01-1.36 1.36l-.55.12-.2.5a1.8 1.8 0 01-3.32 0l-.2-.5-.55-.12a1.8 1.8 0 01-1.36-1.36l-.12-.55-.5-.2a1.8 1.8 0 010-3.32l.5-.2.12-.55A1.8 1.8 0 017.59 4.9l.55-.12.2-.5A1.8 1.8 0 0110 3.2zM10 8a2 2 0 100 4 2 2 0 000-4z" fill="currentColor"/>
+      </svg>
+    </button>
+  </div>
+</header>
+
+<!-- ── Body: sidebar + editor (spec §7) ──────────────────────────────────── -->
+<div class="workspace">
+  <!-- Collapsible document sidebar -->
+  <aside id="sidebar" class="sidebar" aria-label="Documents">
+    <div class="sidebar-head">
+      <h2 class="sidebar-title">Documents</h2>
+      <button class="btn btn-primary btn-sm" type="button" id="new-doc" disabled aria-disabled="true">+ New</button>
+    </div>
+    <div id="doclist-mount" class="doclist">
+      <!-- WP-2.5 mounts the live list here. Static empty state until then. -->
+      <div class="empty-state">
+        <p class="empty-title">No local documents yet</p>
+        <p class="empty-hint">Document management arrives in M2 (WP-2.5). Your drafts will live here, stored in your browser.</p>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main editor region -->
+  <main class="editor-region" aria-label="Editor">
+    <div id="editor-mount" class="editor-mount" role="textbox" aria-label="Markdown editor" aria-multiline="true">
+      <!-- Skeleton shown until CM6 mounts (no layout shift). -->
+      <div class="skeleton" aria-hidden="true">
+        <div class="skeleton-line w-40"></div>
+        <div class="skeleton-line w-20"></div>
+        <div class="skeleton-line w-80"></div>
+        <div class="skeleton-line w-70"></div>
+        <div class="skeleton-line w-60"></div>
+        <div class="skeleton-line w-50"></div>
+      </div>
+    </div>
+
+    <!-- Preview pane placeholder (WP-3.3 renders here in Split/Preview) -->
+    <div id="preview-mount" class="preview-mount" aria-label="Preview">
+      <div class="empty-state">
+        <p class="empty-title">Preview arrives in M3</p>
+        <p class="empty-hint">Toggle back to Edit. High-fidelity preview (the same pipeline the published site uses) lands with WP-3.3.</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ── Status bar (spec §7) ──────────────────────────────────────────────── -->
+<footer id="statusbar-mount" class="statusbar" role="contentinfo" aria-label="Status">
+  <div class="status-group status-left">
+    <button class="status-chip" type="button" id="status-binding" aria-disabled="true" disabled title="GitHub binding — connect in M5">
+      <span class="status-dot" data-state="local"></span>
+      Local only
+    </button>
+    <span class="status-sep" aria-hidden="true">·</span>
+    <span class="status-item" id="status-path">no repo path</span>
+  </div>
+  <div class="status-group status-right">
+    <span class="status-item" id="status-lint" title="Lint diagnostics">0 issues</span>
+    <span class="status-sep" aria-hidden="true">·</span>
+    <span class="status-item" id="status-cursor">Ln 1, Col 1</span>
+    <span class="status-sep" aria-hidden="true">·</span>
+    <span class="status-item" id="status-wordcount">0 words</span>
+  </div>
+</footer>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>
