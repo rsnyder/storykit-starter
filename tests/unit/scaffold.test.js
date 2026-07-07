@@ -104,25 +104,32 @@ describe('scaffold: stub modules importable with contracted exports', () => {
   }
 
   it('not-implemented stubs throw the WP-x.y marker', async () => {
-    // store.js (WP-2.2) and github.js (WP-3.1) are implemented; their marker
-    // assertions were removed at merge time by the integrator.
-    const editor = await import('../../editor/editor.js');
-    assert.throws(() => editor.createEditor({}), /WP-2\.3: not implemented/);
+    // store.js (WP-2.2), github.js (WP-3.1), and editor.js/commands.js
+    // (WP-2.3) are implemented; their marker assertions were removed at
+    // merge time by the integrator.
     const conflict = await import('../../editor/conflict.js');
     await assert.rejects(() => conflict.resolveConflict({ local: 'a', remote: 'b' }), /WP-5\.2: not implemented/);
   });
 
   it('inert-default stubs return composable values', async () => {
+    // lang-storykit.js is implemented (WP-2.4), but storykit() without a
+    // catalog intentionally stays inert ([]); with a catalog it returns
+    // real extensions. Assert both behaviors.
     const langStorykit = await import('../../editor/lang-storykit.js');
-    assert.deepEqual(langStorykit.storykit({}), [], 'storykit() should return an inert []');
+    const { catalog } = await import('../../editor/viewer-catalog.js');
+    assert.deepEqual(langStorykit.storykit({}), [], 'storykit() without catalog stays inert');
+    assert.ok(langStorykit.storykit({ catalog }).length > 0,
+      'storykit({catalog}) should return a non-empty Extension[]');
     const dnd = await import('../../editor/dnd.js');
     assert.deepEqual(dnd.dndExtension({}), [], 'dndExtension() should return an inert []');
     const wikidata = await import('../../editor/wikidata.js');
     assert.deepEqual(wikidata.qidHoverExtension(), [], 'qidHoverExtension() should return an inert []');
     assert.equal(wikidata.linkEntityCommand(null), false, 'linkEntityCommand stub should return false');
+    // commands.js is implemented (WP-2.3): editorKeymap is now a real,
+    // non-empty KeyBinding[] — assert its implemented shape instead.
     const commands = await import('../../editor/commands.js');
-    assert.ok(Array.isArray(commands.editorKeymap) && commands.editorKeymap.length === 0,
-      'editorKeymap stub should be an empty array');
+    assert.ok(Array.isArray(commands.editorKeymap) && commands.editorKeymap.length > 0,
+      'editorKeymap should be a non-empty KeyBinding[]');
   });
 
   it('GitHubError carries status and kind', async () => {
