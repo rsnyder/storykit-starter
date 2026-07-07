@@ -120,8 +120,11 @@ describe('scaffold: stub modules importable with contracted exports', () => {
     assert.deepEqual(langStorykit.storykit({}), [], 'storykit() without catalog stays inert');
     assert.ok(langStorykit.storykit({ catalog }).length > 0,
       'storykit({catalog}) should return a non-empty Extension[]');
+    // dnd.js is implemented (WP-4.1): dndExtension() now returns real
+    // extensions — assert its implemented shape instead of the inert [].
     const dnd = await import('../../editor/dnd.js');
-    assert.deepEqual(dnd.dndExtension({}), [], 'dndExtension() should return an inert []');
+    assert.ok(Array.isArray(dnd.dndExtension({})) && dnd.dndExtension({}).length > 0,
+      'dndExtension() should return a non-empty Extension[]');
     // wikidata.js is implemented (WP-4.2): qidHoverExtension() now returns a
     // real, non-empty Extension[] (a hoverTooltip source); its marker/inert
     // assertions were removed at merge time by the integrator, matching the
