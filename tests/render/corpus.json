@@ -1,17 +1,70 @@
 {
   "description": "Embed-bearing files driven by tools/render_regression.py (WP-1.1). Payload for each is {o:'rsnyder', r:'storykit-starter', ref:'main', p:<path>}. tags = count of `{% include embed/` occurrences in the source (informational).",
   "entries": [
-    { "slug": "monument-valley",            "path": "_posts/2026-01-10-monument-valley.md",                       "tags": 4 },
-    { "slug": "action-links",               "path": "_admin/2026-02-15-storykit-action-links.md",                 "tags": 2 },
-    { "slug": "formatting-tips",            "path": "_admin/2026-02-15-storykit-formatting-tips.md",              "tags": 3 },
-    { "slug": "iframe-viewer",              "path": "_admin/2026-02-15-storykit-iframe-viewer.md",                "tags": 2 },
-    { "slug": "image-compare-viewer",       "path": "_admin/2026-02-15-storykit-image-compare-viewer.md",         "tags": 7 },
-    { "slug": "image-viewer",               "path": "_admin/2026-02-15-storykit-image-viewer.md",                 "tags": 8 },
-    { "slug": "map-viewer",                 "path": "_admin/2026-02-15-storykit-map-viewer.md",                   "tags": 8 },
-    { "slug": "troubleshooting",            "path": "_admin/2026-02-15-storykit-troubleshooting.md",              "tags": 1 },
-    { "slug": "viewers-overview",           "path": "_admin/2026-02-15-storykit-viewers-overview.md",             "tags": 1 },
-    { "slug": "vis-network-viewer",         "path": "_admin/2026-02-15-storykit-vis-network-viewer.md",           "tags": 2 },
-    { "slug": "youtube-viewer",             "path": "_admin/2026-02-15-storykit-youtube-viewer.md",               "tags": 8 },
-    { "slug": "authoring-a-visual-narrative","path": "_admin/2026-07-06-storykit-authoring-a-visual-narrative.md", "tags": 29 }
+    {
+      "slug": "monument-valley",
+      "path": "_posts/2026-01-10-monument-valley.md",
+      "tags": 4
+    },
+    {
+      "slug": "action-links",
+      "path": "_admin/2026-02-15-storykit-action-links.md",
+      "tags": 2
+    },
+    {
+      "slug": "formatting-tips",
+      "path": "_admin/2026-02-15-storykit-formatting-tips.md",
+      "tags": 3
+    },
+    {
+      "slug": "iframe-viewer",
+      "path": "_admin/2026-02-15-storykit-iframe-viewer.md",
+      "tags": 2
+    },
+    {
+      "slug": "image-compare-viewer",
+      "path": "_admin/2026-02-15-storykit-image-compare-viewer.md",
+      "tags": 7
+    },
+    {
+      "slug": "image-viewer",
+      "path": "_admin/2026-02-15-storykit-image-viewer.md",
+      "tags": 8
+    },
+    {
+      "slug": "map-viewer",
+      "path": "_admin/2026-02-15-storykit-map-viewer.md",
+      "tags": 8
+    },
+    {
+      "slug": "troubleshooting",
+      "path": "_admin/2026-02-15-storykit-troubleshooting.md",
+      "tags": 1
+    },
+    {
+      "slug": "viewers-overview",
+      "path": "_admin/2026-02-15-storykit-viewers-overview.md",
+      "tags": 1
+    },
+    {
+      "slug": "vis-network-viewer",
+      "path": "_admin/2026-02-15-storykit-vis-network-viewer.md",
+      "tags": 2
+    },
+    {
+      "slug": "youtube-viewer",
+      "path": "_admin/2026-02-15-storykit-youtube-viewer.md",
+      "tags": 8
+    },
+    {
+      "slug": "authoring-a-visual-narrative",
+      "path": "_admin/2026-07-06-storykit-authoring-a-visual-narrative.md",
+      "tags": 29
+    },
+    {
+      "slug": "wc-header-fixture",
+      "path": "_admin/2026-07-07-storykit-regression-fixture-wc-header.md",
+      "note": "wc: shorthand in image.path front matter + plain Markdown image (refactor-content.html branch)"
+    }
   ]
 }

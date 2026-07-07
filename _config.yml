@@ -219,6 +219,8 @@ exclude:
   - docs
   - tools
   - tests
+  - venv
+  - .venv-render
   - README.md
   - LICENSE
   - purgecss.js
