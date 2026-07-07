@@ -122,9 +122,13 @@ describe('scaffold: stub modules importable with contracted exports', () => {
       'storykit({catalog}) should return a non-empty Extension[]');
     const dnd = await import('../../editor/dnd.js');
     assert.deepEqual(dnd.dndExtension({}), [], 'dndExtension() should return an inert []');
+    // wikidata.js is implemented (WP-4.2): qidHoverExtension() now returns a
+    // real, non-empty Extension[] (a hoverTooltip source); its marker/inert
+    // assertions were removed at merge time by the integrator, matching the
+    // precedent set above for lang-storykit.js / commands.js.
     const wikidata = await import('../../editor/wikidata.js');
-    assert.deepEqual(wikidata.qidHoverExtension(), [], 'qidHoverExtension() should return an inert []');
-    assert.equal(wikidata.linkEntityCommand(null), false, 'linkEntityCommand stub should return false');
+    assert.ok(Array.isArray(wikidata.qidHoverExtension()) && wikidata.qidHoverExtension().length > 0,
+      'qidHoverExtension() should return a non-empty Extension[]');
     // commands.js is implemented (WP-2.3): editorKeymap is now a real,
     // non-empty KeyBinding[] — assert its implemented shape instead.
     const commands = await import('../../editor/commands.js');
