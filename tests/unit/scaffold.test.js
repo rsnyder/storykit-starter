@@ -103,13 +103,11 @@ describe('scaffold: stub modules importable with contracted exports', () => {
     });
   }
 
-  it('not-implemented stubs throw the WP-x.y marker', async () => {
-    // store.js (WP-2.2), github.js (WP-3.1), and editor.js/commands.js
-    // (WP-2.3) are implemented; their marker assertions were removed at
-    // merge time by the integrator.
-    const conflict = await import('../../editor/conflict.js');
-    await assert.rejects(() => conflict.resolveConflict({ local: 'a', remote: 'b' }), /WP-5\.2: not implemented/);
-  });
+  // The "not-implemented stubs throw the WP-x.y marker" test retired at the
+  // WP-5.2 merge: every scaffold stub is now a real implementation, so the
+  // contract table above (export names/shapes) is the remaining scaffold
+  // guarantee. History: markers were removed one merge at a time by the
+  // integrator as WP-2.2/2.3/3.1/2.4/4.1/4.2/5.2 landed.
 
   it('inert-default stubs return composable values', async () => {
     // lang-storykit.js is implemented (WP-2.4), but storykit() without a
