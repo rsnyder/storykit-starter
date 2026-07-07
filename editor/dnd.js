@@ -181,6 +181,53 @@ function insertTagAttr(view, range, attrName) {
   view.focus();
 }
 
+/**
+ * ── WP-6.1 keyboard-reachability fix (spec §5.4 / FR-DND.7) ───────────────
+ *
+ * PROBLEM FOUND: these widgets' buttons are real, focusable `<button>`
+ * elements, but they live inside CM6's `contentDOM` (a `contenteditable`
+ * region) alongside the base editor keymap's OWN `Tab` binding
+ * (`indentWithTab`, from editor/commands.js's `editorKeymap`) and `Enter`
+ * binding (`insertNewlineContinueMarkup`). CM6 attaches its keymap's keydown
+ * listener to `contentDOM` itself; a keydown fired at a descendant button
+ * bubbles up to that listener same as any other DOM event, so — verified
+ * empirically (see tests/unit/dnd.test.js / tests/e2e/test_m6_keyboard.py)
+ * — pressing Tab or Enter while one of these buttons has focus was
+ * reinterpreted as "indent" / "insert newline in the document" instead of
+ * the button's own default (focus-move / activate) behaviour. Worse: since
+ * CM6 also intercepts bare `Tab` for indent, there was never a way to Tab
+ * FROM the editor content INTO these buttons in the first place — the
+ * keystroke never reached the browser's native tab-order logic.
+ *
+ * FIX: `insulateFromEditorKeymap(btn, { onEscape })` stops EVERY keydown on
+ * the button from propagating up to CM6's contentDOM listener
+ * (`stopPropagation`, never `preventDefault` for ordinary keys) — so the
+ * *browser's own* default handling still runs unimpeded (Tab moves focus
+ * to/from the button in native tab order; Enter/Space activates it), while
+ * CM6 never gets a chance to reinterpret the key as an editor command.
+ * `onEscape` is wired to each widget's existing dismiss semantics.
+ *
+ * The paste-affordance button (FR-DND.7's explicit "keyboard equivalent for
+ * non-pointer users") additionally AUTOFOCUSES ITSELF the moment it appears
+ * — this is what makes it reachable at all without Tab ever working from
+ * inside the (Tab-trapping) editor content; see `PasteAffordanceWidget`
+ * below. The post-insert hint's "Add caption"/"Add id" buttons (FR-DND.5)
+ * get the same propagation fix for when a keyboard user reaches them by
+ * other means (a future affordance, or simply clicking then Tabbing) but do
+ * NOT autofocus — both the drop path and the paste-accept path already call
+ * `view.focus()` right after showing the hint, and stealing that focus back
+ * to a button would fight that existing, intentional behaviour.
+ */
+function insulateFromEditorKeymap(btn, { onEscape } = {}) {
+  btn.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Escape' && typeof onEscape === 'function') {
+      e.preventDefault();
+      onEscape();
+    }
+  });
+}
+
 class TagHintWidget extends WidgetType {
   constructor(from, to) {
     super();
@@ -213,6 +260,12 @@ class TagHintWidget extends WidgetType {
         e.preventDefault();
         e.stopPropagation();
         insertTagAttr(view, { from: this.from, to: this.to }, attrName);
+      });
+      insulateFromEditorKeymap(btn, {
+        onEscape: () => {
+          view.dispatch({ effects: setHint.of(null) });
+          view.focus();
+        },
       });
       return btn;
     };
@@ -350,8 +403,25 @@ class PasteAffordanceWidget extends WidgetType {
       });
       view.focus();
     });
+    insulateFromEditorKeymap(btn, {
+      onEscape: () => {
+        view.dispatch({ effects: clearPaste.of(null) });
+        view.focus();
+      },
+    });
 
     wrap.appendChild(btn);
+
+    // Autofocus: the ONLY way this button is keyboard-reachable at all — see
+    // the "WP-6.1 keyboard-reachability fix" note above `TagHintWidget`.
+    // Real pastes always happen while the editor has keyboard focus, so this
+    // never steals focus from somewhere the author actively put it; CM6
+    // reuses this same widget DOM (via `eq()`) across re-renders that don't
+    // change from/to/tag, so this only fires once per distinct affordance.
+    queueMicrotask(() => {
+      if (btn.isConnected) btn.focus({ preventScroll: true });
+    });
+
     return wrap;
   }
 

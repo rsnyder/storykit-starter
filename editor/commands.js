@@ -6,9 +6,28 @@
  * final WP-2.3 shape; later WPs (palette/toolbar in WP-6.1) may extend it
  * further but should not need to change these signatures.
  *
- * Scope (spec FR-EDIT.6): bold/italic/link (⌘B/⌘I/⌘K), heading-level
- * cycling, list continuation on Enter, tab-indent in lists, undo/redo
- * (handled by history()/historyKeymap in editor.js, not here).
+ * Scope (spec FR-EDIT.6): bold/italic/link, heading-level cycling, list
+ * continuation on Enter, tab-indent in lists, undo/redo (handled by
+ * history()/historyKeymap in editor.js, not here).
+ *
+ * ── WP-6.1 REMAP (⌘K → ⌘⇧L) ─────────────────────────────────────────────
+ * Spec §5.4 gives ⌘K to the command palette ("a ⌘K command palette exposes
+ * all actions with their shortcuts"), but FR-EDIT.6 originally gave ⌘K to
+ * insertLink. Integrator decision (docs/editor-plan.md WP-6.1 brief): the
+ * palette wins ⌘K globally — it is bound at the WINDOW level in app.js
+ * (capture phase, so CM6's own keymap never sees the keystroke — see
+ * app.js's wireControls()) — and insertLink moves to **Mod-Shift-l (⌘⇧L)**
+ * below. Both the old (⌘K) and new (⌘⇧L) muscle memory paths remain
+ * reachable: ⌘⇧L directly, or via the palette ("Insert link") / toolbar
+ * (the link icon button). No Prec.highest wrapper is needed for the new
+ * binding — like Mod-b/Mod-i, it sits in this same `editorKeymap` array,
+ * which editor.js spreads into ONE `keymap.of([...])` call ahead of
+ * `defaultKeymap`. Within a single keymap.of() array, CM6 tries same-key
+ * bindings in array order and stops at the first one whose `run` returns
+ * `true`, so this entry shadows any same-key `defaultKeymap` binding by
+ * array position alone — no `Prec` wrapper needed (that's only required
+ * when two bindings for the same key live in SEPARATE keymap.of() calls,
+ * as with wikidata.js's Mod-Shift-k in app.js's buildExtraExtensions()).
  *
  * All commands are plain CM6 commands: `(view: EditorView) => boolean`.
  * They dispatch a single transaction (multi-range aware via
@@ -99,7 +118,9 @@ export const toggleBold = toggleWrap('**');
 export const toggleItalic = toggleWrap('*');
 
 /**
- * Insert/wrap a Markdown link around the selection (⌘K):
+ * Insert/wrap a Markdown link around the selection (⌘⇧L — see the WP-6.1
+ * remap note at the top of this file; ⌘K now belongs to the command
+ * palette):
  * `[selected text]()` with the cursor left inside the (empty) URL parens,
  * ready to type or paste a URL. Selection is used verbatim as the link
  * text; an empty selection produces `[]()`.
@@ -168,7 +189,10 @@ export function cycleHeading(view) {
 export const editorKeymap = [
   { key: 'Mod-b', run: toggleBold, preventDefault: true },
   { key: 'Mod-i', run: toggleItalic, preventDefault: true },
-  { key: 'Mod-k', run: insertLink, preventDefault: true },
+  // WP-6.1 remap: was 'Mod-k' — ⌘K now belongs to the command palette
+  // (spec §5.4), bound globally at the window level (see app.js). See the
+  // file header's "WP-6.1 REMAP" note for the full rationale.
+  { key: 'Mod-Shift-l', run: insertLink, preventDefault: true },
   { key: 'Enter', run: insertNewlineContinueMarkup },
   { key: 'Backspace', run: deleteMarkupBackward },
   indentWithTab,

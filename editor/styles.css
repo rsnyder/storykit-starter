@@ -328,13 +328,32 @@ body.sidebar-collapsed .sidebar {
 body[data-mode='preview'] .sidebar { flex-basis: 0; opacity: 0; border-right-color: transparent; }
 
 /* ── Editor region ─────────────────────────────────────────────────────── */
+/* WP-6.1: .editor-region is now a COLUMN — the toolbar (#toolbar-mount) on
+   top, and .editor-panes (the former .editor-region row layout, unchanged)
+   holding editor-mount/preview-mount side by side below it. */
 .editor-region {
+  position: relative;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.editor-panes {
   position: relative;
   flex: 1 1 auto;
   display: flex;
   min-width: 0;
   min-height: 0;
 }
+/* WP-6.1: toolbar.js's own component CSS (#sk-toolbar-styles) styles the
+   buttons; this just governs the mount's placement/visibility in the
+   editor-region layout. Hidden in Preview mode — nothing to format there. */
+.editor-toolbar {
+  flex: 0 0 auto;
+  min-height: 38px;
+}
+body[data-mode='preview'] .editor-toolbar { display: none; }
 .editor-mount {
   flex: 1 1 auto;
   min-width: 0;

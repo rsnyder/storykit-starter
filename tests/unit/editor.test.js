@@ -91,7 +91,7 @@ describe('commands: toggleItalic (⌘I)', () => {
   });
 });
 
-describe('commands: insertLink (⌘K)', () => {
+describe('commands: insertLink (⌘⇧L — WP-6.1 remap; ⌘K now opens the command palette)', () => {
   it('wraps the selection as [sel]() with the cursor inside the url', () => {
     const view = mkView('check this out', { anchor: 6, head: 10 }); // "this"
     insertLink(view);
@@ -105,6 +105,13 @@ describe('commands: insertLink (⌘K)', () => {
     const view = mkView('note here', { anchor: 4 });
     insertLink(view);
     assert.equal(view.state.doc.toString(), 'note[]() here');
+  });
+
+  it('editorKeymap binds insertLink to Mod-Shift-l, NOT Mod-k (WP-6.1: ⌘K is now the command palette)', () => {
+    const linkBinding = editorKeymap.find((b) => b.run === insertLink);
+    assert.ok(linkBinding, 'expected an editorKeymap entry running insertLink');
+    assert.equal(linkBinding.key, 'Mod-Shift-l');
+    assert.ok(!editorKeymap.some((b) => b.key === 'Mod-k'), 'Mod-k must be free for the command palette');
   });
 });
 
