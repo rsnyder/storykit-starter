@@ -1,5 +1,5 @@
 /**
- * editor/app.js — StoryKit Editor application shell (WP-2.1 scaffold)
+ * editor/app.js — StoryKit Editor application shell
  *
  * Owns the shared app surface per docs/editor-plan.md §1.2:
  *   - `bus`      : the app-wide EventTarget (event names frozen below)
@@ -7,7 +7,18 @@
  *   - preference persistence in localStorage ('storykit-editor-prefs')
  *   - theme + mode toggles, sidebar collapse
  *   - the single-instance CM6 assertion (risk R-3)
- *   - a working BARE CodeMirror 6 editor (markdown; no StoryKit extension yet)
+ *
+ * WP-2.6 (M2 integration) turns the scaffold into a working product:
+ *   - the editing surface is now editor.js's `createEditor()` (the WP-2.1
+ *     inline "bare editor" path is deleted), with the StoryKit language
+ *     extension (`storykit({ catalog })`) and autocomplete wired in through
+ *     `extraExtensions`;
+ *   - the document lifecycle (store → doclist → autosave → last-open restore)
+ *     runs end to end, so an author's drafts survive browser restarts;
+ *   - the status bar is driven by the `editor:wordcount` / `editor:cursor`
+ *     bus events createEditor emits (createEditor never touches the DOM);
+ *   - durable storage is requested on boot (FR-DOC.8), with a non-blocking
+ *     notice when the browser declines.
  *
  * This file is edited only by WP-2.1 and the integration WPs (2.6, 3.4, 4.3).
  * Feature WPs code against `bus` / `appState` and their own module files.
@@ -17,32 +28,27 @@
  * tools/check_editor_pins.py).
  */
 
-// ── CodeMirror 6 (bare editor + single-instance assertion) ──────────────────
-import { EditorState, StateField, Compartment } from '@codemirror/state';
+// ── CodeMirror 6 (single-instance assertion + extraExtensions helpers) ──────
+import { EditorState, StateField } from '@codemirror/state';
+import { keymap, lineNumbers, highlightActiveLine } from '@codemirror/view';
 import {
-  EditorView, keymap, lineNumbers, highlightActiveLine,
-  highlightActiveLineGutter, drawSelection, dropCursor, rectangularSelection,
-  crosshairCursor, highlightSpecialChars,
-} from '@codemirror/view';
-import {
-  defaultKeymap, history, historyKeymap, historyField, indentWithTab,
+  defaultKeymap, history, historyKeymap, historyField,
 } from '@codemirror/commands';
 import {
-  syntaxHighlighting, defaultHighlightStyle, HighlightStyle, bracketMatching,
-  indentOnInput, foldGutter, foldKeymap,
+  syntaxHighlighting, defaultHighlightStyle, bracketMatching,
 } from '@codemirror/language';
-import { tags as t } from '@lezer/highlight';
 import {
-  closeBrackets, closeBracketsKeymap, autocompletion, completionKeymap,
+  closeBrackets, autocompletion, completionKeymap,
 } from '@codemirror/autocomplete';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
 import { lintKeymap, lintGutter } from '@codemirror/lint';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { yaml } from '@codemirror/lang-yaml';
 
-// ── Editor module surface (imported for skeleton wiring + smoke-test proof) ──
-// These are WP-2.1 stubs today; importing them proves the pinned graph and the
-// frozen contracts load cleanly. They are wired for real by later WPs.
+// ── Editor module surface ───────────────────────────────────────────────────
+// Namespace imports keep the frozen contracts loading cleanly (and give
+// integration a single object to reach the module namespaces through); the
+// modules WP-2.6 wires for real are also reached by name off these namespaces.
 import * as store from './store.js';
 import * as editor from './editor.js';
 import * as commands from './commands.js';
@@ -56,6 +62,7 @@ import * as wikidata from './wikidata.js';
 import * as dnd from './dnd.js';
 import * as sync from './sync.js';
 import * as conflict from './conflict.js';
+import { catalog } from './viewer-catalog.js';
 
 // Keep tree-shakers / linters from flagging the skeleton imports as unused, and
 // give integration WPs a single object to reach the module namespaces through.
@@ -67,6 +74,8 @@ export const modules = {
 // ─────────────────────────────────────────────────────────────────────────────
 // Event bus. Frozen event names (docs/editor-plan.md §1.2):
 //   doc:changed · doc:saved · mode:changed · sync:status · lint:count · toast
+// Editor-local (non-frozen, emitted by editor.js): editor:wordcount ·
+//   editor:cursor.
 // ─────────────────────────────────────────────────────────────────────────────
 export const bus = new EventTarget();
 
@@ -134,19 +143,17 @@ export function applyTheme(theme) {
   rethemeEditor();
 }
 
-/** Rebuild the bare editor so CM syntax colors follow the active theme. */
+/**
+ * Rebuild the editor so CM syntax colors follow the active theme. createEditor
+ * reads the theme at construction time (editor.js resolvedTheme()), so a theme
+ * change means destroy + recreate, preserving the current buffer content. The
+ * active document's autosaver is unaffected — it listens on the shared bus'
+ * `doc:changed`, which any editor instance emits.
+ */
 function rethemeEditor() {
-  if (!bareView) return;
-  const content = bareView.state.doc.toString();
-  const parent = bareView.dom.parentElement;
-  bareView.destroy();
-  bareView = null;
-  if (parent) mountBareEditor(parent, content);
-}
-
-function resolvedTheme() {
-  if (appState.prefs.theme !== 'system') return appState.prefs.theme;
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  if (!editorHandle) return;
+  const content = editorHandle.getContent();
+  mountEditor(content);
 }
 
 /** Cycle system → light → dark → system. */
@@ -256,113 +263,251 @@ export function assertSingleInstance() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Bare CodeMirror 6 editor (WP-2.1 baseline; replaced by editor.js in WP-2.3).
+// Editing surface (editor.js's createEditor) + StoryKit language wiring.
 // ─────────────────────────────────────────────────────────────────────────────
-const WELCOME_DOC = `---
-title: Untitled draft
-date: 2026-07-06
-categories: [ ]
-tags: [ ]
----
 
-# Start writing
-
-This is the **StoryKit Editor** scaffold (WP-2.1). The editing surface is a
-bare CodeMirror 6 instance — Markdown highlighting works, but StoryKit tag
-highlighting, autocomplete, lint, preview, media drops and GitHub sync arrive
-in later work packages.
-
-Drop a StoryKit viewer tag in and it is just text for now:
-
-{% include embed/image.html src="wc:Westgate_Towers_Canterbury.jpg" %}
-`;
-
-// Theme-aware Markdown highlight styles (kept legible on both backgrounds;
-// WP-2.4 replaces this with the full StoryKit token palette).
-function makeHighlightStyle(dark) {
-  const c = dark
-    ? { head: '#8ab4f8', strong: '#e6edf3', link: '#8ab4f8', url: '#7ee787',
-        quote: '#adbac7', list: '#daaa3f', code: '#ff9492', meta: '#768390', mark: '#6e7781' }
-    : { head: '#0b3d91', strong: '#1f2328', link: '#0056b2', url: '#0a7d2c',
-        quote: '#57606a', list: '#9a6700', code: '#b3261e', meta: '#57606a', mark: '#818b98' };
-  return HighlightStyle.define([
-    { tag: [t.heading, t.heading1, t.heading2, t.heading3, t.heading4], color: c.head, fontWeight: '600' },
-    { tag: t.strong, color: c.strong, fontWeight: '700' },
-    { tag: t.emphasis, color: c.strong, fontStyle: 'italic' },
-    { tag: [t.link, t.labelName], color: c.link, textDecoration: 'underline' },
-    { tag: t.url, color: c.url },
-    { tag: t.quote, color: c.quote, fontStyle: 'italic' },
-    { tag: [t.list, t.atom], color: c.list },
-    { tag: [t.monospace, t.literal], color: c.code },
-    { tag: [t.meta, t.comment, t.processingInstruction, t.contentSeparator], color: c.meta },
-    { tag: [t.keyword, t.tagName, t.brace], color: c.head },
-    { tag: t.strikethrough, textDecoration: 'line-through', color: c.mark },
-  ]);
-}
-
-let bareView = null;
+/** @type {ReturnType<typeof editor.createEditor>|null} */
+let editorHandle = null;
+/** @type {ReturnType<typeof store.createAutosaver>|null} */
+let currentAutosaver = null;
 
 /**
- * Mount the bare editor into `parent`.
- * @param {HTMLElement} parent
- * @param {string} [content]
- * @returns {EditorView}
+ * The extensions createEditor splices in LAST — StoryKit highlight/complete/
+ * lint plus the autocomplete plugin lang-storykit's completion source needs.
+ *
+ * lang-storykit registers its completion source via EditorState.languageData
+ * (so it composes with lang-markdown's own completions), which requires the
+ * HOST to provide the @codemirror/autocomplete plugin (WP-2.4 handoff). Base
+ * editor.js does NOT include autocompletion() — per the WP-2.6 brief we add it
+ * here (the extraExtensions route) rather than editing editor.js. completionKeymap
+ * makes the popup navigable/acceptable.
+ *
+ * getIncludeList / getDocViewerIds are intentionally left undefined — repo
+ * binding that would populate them arrives in M3 (context.js); setEntityResolver
+ * is WP-4.2's job, not called here.
  */
-export function mountBareEditor(parent, content = WELCOME_DOC) {
-  const state = EditorState.create({
-    doc: content,
-    extensions: [
-      lineNumbers(),
-      highlightActiveLineGutter(),
-      highlightSpecialChars(),
-      history(),
-      foldGutter(),
-      drawSelection(),
-      dropCursor(),
-      EditorState.allowMultipleSelections.of(true),
-      indentOnInput(),
-      syntaxHighlighting(makeHighlightStyle(resolvedTheme() === 'dark'), { fallback: true }),
-      bracketMatching(),
-      closeBrackets(),
-      autocompletion(),
-      rectangularSelection(),
-      crosshairCursor(),
-      highlightActiveLine(),
-      highlightSelectionMatches(),
-      lintGutter(),
-      keymap.of([
-        ...closeBracketsKeymap,
-        ...defaultKeymap,
-        ...searchKeymap,
-        ...historyKeymap,
-        ...foldKeymap,
-        ...completionKeymap,
-        ...lintKeymap,
-        indentWithTab,
-      ]),
-      markdown({ base: markdownLanguage }),
-      EditorView.lineWrapping,
-      EditorView.updateListener.of((v) => {
-        if (v.docChanged) emit('doc:changed', { content: v.state.doc.toString() });
-        if (v.selectionSet || v.docChanged) updateStatusPlaceholders(v.state);
-      }),
-      EditorView.theme({ '&': { height: '100%' } }, { dark: resolvedTheme() === 'dark' }),
-    ],
-  });
-  bareView = new EditorView({ state, parent });
-  updateStatusPlaceholders(bareView.state);
-  return bareView;
+function buildExtraExtensions() {
+  return [
+    autocompletion(),
+    keymap.of(completionKeymap),
+    langStorykit.storykit({ catalog }),
+  ];
 }
 
-function updateStatusPlaceholders(state) {
-  const text = state.doc.toString();
-  const words = (text.match(/\S+/g) || []).length;
-  const wc = document.getElementById('status-wordcount');
-  if (wc) wc.textContent = `${words.toLocaleString()} words`;
-  const head = state.selection.main.head;
-  const line = state.doc.lineAt(head);
-  const cur = document.getElementById('status-cursor');
-  if (cur) cur.textContent = `Ln ${line.number}, Col ${head - line.from + 1}`;
+function getEditorMount() {
+  return document.getElementById('editor-mount');
+}
+
+/**
+ * (Re)mount the editor into #editor-mount with `content`. Destroys any current
+ * instance first (safe for the theme destroy+recreate and for switching docs).
+ * @param {string} content
+ */
+function mountEditor(content) {
+  const mount = getEditorMount();
+  if (!mount) return null;
+  if (editorHandle) {
+    editorHandle.destroy();
+    editorHandle = null;
+  }
+  mount.classList.remove('is-empty');
+  mount.replaceChildren();
+  editorHandle = editor.createEditor({
+    parent: mount,
+    initialContent: content ?? '',
+    extraExtensions: buildExtraExtensions(),
+  });
+  return editorHandle;
+}
+
+/** Tear the editor down and show the "no document open" placeholder. */
+function showEditorEmptyState() {
+  if (editorHandle) {
+    editorHandle.destroy();
+    editorHandle = null;
+  }
+  const mount = getEditorMount();
+  if (!mount) return;
+  mount.classList.add('is-empty');
+  const wrap = document.createElement('div');
+  wrap.className = 'empty-state';
+  const title = document.createElement('p');
+  title.className = 'empty-title';
+  title.textContent = 'No document open';
+  const hint = document.createElement('p');
+  hint.className = 'empty-hint';
+  hint.textContent = 'Create a new post with “+ New”, or open a draft from the sidebar. '
+    + 'Everything is stored locally in your browser.';
+  wrap.append(title, hint);
+  mount.replaceChildren(wrap);
+  updateDocChrome(null);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Document lifecycle: store → doclist → autosave → last-open restore.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** @type {ReturnType<typeof doclist.createDocList>|null} */
+let docListHandle = null;
+
+/**
+ * Switch the editing surface to `docId`: flush + dispose the outgoing
+ * autosaver, load the record, recreate the editor on its content, mark it
+ * current + remember it in prefs, then attach a fresh autosaver.
+ * @param {string} docId
+ */
+export async function openDoc(docId) {
+  if (currentAutosaver) {
+    try { await currentAutosaver.flush(); } catch { /* best-effort */ }
+    currentAutosaver.dispose();
+    currentAutosaver = null;
+  }
+
+  let record = null;
+  try {
+    record = await store.docs.get(docId);
+  } catch (err) {
+    emit('toast', { message: `Couldn't open document: ${err?.message || err}`, level: 'error' });
+    return;
+  }
+  if (!record) {
+    // Stale lastDocId (e.g. deleted elsewhere) — fall back to the empty state.
+    if (appState.prefs.lastDocId === docId) {
+      appState.prefs.lastDocId = null;
+      savePrefs();
+    }
+    showEditorEmptyState();
+    return;
+  }
+
+  appState.currentDocId = docId;
+  appState.prefs.lastDocId = docId;
+  savePrefs();
+
+  mountEditor(record.content || '');
+  updateDocChrome(record);
+
+  currentAutosaver = store.createAutosaver(docId);
+  editorHandle?.focus();
+}
+
+/** Reflect the open document in the top-bar title and status-bar path. */
+function updateDocChrome(record) {
+  const titleBtn = document.getElementById('doc-title-menu');
+  if (titleBtn) {
+    const span = titleBtn.querySelector('.doc-title-text');
+    if (span) span.textContent = record?.title || 'Untitled draft';
+  }
+  const pathEl = document.getElementById('status-path');
+  if (pathEl) pathEl.textContent = record?.path || 'no repo path';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Status bar (createEditor emits bus events; app writes the DOM).
+// ─────────────────────────────────────────────────────────────────────────────
+function wireStatusBar() {
+  bus.addEventListener('editor:wordcount', (e) => {
+    const el = document.getElementById('status-wordcount');
+    if (el && e.detail) el.textContent = `${(e.detail.words || 0).toLocaleString()} words`;
+  });
+  bus.addEventListener('editor:cursor', (e) => {
+    const el = document.getElementById('status-cursor');
+    if (el && e.detail) el.textContent = `Ln ${e.detail.line}, Col ${e.detail.col}`;
+  });
+  // lint:count is frozen bus vocabulary; nothing emits it in M2, but wiring the
+  // sink now means WP-2.4/5.1 need only dispatch it.
+  bus.addEventListener('lint:count', (e) => {
+    const el = document.getElementById('status-lint');
+    if (el && e.detail) {
+      const n = e.detail.count || 0;
+      el.textContent = `${n} issue${n === 1 ? '' : 's'}`;
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Autosave loop: every debounced doc:changed pushes into the active autosaver.
+// ─────────────────────────────────────────────────────────────────────────────
+function wireAutosave() {
+  bus.addEventListener('doc:changed', (e) => {
+    if (currentAutosaver && e.detail && typeof e.detail.content === 'string') {
+      currentAutosaver.push(e.detail.content);
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Toasts (doclist + app emit `toast` { message, level }).
+// ─────────────────────────────────────────────────────────────────────────────
+function toastRegion() {
+  let region = document.getElementById('toast-region');
+  if (!region) {
+    region = document.createElement('div');
+    region.id = 'toast-region';
+    region.className = 'toast-region';
+    region.setAttribute('aria-live', 'polite');
+    region.setAttribute('role', 'status');
+    document.body.appendChild(region);
+  }
+  return region;
+}
+
+function showToast({ message, level = 'success' } = {}) {
+  if (!message) return;
+  const region = toastRegion();
+  const toast = document.createElement('div');
+  toast.className = `sk-toast sk-toast-${level}`;
+  toast.textContent = message;
+  region.appendChild(toast);
+  setTimeout(() => toast.classList.add('is-leaving'), 3600);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+function wireToasts() {
+  bus.addEventListener('toast', (e) => showToast(e.detail || {}));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Non-blocking notice bar (persistence — FR-DOC.8).
+// ─────────────────────────────────────────────────────────────────────────────
+function showNotice(message) {
+  let notice = document.getElementById('app-notice');
+  if (!notice) {
+    notice = document.createElement('div');
+    notice.id = 'app-notice';
+    notice.className = 'app-notice';
+    notice.setAttribute('role', 'status');
+    const header = document.querySelector('.topbar');
+    if (header && header.parentNode) header.parentNode.insertBefore(notice, header.nextSibling);
+    else document.body.prepend(notice);
+  }
+  notice.replaceChildren();
+  const span = document.createElement('span');
+  span.className = 'app-notice-text';
+  span.textContent = message;
+  const dismiss = document.createElement('button');
+  dismiss.type = 'button';
+  dismiss.className = 'app-notice-dismiss';
+  dismiss.setAttribute('aria-label', 'Dismiss notice');
+  dismiss.textContent = '×';
+  dismiss.addEventListener('click', () => notice.remove());
+  notice.append(span, dismiss);
+}
+
+async function requestPersistenceNotice() {
+  let persisted = false;
+  try {
+    persisted = await store.requestPersistence();
+  } catch {
+    persisted = false;
+  }
+  if (!persisted) {
+    showNotice(
+      'This browser hasn’t granted persistent storage. Your drafts are saved locally, '
+      + 'but the browser may evict them under storage pressure — keep important work '
+      + 'exported or (in M5) synced to GitHub.'
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -387,7 +532,7 @@ export function showFatalBanner(message) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Bootstrap.
 // ─────────────────────────────────────────────────────────────────────────────
-export function init() {
+export async function init() {
   // Theme + mode restored before first paint of interactive state.
   applyTheme(appState.prefs.theme);
   setMode(appState.prefs.mode);
@@ -404,22 +549,63 @@ export function init() {
     return { ok: false };
   }
 
-  const mount = document.getElementById('editor-mount');
+  // Drop the load skeleton before we render anything into the mount.
+  const mount = getEditorMount();
   if (mount) {
-    try {
-      const skeleton = mount.querySelector('.skeleton');
-      if (skeleton) skeleton.remove();
-      mountBareEditor(mount);
-    } catch (error) {
-      showFatalBanner(`CodeMirror failed to initialise: ${error?.message || error}`);
-      console.error('[storykit-editor] editor mount failed', error);
-      return { ok: false };
-    }
+    const skeleton = mount.querySelector('.skeleton');
+    if (skeleton) skeleton.remove();
   }
 
   wireControls();
   wireLifecycle();
-  return { ok: true, view: bareView };
+  wireStatusBar();
+  wireAutosave();
+  wireToasts();
+
+  // Open the local store, then wire the document list against it.
+  try {
+    await store.initStore();
+  } catch (error) {
+    showFatalBanner(`Local storage failed to open: ${error?.message || error}`);
+    console.error('[storykit-editor] initStore failed', error);
+    return { ok: false };
+  }
+
+  const dlMount = document.getElementById('doclist-mount');
+  if (dlMount) {
+    try {
+      docListHandle = doclist.createDocList({
+        mount: dlMount,
+        store: { docs: store.docs },
+        bus,
+        onOpen: (docId) => { openDoc(docId); },
+      });
+    } catch (error) {
+      console.error('[storykit-editor] doclist failed to mount', error);
+    }
+  }
+
+  // Restore the last-open document (FR-DOC.3 "over multiple sessions"); else
+  // show the empty state until the author creates/opens one.
+  let restored = false;
+  const lastId = appState.prefs.lastDocId;
+  if (lastId) {
+    try {
+      const record = await store.docs.get(lastId);
+      if (record) {
+        await openDoc(lastId);
+        restored = true;
+      }
+    } catch (error) {
+      console.warn('[storykit-editor] could not restore last document', error);
+    }
+  }
+  if (!restored) showEditorEmptyState();
+
+  // Request durable storage (non-blocking; FR-DOC.8).
+  requestPersistenceNotice();
+
+  return { ok: true, editor: editorHandle };
 }
 
 function wireControls() {
