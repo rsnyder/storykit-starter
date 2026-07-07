@@ -240,8 +240,41 @@ export function setMode(mode) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Sidebar collapse.
+// Sidebar collapse (desktop) / overlay drawer (≤820px — WP-6.2 §5.5 "toolbar
+// [and sidebar] collapses"). Two independent DOM states share one toggle
+// button and one keyboard affordance:
+//   - wide viewports: `body.sidebar-collapsed` — persisted in prefs, pushes
+//     the editor pane wider (styles.css's unconditional `.sidebar` flex rule).
+//   - narrow viewports (≤820px, matches styles.css's own breakpoint):
+//     `body.sidebar-open` — an ephemeral (NOT persisted — it's a transient
+//     drawer, not a durable layout choice) overlay with a click-to-dismiss
+//     scrim (`#sidebar-scrim`, created lazily) and Esc-to-close.
 // ─────────────────────────────────────────────────────────────────────────────
+const NARROW_QUERY = '(max-width: 820px)';
+
+function isNarrowViewport() {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    && window.matchMedia(NARROW_QUERY).matches;
+}
+
+function ensureSidebarScrim() {
+  let scrim = document.getElementById('sidebar-scrim');
+  if (!scrim) {
+    scrim = document.createElement('div');
+    scrim.id = 'sidebar-scrim';
+    scrim.setAttribute('aria-hidden', 'true');
+    scrim.addEventListener('click', closeSidebarOverlay);
+    document.body.appendChild(scrim);
+  }
+  return scrim;
+}
+
+function closeSidebarOverlay() {
+  document.body.classList.remove('sidebar-open');
+  const btn = document.getElementById('sidebar-toggle');
+  if (btn) btn.setAttribute('aria-expanded', 'false');
+}
+
 export function setSidebarCollapsed(collapsed) {
   appState.prefs.sidebarCollapsed = !!collapsed;
   document.body.classList.toggle('sidebar-collapsed', !!collapsed);
@@ -251,6 +284,14 @@ export function setSidebarCollapsed(collapsed) {
 }
 
 export function toggleSidebar() {
+  if (isNarrowViewport()) {
+    ensureSidebarScrim();
+    const opening = !document.body.classList.contains('sidebar-open');
+    document.body.classList.toggle('sidebar-open', opening);
+    const btn = document.getElementById('sidebar-toggle');
+    if (btn) btn.setAttribute('aria-expanded', String(opening));
+    return;
+  }
   setSidebarCollapsed(!appState.prefs.sidebarCollapsed);
 }
 
@@ -406,6 +447,21 @@ function mountEditor(content) {
   return editorHandle;
 }
 
+/** Ensure the sidebar (home of the "+ New" inline form) is visible, then open
+ * it — used by every "create a document" entry point that ISN'T already
+ * inside the sidebar itself (the editor's empty-state CTA, the command
+ * palette's "New post" entry — see buildCommandRegistry() below). */
+function openNewDocFlow() {
+  if (isNarrowViewport()) {
+    ensureSidebarScrim();
+    document.body.classList.add('sidebar-open');
+    document.getElementById('sidebar-toggle')?.setAttribute('aria-expanded', 'true');
+  } else if (appState.prefs.sidebarCollapsed) {
+    setSidebarCollapsed(false);
+  }
+  docListHandle?.openNewPostForm();
+}
+
 /** Tear the editor down and show the "no document open" placeholder. */
 function showEditorEmptyState() {
   if (editorHandle) {
@@ -414,22 +470,41 @@ function showEditorEmptyState() {
   }
   currentDocRecord = null;
   const mount = getEditorMount();
-  if (!mount) return;
-  mount.classList.add('is-empty');
-  const wrap = document.createElement('div');
-  wrap.className = 'empty-state';
-  const title = document.createElement('p');
-  title.className = 'empty-title';
-  title.textContent = 'No document open';
-  const hint = document.createElement('p');
-  hint.className = 'empty-hint';
-  hint.textContent = 'Create a new post with “+ New”, or open a draft from the sidebar. '
-    + 'Everything is stored locally in your browser.';
-  wrap.append(title, hint);
-  mount.replaceChildren(wrap);
+  if (mount) {
+    mount.classList.add('is-empty');
+    const wrap = document.createElement('div');
+    wrap.className = 'empty-state';
+
+    const icon = document.createElement('span');
+    icon.className = 'empty-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.innerHTML = '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" '
+      + 'stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">'
+      + '<path d="M7 3h7l4 4v14a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1z"/>'
+      + '<path d="M14 3v4h4"/><path d="M9 12h6M9 16h4"/></svg>';
+
+    const title = document.createElement('p');
+    title.className = 'empty-title';
+    title.textContent = 'No document open';
+    const hint = document.createElement('p');
+    hint.className = 'empty-hint';
+    hint.textContent = 'Create a new post, or open a draft from the sidebar. '
+      + 'Everything is stored locally in your browser.';
+    const cta = document.createElement('button');
+    cta.type = 'button';
+    cta.className = 'btn btn-primary';
+    cta.textContent = '+ New document';
+    cta.addEventListener('click', openNewDocFlow);
+
+    wrap.append(icon, title, hint, cta);
+    mount.replaceChildren(wrap);
+  }
   appState.binding = null;
   updateDocChrome(null);
   reflectSyncStatus(null);
+  // If Preview/Split is already showing, reflect the now-empty editor there
+  // too instead of leaving a stale render or the loading overlay hanging.
+  refreshPreviewForCurrentMode();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -478,10 +553,15 @@ function schedulePreviewUpdate(content) {
 
 /** Re-render (immediately) if the current mode shows the preview pane at all. */
 function refreshPreviewForCurrentMode() {
-  if (!editorHandle) return;
-  if (appState.mode === 'preview' || appState.mode === 'split') {
-    renderPreviewNow(editorHandle.getContent());
+  if (appState.mode !== 'preview' && appState.mode !== 'split') return;
+  if (!editorHandle || !currentDocRecord) {
+    // Nothing to render yet — a friendly "no document" message beats a
+    // blank/loading-forever iframe (WP-6.2 §5.4 empty-states-with-guidance;
+    // preview.js's `showEmpty` is a no-op once a real render has landed).
+    previewHandle?.showEmpty?.('No document open — create or open one from the sidebar to see a live preview.');
+    return;
   }
+  renderPreviewNow(editorHandle.getContent());
 }
 
 function wirePreview() {
@@ -566,6 +646,11 @@ export async function openDoc(docId) {
   mountEditor(record.content || '');
   updateDocChrome(record);
   reflectSyncStatus(record);
+
+  // Opening a document from the mobile drawer is the natural "done, thanks"
+  // signal — close the overlay so the editor is immediately usable (spec
+  // §5.5 "light editing must work" on narrow viewports).
+  if (isNarrowViewport()) closeSidebarOverlay();
 
   currentAutosaver = store.createAutosaver(docId);
   editorHandle?.focus();
@@ -685,15 +770,78 @@ function toastRegion() {
   return region;
 }
 
+// One icon per level (spec §5.4 "toasts for async outcomes" — WP-6.2 polish).
+const TOAST_ICON_PATHS = {
+  success: '<path d="M4 10.5l3.5 3.5L16 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>',
+  error: '<path d="M6 6l8 8M14 6l-8 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  warning: '<path d="M10 3.4l7.6 13.2H2.4z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M10 8.4v3.4M10 14.2h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  info: '<circle cx="10" cy="10" r="7.2" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M10 9v4.2M10 6.6h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+};
+
+function toastIcon(level) {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 20 20');
+  svg.setAttribute('width', '16');
+  svg.setAttribute('height', '16');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.innerHTML = TOAST_ICON_PATHS[level] || TOAST_ICON_PATHS.info;
+  return svg;
+}
+
+// Dismiss policy (WP-6.2, "pick one, document it" — also noted in
+// styles.css's toast section): success/warning/info auto-dismiss after a
+// consistent interval; error toasts persist until the author closes them,
+// since an error usually means something needs their attention. Every toast,
+// any level, always gets a close (×) button for manual dismiss.
+const TOAST_AUTO_DISMISS_MS = 5000;
+const TOAST_LEAVE_MS = 220; // mirrors styles.css's .sk-toast transition-duration
+
 function showToast({ message, level = 'success' } = {}) {
   if (!message) return;
   const region = toastRegion();
+  const validLevel = TOAST_ICON_PATHS[level] ? level : 'info';
+
   const toast = document.createElement('div');
-  toast.className = `sk-toast sk-toast-${level}`;
-  toast.textContent = message;
+  toast.className = `sk-toast sk-toast-${validLevel} is-entering`;
+  // Errors get an assertive nested alert so screen readers announce them
+  // immediately, rather than waiting on the region's own `polite` queue.
+  toast.setAttribute('role', validLevel === 'error' ? 'alert' : 'status');
+
+  const icon = document.createElement('span');
+  icon.className = 'sk-toast-icon';
+  icon.appendChild(toastIcon(validLevel));
+
+  const text = document.createElement('span');
+  text.className = 'sk-toast-message';
+  text.textContent = message;
+
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'sk-toast-close';
+  close.setAttribute('aria-label', 'Dismiss notification');
+  close.textContent = '×';
+
+  let dismissTimer = null;
+  function leave() {
+    if (dismissTimer) { clearTimeout(dismissTimer); dismissTimer = null; }
+    toast.classList.remove('is-entering');
+    toast.classList.add('is-leaving');
+    setTimeout(() => toast.remove(), TOAST_LEAVE_MS);
+  }
+  close.addEventListener('click', leave);
+
+  toast.append(icon, text, close);
   region.appendChild(toast);
-  setTimeout(() => toast.classList.add('is-leaving'), 3600);
-  setTimeout(() => toast.remove(), 4000);
+
+  // Enter transition: `is-entering` (opacity/translate offset, set above
+  // before insertion) needs one committed frame before it's removed, or the
+  // browser coalesces both states into one and nothing animates. A no-op
+  // under prefers-reduced-motion — styles.css zeroes the transition there.
+  requestAnimationFrame(() => toast.classList.remove('is-entering'));
+
+  if (validLevel !== 'error') {
+    dismissTimer = setTimeout(leave, TOAST_AUTO_DISMISS_MS);
+  }
 }
 
 function wireToasts() {
@@ -864,8 +1012,14 @@ function buildSyncPanel() {
     finally { bindBtn.disabled = false; }
   });
 
+  // WP-6.2: explicit unbound/bound guidance — the "Sync" section below is
+  // entirely `hidden` while unbound, so without this note an author sees
+  // no copy at all explaining *why* Commit/Pull aren't available yet.
+  const bindingNote = h('p', { class: 'sk-field-note', id: 'sync-binding-note' });
+
   const bindingSection = h('section', { class: 'sk-dialog-section' }, [
     h('h3', { class: 'sk-dialog-h', text: 'Repository binding' }),
+    bindingNote,
     h('div', { class: 'sk-field-grid' }, [
       h('label', { class: 'sk-label', text: 'Owner' }), ownerInput,
       h('label', { class: 'sk-label', text: 'Repo' }), repoInput,
@@ -941,6 +1095,9 @@ function buildSyncPanel() {
     bindBtn.textContent = gh ? 'Update binding' : 'Connect';
 
     const bound = !!gh;
+    bindingNote.textContent = bound
+      ? `Connected to ${gh.owner}/${gh.repo} on ${gh.branch}. Committing and pulling are below.`
+      : 'Not connected yet. Fill in a repository below and click Connect to enable committing and pulling changes for this document.';
     syncSection.hidden = !bound;
     commitBtn.disabled = !bound;
     pullBtn.disabled = !bound;
@@ -1068,7 +1225,7 @@ function buildCommandRegistry() {
   /** @type {Array<{id:string,label:string,group:string,shortcut?:string,when?:()=>boolean,run:()=>void}>} */
   const registry = [
     { id: 'doc.new', label: 'New post', group: 'Document', when: () => !!docListHandle,
-      run: () => docListHandle && docListHandle.openNewPostForm() },
+      run: openNewDocFlow },
     { id: 'doc.export', label: 'Export document', group: 'Document', when: () => !!currentDocRecord,
       run: exportCurrentDoc },
 
@@ -1152,12 +1309,14 @@ export async function init() {
     return { ok: false };
   }
 
-  // Drop the load skeleton before we render anything into the mount.
-  const mount = getEditorMount();
-  if (mount) {
-    const skeleton = mount.querySelector('.skeleton');
-    if (skeleton) skeleton.remove();
-  }
+  // NOTE (WP-6.2, no-CLS): the #editor-mount skeleton baked into
+  // editor/index.html is deliberately NOT removed here. It stays on screen
+  // until real content replaces it — either mountEditor() (opening a
+  // restored/new document) or showEditorEmptyState() (nothing to restore) —
+  // both of which already `mount.replaceChildren(...)` as their first move.
+  // Dropping it eagerly here (the previous behaviour) left a blank mount
+  // for the whole store.initStore() + doc-restore await below, which is
+  // exactly the flash §5.4 asks to eliminate.
 
   wireControls();
   wireLifecycle();
@@ -1258,6 +1417,22 @@ function wireLifecycle() {
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
     // Page chrome re-themes via CSS automatically; rebuild CM for its colors.
     if (appState.prefs.theme === 'system') rethemeEditor();
+  });
+
+  // Esc closes the mobile sidebar overlay (dialogs/palette own their own Esc
+  // handling; this only fires when the overlay is actually open, so it never
+  // competes with them).
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.body.classList.contains('sidebar-open')) {
+      closeSidebarOverlay();
+    }
+  });
+
+  // A resize that crosses the narrow/wide breakpoint should never leave the
+  // overlay-only `sidebar-open` state stuck on past it (e.g. rotating a
+  // tablet, or a desktop window resize during a demo).
+  window.matchMedia(NARROW_QUERY).addEventListener('change', (e) => {
+    if (!e.matches) closeSidebarOverlay();
   });
 }
 

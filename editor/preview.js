@@ -376,6 +376,19 @@ const CSS_TEXT = `
 .pv-diag-msg { flex: 1 1 auto; min-width: 0; }
 .pv-frame-wrap { flex: 1 1 auto; min-height: 0; position: relative; }
 .pv-frame { width: 100%; height: 100%; border: 0; display: block; background: var(--sk-bg); }
+.pv-overlay {
+  position: absolute; inset: 0; z-index: 2;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--sk-space-2); padding: var(--sk-space-3);
+  background: var(--sk-bg);
+}
+/* [hidden] alone loses to the .pv-overlay class rule above (author CSS wins
+   ties over the UA stylesheet's own [hidden] rule) — without this, setting
+   the hidden property/attribute would silently do nothing. */
+.pv-overlay[hidden] { display: none; }
+.pv-overlay-skeleton { width: min(320px, 80%); }
+.pv-overlay-skeleton .skeleton-line:last-child { margin-bottom: 0; }
+.pv-overlay-text { margin: 0; font-size: var(--sk-fs-sm); color: var(--sk-text-faint); }
 `;
 
 function ensureStyles(doc) {
@@ -474,10 +487,45 @@ export function createPreviewPane({
   iframe.className = 'pv-frame';
   iframe.setAttribute('sandbox', SANDBOX_ATTRS);
   iframe.setAttribute('title', 'Post preview');
-  frameWrap.append(iframe);
+
+  // ── "Quiet" overlay (WP-6.2 §5.4 no-CLS/empty-states) ───────────────────
+  // Covers the iframe from construction until the FIRST writeFrame() ever
+  // happens, instead of leaving a blank white iframe while (a) no render()
+  // has been requested yet (no document open — app.js's showEmpty() sets
+  // the copy for that case) or (b) the very first render() is awaiting the
+  // library-load network round trip (see the file header — classic <script>
+  // injection + the skrender.js import can visibly take a moment on a real
+  // network). Never shown again after the first successful writeFrame() —
+  // subsequent doc switches/edits keep the previous render on screen while
+  // the next one resolves, exactly like before this overlay existed.
+  const overlay = doc.createElement('div');
+  overlay.className = 'pv-overlay';
+  overlay.setAttribute('aria-hidden', 'true');
+  const overlaySkeleton = doc.createElement('div');
+  overlaySkeleton.className = 'pv-overlay-skeleton';
+  overlaySkeleton.innerHTML = '<div class="skeleton-line w-40"></div><div class="skeleton-line w-70"></div><div class="skeleton-line w-50"></div>';
+  const overlayText = doc.createElement('p');
+  overlayText.className = 'pv-overlay-text';
+  overlayText.textContent = 'Preparing preview…';
+  overlay.append(overlaySkeleton, overlayText);
+
+  frameWrap.append(iframe, overlay);
 
   root.append(diagPanel, frameWrap);
   mount.replaceChildren(root);
+
+  let everRendered = false;
+
+  /** Additive, non-frozen extension (same pattern as `schedule`): swaps the
+   * overlay's copy for an app-supplied message (e.g. "no document open")
+   * without touching the frozen render()/schedule()/destroy() contract.
+   * A no-op once a real render has landed — the overlay is gone for good
+   * at that point, by design (see the comment above). */
+  function showEmpty(message) {
+    if (destroyed || everRendered) return;
+    overlayText.textContent = message || 'Nothing to preview yet.';
+    overlay.hidden = false;
+  }
 
   // ── Library loading (single-flight per pane instance) ──────────────────
   async function ensureRenderPost() {
@@ -529,6 +577,8 @@ export function createPreviewPane({
   // ── Writing the iframe + diagnostics panel ──────────────────────────────
   function writeFrame(html, diagnostics) {
     if (destroyed) return;
+    everRendered = true;
+    overlay.hidden = true;
     const anchorId = captureAnchor();
     const onLoad = () => {
       iframe.removeEventListener('load', onLoad);
@@ -601,6 +651,7 @@ export function createPreviewPane({
   return {
     render,
     schedule: scheduled,
+    showEmpty,
     destroy() {
       if (destroyed) return;
       destroyed = true;

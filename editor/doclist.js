@@ -326,6 +326,9 @@ const CSS_TEXT = `
 .dl-new-actions { display: flex; gap: var(--sk-space-xs); justify-content: flex-end; }
 .dl-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sk-space-xs); }
 .dl-empty { padding: var(--sk-space-2); font-size: var(--sk-fs-sm); color: var(--sk-text-faint); text-align: center; }
+.dl-empty-item, .dl-skeleton-item { list-style: none; }
+.dl-skeleton-item { padding: var(--sk-space-xs) var(--sk-space-1); }
+.dl-skeleton-item .skeleton-line { margin-bottom: 0; }
 .dl-item { padding: var(--sk-space-xs); border-radius: var(--sk-radius); border: 1px solid transparent; }
 .dl-item:hover { background: var(--sk-surface); border-color: var(--sk-border); }
 .dl-item-main { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sk-space-xs); }
@@ -405,6 +408,21 @@ export function createDocList({ mount, store, bus, onOpen } = {}) {
   listEl.setAttribute('aria-label', 'Local documents');
 
   root.append(toolbar, formHost, listEl);
+
+  // ── Boot skeleton (WP-6.2 — no layout shift while store.docs.list()'s
+  //    first IndexedDB read is in flight) — replaced synchronously by
+  //    renderItems() the instant refresh() resolves, below. ──────────────
+  (function renderListSkeleton() {
+    for (const w of ['w-60', 'w-40', 'w-70']) {
+      const li = doc.createElement('li');
+      li.className = 'dl-skeleton-item';
+      li.setAttribute('aria-hidden', 'true');
+      const line = doc.createElement('div');
+      line.className = `skeleton-line ${w}`;
+      li.append(line);
+      listEl.append(li);
+    }
+  })();
 
   function notify(type, detail) {
     if (bus && typeof bus.dispatchEvent === 'function') {
@@ -544,13 +562,47 @@ export function createDocList({ mount, store, bus, onOpen } = {}) {
     return Number.isFinite(t) ? t : 0;
   }
 
+  /** Empty-state guidance (WP-6.2 · spec §5.4 "empty states with guidance"):
+   *  an icon, a plain-language title, a one-line hint, and a CTA that opens
+   *  the same inline form the sidebar's own "+ New" button does. */
+  function renderEmptyState() {
+    const li = doc.createElement('li');
+    // `dl-empty` is the pre-existing, test-covered marker class (also used
+    // by the "couldn't load documents" error branch above); `dl-empty-item`
+    // is new (WP-6.2) — just a hook for the item-level CSS.
+    li.className = 'dl-empty dl-empty-item';
+    const wrap = doc.createElement('div');
+    wrap.className = 'empty-state dl-empty-state';
+
+    const icon = doc.createElement('span');
+    icon.className = 'empty-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.innerHTML = '<svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" '
+      + 'stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'
+      + '<path d="M7 3h7l4 4v14a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1z"/>'
+      + '<path d="M14 3v4h4"/><path d="M9 13h6M9 17h6"/></svg>';
+
+    const title = doc.createElement('p');
+    title.className = 'empty-title';
+    title.textContent = 'No documents yet';
+    const hint = doc.createElement('p');
+    hint.className = 'empty-hint';
+    hint.textContent = 'Everything is saved locally in your browser — nothing to lose.';
+    const cta = doc.createElement('button');
+    cta.type = 'button';
+    cta.className = 'btn btn-primary btn-sm';
+    cta.textContent = 'Create your first post';
+    cta.addEventListener('click', openNewPostForm);
+
+    wrap.append(icon, title, hint, cta);
+    li.append(wrap);
+    return li;
+  }
+
   function renderItems() {
     listEl.replaceChildren();
     if (!currentDocs.length) {
-      const empty = doc.createElement('li');
-      empty.className = 'dl-empty';
-      empty.textContent = 'No local documents yet.';
-      listEl.append(empty);
+      listEl.append(renderEmptyState());
       return;
     }
     for (const docRecord of currentDocs) {

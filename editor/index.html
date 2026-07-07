@@ -124,11 +124,15 @@
       <button class="btn btn-primary btn-sm" type="button" id="new-doc" disabled aria-disabled="true">+ New</button>
     </div>
     <div id="doclist-mount" class="doclist">
-      <!-- WP-2.5 mounts the live list here. Static empty state until then. -->
-      <div class="empty-state">
-        <p class="empty-title">No local documents yet</p>
-        <p class="empty-hint">Document management arrives in M2 (WP-2.5). Your drafts will live here, stored in your browser.</p>
-      </div>
+      <!-- doclist.js (WP-2.5+) mounts the live list here almost immediately
+           at boot; this skeleton is only ever visible for the brief window
+           before that (module parse) — reserves the same shape as a real
+           list so there's no layout shift when it lands (WP-6.2 §5.4). -->
+      <ul class="dl-list" aria-hidden="true">
+        <li class="dl-skeleton-item"><div class="skeleton-line w-60"></div></li>
+        <li class="dl-skeleton-item"><div class="skeleton-line w-40"></div></li>
+        <li class="dl-skeleton-item"><div class="skeleton-line w-70"></div></li>
+      </ul>
     </div>
   </aside>
 
@@ -153,11 +157,14 @@
         </div>
       </div>
 
-      <!-- Preview pane placeholder (WP-3.3 renders here in Split/Preview) -->
+      <!-- preview.js (WP-3.3+) mounts its own pv-root (iframe + quiet
+           loading/empty overlay, WP-6.2) here at boot, replacing this
+           pre-JS placeholder almost immediately. -->
       <div id="preview-mount" class="preview-mount" aria-label="Preview">
-        <div class="empty-state">
-          <p class="empty-title">Preview arrives in M3</p>
-          <p class="empty-hint">Toggle back to Edit. High-fidelity preview (the same pipeline the published site uses) lands with WP-3.3.</p>
+        <div class="skeleton" aria-hidden="true">
+          <div class="skeleton-line w-40"></div>
+          <div class="skeleton-line w-70"></div>
+          <div class="skeleton-line w-50"></div>
         </div>
       </div>
     </div>

@@ -264,7 +264,7 @@ function ensureStyles() {
   style.textContent = `
 .sk-toolbar {
   display: flex; align-items: center; gap: 2px; flex: 0 0 auto;
-  padding: 4px var(--sk-space-1, 8px); overflow-x: auto;
+  padding: 4px var(--sk-space-1, 8px); overflow-x: auto; overflow-y: hidden;
   background: var(--sk-surface, #fff); border-bottom: 1px solid var(--sk-border, #d8dee4);
 }
 .sk-toolbar-btn {
@@ -294,10 +294,24 @@ function ensureStyles() {
   padding: 6px 10px; border-radius: var(--sk-radius-sm, 4px); cursor: pointer; font-size: var(--sk-fs-sm, 13px);
 }
 .sk-toolbar-viewer-item.is-active, .sk-toolbar-viewer-item:hover { background: var(--sk-selection, rgba(9,105,218,.14)); }
+/* Responsive collapse (WP-6.2 §5.5 "toolbar collapses"): priority+scroll —
+   every button stays reachable (nothing is ever hidden behind a menu the
+   author has to discover), the row just becomes horizontally scrollable
+   with native momentum/snap so it reads as an intentional filmstrip rather
+   than an overflow bug. Buttons grow slightly at the narrowest widths for
+   easier touch targeting. */
 @media (max-width: 800px) {
-  .sk-toolbar { gap: 0; padding: 2px 4px; }
-  .sk-toolbar-btn { width: 28px; height: 28px; }
+  .sk-toolbar {
+    gap: 0; padding: 2px 4px;
+    scroll-snap-type: x proximity;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+  .sk-toolbar-btn { width: 30px; height: 30px; scroll-snap-align: start; }
   .sk-toolbar-sep { margin: 4px 2px; }
+}
+@media (max-width: 480px) {
+  .sk-toolbar-btn { width: 34px; height: 34px; }
 }
 `;
   document.head.appendChild(style);
