@@ -159,21 +159,15 @@
 </div>
 
 <!-- ── Status bar (spec §7) ──────────────────────────────────────────────── -->
+<!-- statusbar.js (WP-5.1) renders the binding chip + 5-state badge, word count,
+     cursor, and lint count into this mount. Static content below is a pre-JS
+     placeholder only (replaced on boot). -->
 <footer id="statusbar-mount" class="statusbar" role="contentinfo" aria-label="Status">
   <div class="status-group status-left">
-    <button class="status-chip" type="button" id="status-binding" aria-disabled="true" disabled title="GitHub binding — connect in M5">
-      <span class="status-dot" data-state="local"></span>
-      Local only
-    </button>
-    <span class="status-sep" aria-hidden="true">·</span>
-    <span class="status-item" id="status-path">no repo path</span>
+    <span class="status-chip"><span class="status-dot" data-state="local"></span> Local only</span>
   </div>
   <div class="status-group status-right">
-    <span class="status-item" id="status-lint" title="Lint diagnostics">0 issues</span>
-    <span class="status-sep" aria-hidden="true">·</span>
-    <span class="status-item" id="status-cursor">Ln 1, Col 1</span>
-    <span class="status-sep" aria-hidden="true">·</span>
-    <span class="status-item" id="status-wordcount">0 words</span>
+    <span class="status-item">0 words</span>
   </div>
 </footer>
 

@@ -416,7 +416,9 @@ function showEditorEmptyState() {
     + 'Everything is stored locally in your browser.';
   wrap.append(title, hint);
   mount.replaceChildren(wrap);
+  appState.binding = null;
   updateDocChrome(null);
+  reflectSyncStatus(null);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -545,9 +547,14 @@ export async function openDoc(docId) {
   appState.prefs.lastDocId = docId;
   savePrefs();
   currentDocRecord = record;
+  // Binding drives preview context resolution (FR-PRE.4) and the status bar.
+  appState.binding = record.github
+    ? { owner: record.github.owner, repo: record.github.repo, branch: record.github.branch, path: record.path }
+    : null;
 
   mountEditor(record.content || '');
   updateDocChrome(record);
+  reflectSyncStatus(record);
 
   currentAutosaver = store.createAutosaver(docId);
   editorHandle?.focus();
@@ -555,40 +562,89 @@ export async function openDoc(docId) {
   // Switching documents while Preview/Split is already showing must reflect
   // the newly-opened buffer right away, not wait for the next edit/mode flip.
   refreshPreviewForCurrentMode();
+
+  // Passive remote-changed probe (FR-GH.5) — never auto-replaces; just flips the
+  // badge/banner if the branch moved ahead. Fire-and-forget, best-effort.
+  if (record.github) {
+    sync.checkRemote(docId).catch((err) => {
+      console.warn('[storykit-editor] checkRemote failed', err);
+    });
+  }
 }
 
-/** Reflect the open document in the top-bar title and status-bar path. */
+/**
+ * Push sync-driven replacement content into the LIVE editor for the open doc
+ * (the sync.js editor bridge). Coherence contract (mirrors openDoc's autosaver
+ * discipline): the outgoing autosaver is DISPOSED WITHOUT flushing — its
+ * pending content is the pre-replacement local, which sync.js has already
+ * snapshotted to revisions; flushing it would clobber the freshly-written
+ * remote/kept content in the store. sync.js writes the store BEFORE calling
+ * this, so we only re-point the view + attach a fresh autosaver. No-op unless
+ * `docId` is the currently-open document.
+ * @param {string} docId @param {string} content
+ */
+function replaceOpenBuffer(docId, content) {
+  if (docId !== appState.currentDocId || !editorHandle) return;
+  if (currentAutosaver) {
+    currentAutosaver.dispose();
+    currentAutosaver = null;
+  }
+  editorHandle.setContent(content);
+  if (currentDocRecord) currentDocRecord.content = content;
+  currentAutosaver = store.createAutosaver(docId);
+  refreshPreviewForCurrentMode();
+}
+
+/** Reflect the open document in the top-bar title (status-bar path is owned by statusbar.js). */
 function updateDocChrome(record) {
   const titleBtn = document.getElementById('doc-title-menu');
   if (titleBtn) {
     const span = titleBtn.querySelector('.doc-title-text');
     if (span) span.textContent = record?.title || 'Untitled draft';
   }
-  const pathEl = document.getElementById('status-path');
-  if (pathEl) pathEl.textContent = record?.path || 'no repo path';
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Status bar (createEditor emits bus events; app writes the DOM).
+// Status bar (WP-5.1). statusbar.js now owns the whole status-bar DOM and
+// consumes editor:wordcount / editor:cursor / lint:count / sync:status itself
+// (the former inline handlers here are deleted). app.js drives the binding +
+// badge on doc-switch and flips synced→local-changes on the first edit.
 // ─────────────────────────────────────────────────────────────────────────────
+/** @type {ReturnType<typeof statusbar.createStatusBar>|null} */
+let statusBar = null;
+
 function wireStatusBar() {
-  bus.addEventListener('editor:wordcount', (e) => {
-    const el = document.getElementById('status-wordcount');
-    if (el && e.detail) el.textContent = `${(e.detail.words || 0).toLocaleString()} words`;
-  });
-  bus.addEventListener('editor:cursor', (e) => {
-    const el = document.getElementById('status-cursor');
-    if (el && e.detail) el.textContent = `Ln ${e.detail.line}, Col ${e.detail.col}`;
-  });
-  // lint:count is frozen bus vocabulary; nothing emits it in M2, but wiring the
-  // sink now means WP-2.4/5.1 need only dispatch it.
-  bus.addEventListener('lint:count', (e) => {
-    const el = document.getElementById('status-lint');
-    if (el && e.detail) {
-      const n = e.detail.count || 0;
-      el.textContent = `${n} issue${n === 1 ? '' : 's'}`;
+  const mount = document.getElementById('statusbar-mount');
+  if (mount) {
+    try {
+      statusBar = statusbar.createStatusBar({ mount, bus });
+    } catch (error) {
+      console.error('[storykit-editor] statusbar failed to mount', error);
     }
+  }
+
+  // First local edit to a bound, currently-synced doc → "Local changes".
+  bus.addEventListener('doc:changed', () => {
+    if (!statusBar || !currentDocRecord || !currentDocRecord.github) return;
+    if (statusBar.getState() === 'synced') statusBar.setSyncState('local-changes');
   });
+}
+
+/** Reflect a document's binding + derived badge in the status bar. */
+function reflectSyncStatus(record) {
+  if (!statusBar) return;
+  if (record && record.github) {
+    statusBar.setBinding({
+      owner: record.github.owner,
+      repo: record.github.repo,
+      branch: record.github.branch,
+      path: record.path,
+    });
+    statusBar.setSyncState(doclist.deriveSyncStatus(record));
+  } else {
+    statusBar.setBinding(record ? { path: record.path } : null);
+    statusBar.setSyncState('local');
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -696,6 +752,227 @@ export function showFatalBanner(message) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Sync panel (WP-5.1 · FR-GH.1/2/3/5). A native <dialog> (focus-trapped, Esc
+// to close) with four sections: token setup, repo binding, commit, and pull.
+// All actions operate on the currently-open document. sync.js does the network
+// + store work and surfaces outcomes as toasts; this panel just gathers input
+// and reflects state.
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Path to the shared token-setup guide (same PAT key as the preview tool). */
+const TOKEN_SETUP_HREF = '../admin/storykit-preview-setup';
+
+/** @type {{ dialog: HTMLDialogElement, refresh: () => void }|null} */
+let syncPanel = null;
+
+function h(tag, attrs = {}, children = []) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v == null) continue;
+    if (k === 'class') node.className = v;
+    else if (k === 'text') node.textContent = v;
+    else if (k in node) { try { node[k] = v; } catch { node.setAttribute(k, v); } }
+    else node.setAttribute(k, v);
+  }
+  for (const c of [].concat(children)) {
+    if (c == null) continue;
+    node.append(c.nodeType ? c : document.createTextNode(String(c)));
+  }
+  return node;
+}
+
+function buildSyncPanel() {
+  const dialog = /** @type {HTMLDialogElement} */ (h('dialog', { id: 'sync-panel', class: 'sk-dialog' }));
+
+  const closeBtn = h('button', { type: 'button', class: 'sk-dialog-close', 'aria-label': 'Close', text: '×' });
+  closeBtn.addEventListener('click', () => dialog.close());
+
+  // ── Token section (FR-GH.1) ────────────────────────────────────────────────
+  const tokenStatus = h('p', { class: 'sk-field-note', id: 'sync-token-status' });
+  const tokenInput = /** @type {HTMLInputElement} */ (h('input', {
+    type: 'password', class: 'sk-input', id: 'sync-token-input',
+    placeholder: 'github_pat_…', autocomplete: 'off', spellcheck: false,
+  }));
+  const saveTokenBtn = h('button', { type: 'button', class: 'btn btn-primary btn-sm', text: 'Save token' });
+  const forgetTokenBtn = h('button', { type: 'button', class: 'btn btn-sm', text: 'Forget token' });
+  const setupLink = h('a', {
+    href: TOKEN_SETUP_HREF, class: 'sk-link', target: '_blank', rel: 'noopener',
+    text: 'How to create a token →',
+  });
+
+  saveTokenBtn.addEventListener('click', () => {
+    const val = tokenInput.value.trim();
+    if (!val) { emit('toast', { message: 'Paste a token first.', level: 'error' }); return; }
+    github.setToken(val);
+    tokenInput.value = '';
+    emit('toast', { message: 'Token saved. It’s shared with the preview tool.', level: 'success' });
+    refreshSyncPanel();
+  });
+  forgetTokenBtn.addEventListener('click', () => {
+    github.forgetToken();
+    emit('toast', { message: 'Token forgotten. The preview tool loses it too (shared key).', level: 'warning' });
+    refreshSyncPanel();
+  });
+
+  const tokenSection = h('section', { class: 'sk-dialog-section' }, [
+    h('h3', { class: 'sk-dialog-h', text: 'GitHub token' }),
+    tokenStatus,
+    h('div', { class: 'sk-field-row' }, [tokenInput, saveTokenBtn]),
+    h('div', { class: 'sk-field-row' }, [forgetTokenBtn, setupLink]),
+    h('p', { class: 'sk-field-note', text: 'One fine-grained personal access token with Contents read/write. Stored in this browser only, under the same key the preview tool uses — forgetting it here affects both tools.' }),
+  ]);
+
+  // ── Binding section (FR-GH.2) ──────────────────────────────────────────────
+  const ownerInput = /** @type {HTMLInputElement} */ (h('input', { type: 'text', class: 'sk-input', id: 'sync-owner', placeholder: 'owner' }));
+  const repoInput = /** @type {HTMLInputElement} */ (h('input', { type: 'text', class: 'sk-input', id: 'sync-repo', placeholder: 'repo' }));
+  const branchInput = /** @type {HTMLInputElement} */ (h('input', { type: 'text', class: 'sk-input', id: 'sync-branch', placeholder: 'branch (created if new)' }));
+  const pathInput = /** @type {HTMLInputElement} */ (h('input', { type: 'text', class: 'sk-input', id: 'sync-path', placeholder: '_posts/…' }));
+  const bindBtn = h('button', { type: 'button', class: 'btn btn-primary btn-sm', id: 'sync-bind-btn', text: 'Connect' });
+
+  bindBtn.addEventListener('click', async () => {
+    const docId = appState.currentDocId;
+    if (!docId) { emit('toast', { message: 'Open a document first.', level: 'error' }); return; }
+    const binding = {
+      owner: ownerInput.value.trim(),
+      repo: repoInput.value.trim(),
+      branch: branchInput.value.trim(),
+      path: pathInput.value.trim(),
+    };
+    if (!binding.owner || !binding.repo || !binding.branch || !binding.path) {
+      emit('toast', { message: 'Owner, repo, branch, and path are all required.', level: 'error' });
+      return;
+    }
+    bindBtn.disabled = true;
+    try {
+      const saved = await sync.bindDocument(docId, binding);
+      currentDocRecord = saved;
+      appState.binding = { owner: saved.github.owner, repo: saved.github.repo, branch: saved.github.branch, path: saved.path };
+      refreshPreviewForCurrentMode();
+      refreshSyncPanel();
+    } catch { /* sync.js already toasted */ }
+    finally { bindBtn.disabled = false; }
+  });
+
+  const bindingSection = h('section', { class: 'sk-dialog-section' }, [
+    h('h3', { class: 'sk-dialog-h', text: 'Repository binding' }),
+    h('div', { class: 'sk-field-grid' }, [
+      h('label', { class: 'sk-label', text: 'Owner' }), ownerInput,
+      h('label', { class: 'sk-label', text: 'Repo' }), repoInput,
+      h('label', { class: 'sk-label', text: 'Branch' }), branchInput,
+      h('label', { class: 'sk-label', text: 'Path' }), pathInput,
+    ]),
+    h('div', { class: 'sk-field-row' }, [bindBtn]),
+  ]);
+
+  // ── Sync section (FR-GH.3/5) ────────────────────────────────────────────────
+  const syncState = h('p', { class: 'sk-field-note', id: 'sync-state-line' });
+  const msgInput = /** @type {HTMLInputElement} */ (h('input', { type: 'text', class: 'sk-input', id: 'sync-msg', placeholder: 'Commit message' }));
+  const commitBtn = h('button', { type: 'button', class: 'btn btn-primary btn-sm', id: 'sync-commit-btn', text: 'Commit' });
+  const pullBtn = h('button', { type: 'button', class: 'btn btn-sm', id: 'sync-pull-btn', text: 'Pull latest' });
+
+  commitBtn.addEventListener('click', async () => {
+    const docId = appState.currentDocId;
+    if (!docId) return;
+    commitBtn.disabled = true;
+    try {
+      const saved = await sync.commitDocument(docId, { message: msgInput.value.trim() });
+      if (saved) { currentDocRecord = saved; refreshSyncPanel(); }
+    } catch { /* toasted */ }
+    finally { commitBtn.disabled = false; }
+  });
+  pullBtn.addEventListener('click', async () => {
+    const docId = appState.currentDocId;
+    if (!docId) return;
+    pullBtn.disabled = true;
+    try {
+      const saved = await sync.pullDocument(docId);
+      if (saved) { currentDocRecord = saved; refreshSyncPanel(); }
+    } catch { /* toasted */ }
+    finally { pullBtn.disabled = false; }
+  });
+
+  const syncSection = h('section', { class: 'sk-dialog-section', id: 'sync-actions-section' }, [
+    h('h3', { class: 'sk-dialog-h', text: 'Sync' }),
+    syncState,
+    h('div', { class: 'sk-field-row' }, [msgInput]),
+    h('div', { class: 'sk-field-row' }, [commitBtn, pullBtn]),
+  ]);
+
+  const body = h('div', { class: 'sk-dialog-body' }, [
+    h('header', { class: 'sk-dialog-head' }, [h('h2', { class: 'sk-dialog-title', text: 'GitHub sync' }), closeBtn]),
+    tokenSection, bindingSection, syncSection,
+  ]);
+  dialog.append(body);
+  document.body.appendChild(dialog);
+
+  const SYNC_LABEL = {
+    local: 'Local only', synced: 'Synced', 'local-changes': 'Local changes',
+    'remote-changed': 'Remote changed', conflict: 'Conflict',
+  };
+
+  function refresh() {
+    // Token status.
+    const hasToken = !!github.getToken();
+    tokenStatus.textContent = hasToken
+      ? 'A token is saved in this browser.'
+      : 'No token saved — GitHub sync needs one.';
+    forgetTokenBtn.disabled = !hasToken;
+
+    // Binding fields prefilled from the open doc.
+    const rec = currentDocRecord;
+    const gh = rec && rec.github;
+    if (gh) {
+      ownerInput.value = gh.owner || '';
+      repoInput.value = gh.repo || '';
+      branchInput.value = gh.branch || '';
+    }
+    if (rec) pathInput.value = (rec.path) || pathInput.value || '';
+    bindBtn.textContent = gh ? 'Update binding' : 'Connect';
+
+    const bound = !!gh;
+    syncSection.hidden = !bound;
+    commitBtn.disabled = !bound;
+    pullBtn.disabled = !bound;
+    if (!msgInput.value && rec && rec.path) {
+      msgInput.value = `Update ${String(rec.path).split('/').pop()}`;
+    }
+    const state = bound ? doclist.deriveSyncStatus(rec) : 'local';
+    syncState.textContent = bound
+      ? `Status: ${SYNC_LABEL[state] || state}${gh.syncedAt ? ` · last synced ${new Date(gh.syncedAt).toLocaleString()}` : ''}`
+      : 'Not connected to a repository.';
+
+    const noDoc = !appState.currentDocId;
+    bindBtn.disabled = noDoc;
+  }
+
+  return { dialog, refresh };
+}
+
+function refreshSyncPanel() {
+  if (syncPanel) syncPanel.refresh();
+}
+
+export function openSyncPanel() {
+  if (!syncPanel) syncPanel = buildSyncPanel();
+  syncPanel.refresh();
+  if (typeof syncPanel.dialog.showModal === 'function' && !syncPanel.dialog.open) {
+    syncPanel.dialog.showModal();
+  }
+}
+
+function wireSyncPanel() {
+  // sync.js reads the freshest live buffer + pushes replacements into the editor.
+  sync.setEditorBridge({
+    getLocalContent: (docId) =>
+      (docId === appState.currentDocId && editorHandle) ? editorHandle.getContent() : null,
+    replaceBuffer: (docId, content) => replaceOpenBuffer(docId, content),
+  });
+
+  bus.addEventListener('sync:open-panel', () => openSyncPanel());
+  document.getElementById('overflow-menu')?.addEventListener('click', () => openSyncPanel());
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Bootstrap.
 // ─────────────────────────────────────────────────────────────────────────────
 export async function init() {
@@ -728,6 +1005,7 @@ export async function init() {
   wireAutosave();
   wireToasts();
   wirePreview();
+  wireSyncPanel();
 
   // Open the local store, then wire the document list against it.
   try {
