@@ -194,7 +194,6 @@ export async function bindDocument(docId, { owner, repo, branch, path } = {}) {
 
     // 3. Probe the target path.
     const probe = await _deps.github.getFile({ owner, repo, ref: branch, path });
-    const nowISO = new Date().toISOString();
 
     if (probe === null || probe === 'not-modified') {
       // No remote file yet — first commit will create it. Badge is forced to
@@ -215,11 +214,9 @@ export async function bindDocument(docId, { owner, repo, branch, path } = {}) {
     const local = localContentOf(record);
 
     if (local === remoteContent) {
-      // Already in sync — adopt the sha.
-      const saved = await _deps.store.docs.update(docId, {
-        path,
-        github: { owner, repo, branch, sha: remoteSha, syncedAt: nowISO, etag: probe.etag },
-      });
+      // Already in sync — adopt the sha (syncedAt anchored, see updateAnchored).
+      const saved = await updateAnchored(docId, { path },
+        { owner, repo, branch, sha: remoteSha, etag: probe.etag });
       emitStatus(saved);
       toast(`Bound to ${owner}/${repo} · ${branch} — already in sync.`, 'success');
       return saved;
@@ -229,11 +226,8 @@ export async function bindDocument(docId, { owner, repo, branch, path } = {}) {
       // Nothing local to lose — adopt remote. Snapshot first anyway (invariant).
       await _deps.store.revisions.snapshot(docId, local, 'pre-conflict');
       pushToOpenBuffer(docId, remoteContent);
-      const saved = await _deps.store.docs.update(docId, {
-        path,
-        content: remoteContent,
-        github: { owner, repo, branch, sha: remoteSha, syncedAt: nowISO, etag: probe.etag },
-      });
+      const saved = await updateAnchored(docId, { path, content: remoteContent },
+        { owner, repo, branch, sha: remoteSha, etag: probe.etag });
       emitStatus(saved);
       toast(`Bound to ${owner}/${repo} · ${branch} — loaded ${basename(path)} from the repo.`, 'success');
       return saved;
@@ -250,11 +244,8 @@ export async function bindDocument(docId, { owner, repo, branch, path } = {}) {
     if (choice === 'remote') {
       // Snapshot already taken by beforeResolve. Replace buffer + adopt sha.
       pushToOpenBuffer(docId, remoteContent);
-      const saved = await _deps.store.docs.update(docId, {
-        path,
-        content: remoteContent,
-        github: { owner, repo, branch, sha: remoteSha, syncedAt: nowISO, etag: probe.etag },
-      });
+      const saved = await updateAnchored(docId, { path, content: remoteContent },
+        { owner, repo, branch, sha: remoteSha, etag: probe.etag });
       emitStatus(saved);
       toast(`Loaded ${basename(path)} from the repo (your version is in local history).`, 'success');
       return saved;
@@ -510,21 +501,37 @@ export async function checkRemote(docId) {
 // ── shared "sync succeeded" bookkeeping ──────────────────────────────────────
 
 /**
+ * Two-phase anchored update (integration reconciliation of a timestamp race):
+ * patch the updatedAt-bumping fields first, then write the github metadata in
+ * a github-ONLY patch — which store.docs.update deliberately does NOT bump —
+ * with `syncedAt` anchored to the record's exact `updatedAt`. This makes the
+ * dirty heuristic (`updatedAt > github.syncedAt`) exact instead of depending
+ * on the millisecond ordering of two separately-taken timestamps.
+ * @param {string} docId
+ * @param {object} fields  updatedAt-bumping fields (content/path/…); may be {}
+ * @param {object} github  github metadata WITHOUT syncedAt (anchored here)
+ */
+async function updateAnchored(docId, fields, github) {
+  const bumped = Object.keys(fields).length
+    ? await _deps.store.docs.update(docId, fields)
+    : await _deps.store.docs.get(docId);
+  return _deps.store.docs.update(docId, {
+    github: { ...github, syncedAt: bumped.updatedAt },
+  });
+}
+
+/**
  * Record a successful sync: persist content + github {sha, syncedAt} and clear
- * the remote-changed flag, then emit the resulting status. syncedAt is set to
- * "now" in the same update that store bumps updatedAt to "now", so the
- * time-based badge reads "Synced" immediately (updatedAt ≯ syncedAt).
+ * the remote-changed flag, then emit the resulting status. syncedAt is anchored
+ * to the record's updatedAt via updateAnchored, so the time-based badge reads
+ * "Synced" immediately and deterministically (updatedAt ≯ syncedAt).
  */
 async function finishSync(docId, { owner, repo, branch, sha, content, etag }) {
-  const github = {
-    owner, repo, branch, sha,
-    syncedAt: new Date().toISOString(),
-    remoteChanged: false,
-  };
+  const github = { owner, repo, branch, sha, remoteChanged: false };
   if (etag) github.etag = etag;
-  const patch = { github };
-  if (typeof content === 'string') patch.content = content;
-  const saved = await _deps.store.docs.update(docId, patch);
+  const fields = {};
+  if (typeof content === 'string') fields.content = content;
+  const saved = await updateAnchored(docId, fields, github);
   emitStatus(saved);
   return saved;
 }

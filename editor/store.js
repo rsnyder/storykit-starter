@@ -184,12 +184,26 @@ export const docs = {
     return record;
   },
 
-  /** Patches the record and bumps updatedAt; `id` in patch is ignored. */
+  /**
+   * Patches the record and bumps updatedAt; `id` in patch is ignored.
+   * Exception (WP-5.1 integration reconciliation): a patch touching ONLY the
+   * `github` sync-metadata field does NOT bump updatedAt — sync bookkeeping is
+   * not a content edit, and the local-changes heuristic
+   * (`updatedAt > github.syncedAt`) would otherwise depend on the millisecond
+   * ordering of two separately-taken timestamps. sync.js anchors
+   * `github.syncedAt` to the record's `updatedAt` via such metadata-only
+   * patches, making the dirty check exact instead of racy.
+   */
   async update(id, patch = {}) {
     const db = await getDB();
     const existing = await db.get('documents', id);
     if (!existing) throw new Error(`docs.update: no document with id "${id}"`);
-    const next = { ...existing, ...patch, id: existing.id, updatedAt: new Date().toISOString() };
+    const keys = Object.keys(patch).filter((k) => k !== 'id');
+    const metadataOnly = keys.length > 0 && keys.every((k) => k === 'github');
+    const next = {
+      ...existing, ...patch, id: existing.id,
+      updatedAt: metadataOnly ? existing.updatedAt : new Date().toISOString(),
+    };
     await db.put('documents', next);
     return next;
   },
