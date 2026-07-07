@@ -68,9 +68,14 @@ jobs:
       - name: Editor import-map pin check
         run: python tools/check_editor_pins.py
 
-      - name: Editor e2e — M2 persistence + M3 preview (Playwright)
+      - name: Editor e2e — M2 persistence + M3 preview + M4 media/entities (Playwright)
         # Drives editor/index.html end to end: create → type → restart the
         # persistent browser context → assert nothing is lost; autosave window;
-        # 50 KB responsiveness; StoryKit tag highlighting. esm.sh module loads
-        # run live (as the browser unit suite already does).
+        # 50 KB responsiveness; StoryKit tag highlighting; Monument Valley
+        # preview byte-compared against the M1 golden (test_m3_preview.py,
+        # equivalent to `render_regression.py --check --target editor`); drop/
+        # paste URL-grammar tag insertion + mocked-Wikidata entity linking +
+        # hover cards + offline degradation (test_m4_media.py). esm.sh module
+        # loads run live (as the browser unit suite already does); Wikidata is
+        # network-mocked (test_m4_media.py's own route interception).
         run: python -m pytest tests/e2e/ -v
