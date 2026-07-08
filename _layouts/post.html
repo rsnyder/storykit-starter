@@ -179,9 +179,21 @@ script_includes:
         </span>
       {% endif %}
 
-      {% if page.image and page.show_header_image != false %}
+      {%- comment -%}
+        Guard against a BLANK image.path (the .template.md ships the field
+        empty): `path | default: image` falls back to the whole image MAPPING,
+        which Liquid serializes into the src as "{...}" and breaks the page
+        (and htmlproofer). Treat a blank/missing path as "no header image".
+      {%- endcomment -%}
+      {%- assign _hdr_src = page.image.path -%}
+      {%- if _hdr_src == blank and page.image.first == nil -%}
+        {%- comment -%} image given as a plain string, not a mapping {%- endcomment -%}
+        {%- assign _hdr_src = page.image -%}
+      {%- endif -%}
+      {%- if _hdr_src == blank -%}{%- assign _hdr_src = nil -%}{%- endif -%}
+      {% if _hdr_src and page.show_header_image != false %}
 
-        {% assign src = page.image.path | default: page.image %}
+        {% assign src = _hdr_src %}
         
         {%- assign p4 = src | slice: 0, 4 -%}
         {%- assign is_abs = false -%}
