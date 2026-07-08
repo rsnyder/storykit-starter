@@ -878,6 +878,15 @@ export async function renderPost({ content, path, context }) {
     html = html.replace(/<\/head>/i, faLink + '\n</head>');
   }
 
+  // Chirpy's search-loader include calls SimpleJekyllSearch() at
+  // DOMContentLoaded, but the search library (part of Chirpy's site JS
+  // bundle) never loads in a preview render — every previewed page threw an
+  // uncaught ReferenceError in the console. Define a no-op guard early in
+  // <head> so the init call is inert. (Site-wide search is a documented
+  // preview non-feature; see the preview tool's limitations panel.)
+  const searchGuard = '<script>window.SimpleJekyllSearch = window.SimpleJekyllSearch || function () { return { search: function () {} }; };</script>';
+  html = html.replace(/<\/head>/i, searchGuard + '\n</head>');
+
   // ── Inject in-iframe preview banner ──────────────────────────────────────────
   // A minimal banner inside the iframe showing the layout chain and timestamp.
   // (Separate from the outer preview bar — this one travels with the content.)
