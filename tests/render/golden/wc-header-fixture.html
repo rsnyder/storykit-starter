@@ -149,7 +149,10 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous">
 <style>
     #__preview-banner {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 99999;
+      /* sticky (not fixed): as the first body element it pushes the page
+         content down instead of overlaying/hiding the top of it, while
+         still staying pinned once the reader scrolls. */
+      position: sticky; top: 0; left: 0; right: 0; z-index: 99999;
       display: flex; align-items: center; gap: 10px; padding: 4px 12px;
       background: rgba(15,15,20,0.85); backdrop-filter: blur(6px);
       font-family: ui-monospace, monospace; font-size: 11px; color: #8b949e;

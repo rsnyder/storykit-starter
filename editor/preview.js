@@ -249,8 +249,10 @@ function summaryLabel(diagnostics) {
     return `${errors} error${errors === 1 ? '' : 's'}` + (warns ? `, ${warns} warning${warns === 1 ? '' : 's'}` : '');
   }
   if (warns) return `${warns} warning${warns === 1 ? '' : 's'}`;
-  const last = infos[infos.length - 1];
-  if (last) return `Preview OK · ${last.message}`;
+  // Happy path: just "Preview OK". Info notes (e.g. the renderer's layout
+  // chain) live in the expandable list — repeating them here made the
+  // collapsed toggle read as duplicated jargon (user-reported confusion).
+  if (infos.length) return 'Preview OK';
   return diagnostics.length ? `${diagnostics.length} note${diagnostics.length === 1 ? '' : 's'}` : 'No diagnostics';
 }
 
@@ -305,7 +307,11 @@ export function renderDiagnosticsPanel(diagnostics, { onGotoLine, doc = document
 
     const msg = doc.createElement('span');
     msg.className = 'pv-diag-msg';
-    msg.textContent = d.message || '';
+    // The renderer's layout-chain info note ("post → default → compress") is
+    // opaque out of context — label it for authors browsing the list.
+    msg.textContent = (d.stage === 'layout' && (d.level || 'info') === 'info')
+      ? `Layout chain: ${d.message || ''}`
+      : (d.message || '');
     li.append(msg);
 
     ul.append(li);
@@ -361,6 +367,9 @@ const CSS_TEXT = `
   display: block; width: 100%; text-align: left; padding: 6px var(--sk-space-2);
   font: inherit; color: var(--sk-text-muted); background: transparent; border: 0; cursor: pointer;
 }
+/* Chevron affordance: the summary line is a collapse/expand toggle. */
+.pv-diagnostics[data-collapsed='true'] .pv-diagnostics-toggle::before { content: '\\25B8'; margin-right: 6px; opacity: .7; }
+.pv-diagnostics[data-collapsed='false'] .pv-diagnostics-toggle::before { content: '\\25BE'; margin-right: 6px; opacity: .7; }
 .pv-diagnostics-toggle:hover { background: var(--sk-bg-sunken); }
 .pv-diagnostics-list { list-style: none; margin: 0; padding: 0 var(--sk-space-2) var(--sk-space-1); max-height: 160px; overflow-y: auto; }
 .pv-diag { display: flex; gap: var(--sk-space-xs); align-items: baseline; padding: 2px 0; }
