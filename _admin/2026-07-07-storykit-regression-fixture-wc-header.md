@@ -6,6 +6,7 @@ date: 2026-07-07
 toc: false
 order: 999
 hidden: true
+media_subpath: /assets/posts/monument-valley
 storykit:
     mode: flat
     toolbar: false
@@ -24,4 +25,10 @@ added to `_includes/refactor-content.html`:
 
 ![Monument Valley via the wc shorthand](wc:Monument_Valley,_Utah,_USA.jpg)
 
-If either regresses, `tools/render_regression.py --check` fails on this entry.
+3. A viewer include with a **plain local filename** must resolve through
+   `media_subpath` — a bare `Word.ext` value must NOT be mistaken for a
+   dotted Liquid variable reference (skrender `evalLiquidValue`):
+
+{% include embed/image.html src="Monument_Valley.jpg" %}
+
+If any of these regress, `tools/render_regression.py --check` fails on this entry.

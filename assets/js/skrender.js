@@ -326,7 +326,13 @@ function buildLiquidEngine(liquidContext, resolveFile, assetOrigin) {
    */
   async function evalLiquidValue(expr, ctx) {
     if (!expr) return expr;
-    const isDotted    = /^[a-zA-Z_][\w.\[\]]*\.[\w.\[\]]+$/.test(expr);
+    // Dotted refs are recognized ONLY under the real Liquid root namespaces.
+    // A bare shape test (anything.word) mistook plain local filenames like
+    // src="Monument_Valley.jpg" for variable references, evaluated them to
+    // empty, and silently broke every local-image viewer in the preview
+    // pipeline (never caught: corpus examples all use wc: or &-suffixed
+    // values, which contain characters that already forced the literal path).
+    const isDotted    = /^(include|page|site|layout|post|paginator|jekyll)\.[\w.\[\]]+$/.test(expr);
     const isPlainWord = /^[a-zA-Z_][\w-]*$/.test(expr);
     if (!isDotted && !isPlainWord) return expr; // literal — return unchanged
     try {

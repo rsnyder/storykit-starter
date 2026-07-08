@@ -445,8 +445,8 @@
 
 
 <!-- return element -->
-<span class="readtime" data-bs-toggle="tooltip" data-bs-placement="bottom" title="54 ">
-  <em>0.3 </em> </span>
+<span class="readtime" data-bs-toggle="tooltip" data-bs-placement="bottom" title="85 ">
+  <em>0.4722222222222222 </em> </span>
 
         </div>
       </div>
@@ -465,7 +465,14 @@ from an <code>upload.wikimedia.org</code> thumb URL.</li>
 <li>A plain Markdown image must resolve the same way:</li>
 </ol>
 <p><img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Monument_Valley,_Utah,_USA.jpg/1280px-Monument_Valley,_Utah,_USA.jpg" alt="Monument Valley via the wc shorthand"></p>
-<p>If either regresses, <code>tools/render_regression.py --check</code> fails on this entry.</p>
+<ol start="3">
+<li>A viewer include with a <strong>plain local filename</strong> must resolve through
+<code>media_subpath</code> — a bare <code>Word.ext</code> value must NOT be mistaken for a
+dotted Liquid variable reference (skrender <code>evalLiquidValue</code>):</li>
+</ol>
+<iframe data-storykit-warn="no-id" class="embed-image " loading="lazy" title="StoryKit image viewer" allow="clipboard-write" allowfullscreen style="aspect-ratio: ;" src="https://rsnyder.github.io/storykit-starter/assets/components/image.html?src=https%3A%2F%2Frsnyder.github.io%2Fstorykit-starter%2Fassets%2Fposts%2Fmonument-valley%2FMonument_Valley.jpg">
+</iframe>
+<p>If any of these regress, <code>tools/render_regression.py --check</code> fails on this entry.</p>
 </div>
     <div class="viewer"></div>
   </main>

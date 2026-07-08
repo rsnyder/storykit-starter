@@ -38,11 +38,21 @@ const isMobile = isCoarsePointer || isNarrowViewport;
 // If true, action links are disabled (no href + styled as plain text)
 const isStatic = false;
 
+// The host's effective origin for postMessage. Inside an about:srcdoc
+// document (the preview tool and the editor preview render posts into
+// srcdoc iframes) location.origin serializes as the literal string "null"
+// even though the document's SECURITY origin is inherited from the
+// embedder — using it broke component↔host messaging (viewer expand
+// dialogs, action links) in every preview surface. window.origin reports
+// the security origin correctly in both contexts.
+const HOST_ORIGIN =
+    (location.origin && location.origin !== 'null') ? location.origin : window.origin;
+
 // Origins accepted for postMessage. Components are always same-origin
 // (static pages served by this site), so default to our own origin.
 // Set to null to allow all origins (not recommended), or add origins for
 // unusual embedding setups.
-const allowedMessageOrigins = new Set([location.origin]);
+const allowedMessageOrigins = new Set([HOST_ORIGIN]);
 
 /* ---------------------------------------------
  * Small utilities
@@ -554,7 +564,7 @@ function addActionLinks({ root = document.body } = {}) {
             targetEl.contentWindow.postMessage({
                 type: "storykit:action",
                 payload: { action: ds.action, args: parsedArgs, label: ds.label }
-            }, location.origin);
+            }, HOST_ORIGIN);
         });
     }
 
