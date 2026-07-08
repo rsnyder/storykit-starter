@@ -27,6 +27,7 @@ import argparse
 import difflib
 import hashlib
 import os
+import re
 import sys
 import urllib.parse
 import urllib.request
@@ -169,11 +170,18 @@ def fetch(url: str, token: str = "") -> bytes:
     try:
         return get(with_token=True)
     except Exception:
-        if not token:
-            raise
-        # A token scoped to another repo/org can cause 404s on public raw
-        # URLs; the canonical repo is public, so retry unauthenticated.
-        return get(with_token=False)
+        if token:
+            # A token scoped to another repo/org can cause 404s on public raw
+            # URLs; the canonical repo is public, so retry unauthenticated.
+            try:
+                return get(with_token=False)
+            except Exception:
+                pass
+        # Freshly pushed commits can lag on the raw CDN for a few seconds —
+        # one delayed retry rescues the common partial-sync case.
+        import time
+        time.sleep(3)
+        return get(with_token=bool(token))
 
 
 def is_text(rel: str) -> bool:
@@ -279,7 +287,29 @@ def main(argv: List[str]) -> int:
             print(f"  - {p}")
 
     if result.failed:
+        if args.apply:
+            print(
+                "\n*** PARTIAL SYNC — the FAILED files above were NOT updated. ***"
+                "\nRe-run the same command; freshly pushed commits can lag on"
+                "\nthe raw CDN for a few seconds."
+            )
         return 2
+
+    # Self-pin maintenance: after a successful --apply from an EXPLICIT sha,
+    # rewrite this file's own SRC_REF so a later bare --apply doesn't quietly
+    # revert everything to the previous pin (real foot-gun: the synced copy
+    # of this tool always self-pins one release behind the files it fetched).
+    if args.apply and args.ref != SRC_REF and re.fullmatch(r"[0-9a-f]{7,40}", args.ref or ""):
+        try:
+            self_path = repo_root / "tools" / "sync_code.py"
+            src_text = self_path.read_text()
+            new_text = re.sub(r'SRC_REF = "[0-9a-f]+"', f'SRC_REF = "{args.ref}"', src_text, count=1)
+            if new_text != src_text:
+                self_path.write_text(new_text)
+                print(f"\nSelf-pin updated: SRC_REF -> {args.ref[:12]} (commit this change).")
+        except Exception as e:
+            print(f"\nWARNING: could not update self-pin SRC_REF: {e} — bump it manually.")
+
     if result.changed and not args.apply:
         print(
             "\nLocal copies differ from the canonical repo. If the local changes are"
