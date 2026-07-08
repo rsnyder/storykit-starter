@@ -78,3 +78,22 @@ describe('skrender: frameworkAssetOrigin rewrite (central editor policy)', () =>
     assert.equal(a.html, b.html, 'same-base rewrite is byte-identical to unset');
   });
 });
+
+describe('skrender: wc: URLs with non-ASCII filenames (UTF-8 md5)', () => {
+  it('hashes UTF-8 bytes like MediaWiki/Ruby (März → /a/a7/), not UTF-16 units', async () => {
+    await loadClassicLibs();
+    const { renderPost } = await import('/assets/js/skrender.js');
+    const context = {
+      config: { url: 'https://user.github.io', baseurl: '/site', title: 'T' },
+      assetOrigin: 'https://user.github.io', baseurl: '/site',
+      resolveFile: async (p) => (p === '_layouts/nolayout.html' ? '{{ content }}' : null),
+      layouts: new Map(), includes: new Map(), locales: null,
+    };
+    const content = '---\ntitle: U\nlayout: nolayout\n---\n\n' +
+      '![Geigersberg](wc:Sachsenheim_-_Ochsenbach_-_Geigersberg_-_nördlicher_Teil_von_SSO_im_März.jpg)\n';
+    const { html } = await renderPost({ content, path: '_posts/2026-07-08-u.md', context });
+    assert.ok(html.includes('/thumb/a/a7/'),
+      `expected the UTF-8 md5 path segment /a/a7/ in: ${html.slice(html.indexOf('thumb'), html.indexOf('thumb') + 60)}`);
+    assert.ok(!html.includes('/thumb/5/52/'), 'the mangled UTF-16 hash must be gone');
+  });
+});

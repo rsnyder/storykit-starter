@@ -114,6 +114,11 @@ export function createResolveFileCache(resolveFile) {
 // where A and AB are the first 1 and 2 chars of md5(filename).
 // LiquidJS has no built-in md5; we use a self-contained pure-JS implementation.
 function md5(str) {
+  // UTF-8 encode first: the block loop below reads charCodeAt(i)&0xff, which
+  // silently mangles any non-ASCII character (März → wrong hash → wrong
+  // Commons thumb path, matching neither MediaWiki nor the Ruby md5 filter).
+  // unescape(encodeURIComponent(s)) yields a byte-string of the UTF-8 bytes.
+  str = unescape(encodeURIComponent(String(str)));
   function safeAdd(x,y){const lsw=(x&0xffff)+(y&0xffff);return(((x>>16)+(y>>16)+(lsw>>16))<<16)|(lsw&0xffff);}
   function bitRotateLeft(num,cnt){return(num<<cnt)|(num>>>(32-cnt));}
   function md5cmn(q,a,b,x,s,t){return safeAdd(bitRotateLeft(safeAdd(safeAdd(a,q),safeAdd(x,t)),s),b);}

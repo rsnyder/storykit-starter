@@ -11,8 +11,8 @@ storykit:
     mode: flat
     toolbar: false
 image:
-  path: wc:Monument_Valley,_Utah,_USA.jpg
-  alt: Monument Valley header via the wc shorthand
+  path: wc:Sachsenheim_-_Ochsenbach_-_Geigersberg_-_nördlicher_Teil_von_SSO_im_März.jpg
+  alt: Non-ASCII Commons filename header via the wc shorthand
 ---
 
 This page is a **render-regression fixture** (`tests/render/corpus.json` →
@@ -32,3 +32,8 @@ added to `_includes/refactor-content.html`:
 {% include embed/image.html src="Monument_Valley.jpg" %}
 
 If any of these regress, `tools/render_regression.py --check` fails on this entry.
+
+A non-ASCII filename in a Markdown image (UTF-8 md5 path regression —
+`ö`/`ä` must hash like MediaWiki, not as mangled UTF-16 units):
+
+![Geigersberg im März](wc:Sachsenheim_-_Ochsenbach_-_Geigersberg_-_nördlicher_Teil_von_SSO_im_März.jpg)
