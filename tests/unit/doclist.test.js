@@ -607,3 +607,41 @@ describe('doclist: Open from GitHub affordances', () => {
     }
   });
 });
+
+describe('doclist: Sync with GitHub button state + icon', () => {
+  it('disables the button (with tooltip) when synced; enables otherwise; icon always present', async () => {
+    const store = makeFakeStore([
+      { id: 'synced', title: 'In sync', path: '_posts/a.md', content: 'a',
+        updatedAt: '2026-06-01T00:00:00.000Z',
+        github: { owner: 'x', repo: 'y', branch: 'main', sha: 's1', syncedAt: '2026-06-01T00:00:00.000Z' } },
+      { id: 'dirty', title: 'Local edits', path: '_posts/b.md', content: 'b',
+        updatedAt: '2026-07-05T00:00:00.000Z',
+        github: { owner: 'x', repo: 'y', branch: 'main', sha: 's2', syncedAt: '2026-05-01T00:00:00.000Z' } },
+      { id: 'unbound', title: 'Local only', path: null, content: 'c',
+        updatedAt: '2026-07-01T00:00:00.000Z', github: null },
+    ]);
+    const mount = makeMount();
+    const api = createDocList({ mount, store, onSync: () => {} });
+    try {
+      await api.refresh();
+      const btnFor = (id) => mount.querySelector(`[data-doc-id="${id}"] .dl-sync-action`)
+        || Array.from(mount.querySelectorAll('.dl-item')).find(
+             (li) => li.textContent.includes(id === 'synced' ? 'In sync' : id === 'dirty' ? 'Local edits' : 'Local only'))
+           ?.querySelector('.dl-sync-action');
+      const syncedBtn = btnFor('synced');
+      const dirtyBtn = btnFor('dirty');
+      const unboundBtn = btnFor('unbound');
+      assert.ok(syncedBtn && dirtyBtn && unboundBtn, 'sync button rendered on every row');
+      assert.equal(syncedBtn.disabled, true, 'synced → disabled');
+      assert.ok(/in sync/i.test(syncedBtn.title), 'disabled state explains itself');
+      assert.equal(dirtyBtn.disabled, false, 'local changes → enabled');
+      assert.equal(unboundBtn.disabled, false, 'unbound → enabled (how binding starts)');
+      for (const b of [syncedBtn, dirtyBtn, unboundBtn]) {
+        assert.ok(b.querySelector('svg.dl-gh-icon'), 'GitHub icon present');
+        assert.ok(b.textContent.includes('Sync with GitHub'), 'label preserved for a11y');
+      }
+    } finally {
+      mount.remove();
+    }
+  });
+});
