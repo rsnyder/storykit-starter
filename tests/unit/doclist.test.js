@@ -513,3 +513,48 @@ describe('doclist: createDocList argument validation', () => {
     }
   });
 });
+
+describe('doclist: Sync with GitHub action (onSync)', () => {
+  const seed = [{
+    id: 'sync-me', title: 'Sync target', path: '_posts/2026-07-08-sync-target.md',
+    content: 'x', updatedAt: '2026-07-08T00:00:00.000Z', github: null,
+  }];
+
+  function syncButtons(mount) {
+    return Array.from(mount.querySelectorAll('.dl-item-actions button'))
+      .filter((b) => b.textContent === 'Sync with GitHub');
+  }
+
+  it('renders a leading "Sync with GitHub" action when onSync is provided, invoking it with the doc id', async () => {
+    const mount = makeMount();
+    const calls = [];
+    const api = createDocList({
+      mount, store: makeFakeStore(seed), bus: new EventTarget(),
+      onSync: (id) => calls.push(id),
+    });
+    try {
+      await api.refresh();
+      const btns = syncButtons(mount);
+      assert.equal(btns.length, 1, 'one sync button per item');
+      const cluster = mount.querySelector('.dl-item-actions');
+      assert.equal(cluster.querySelector('button'), btns[0], 'sync leads the action cluster');
+      btns[0].click();
+      assert.deepEqual(calls, ['sync-me']);
+    } finally {
+      api.destroy();
+      mount.remove();
+    }
+  });
+
+  it('renders no sync button when onSync is omitted', async () => {
+    const mount = makeMount();
+    const api = createDocList({ mount, store: makeFakeStore(seed), bus: new EventTarget() });
+    try {
+      await api.refresh();
+      assert.equal(syncButtons(mount).length, 0);
+    } finally {
+      api.destroy();
+      mount.remove();
+    }
+  });
+});

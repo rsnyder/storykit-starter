@@ -34,6 +34,10 @@
  *   bus     — the app's `EventTarget` (`editor/app.js`'s `bus`). Optional —
  *             a falsy bus disables event-driven re-render but the module
  *             still works (tests may omit it).
+ *   onSync  — OPTIONAL `(docId: string) => void`. When provided, each item's
+ *             action cluster leads with a "Sync with GitHub" button invoking
+ *             it (the host is expected to open the document, then the sync
+ *             panel). Omitted → no sync button (tests, unbound hosts).
  *   onOpen  — `(docId: string) => void`, called whenever the panel wants the
  *             host app to switch to a document: clicking a list item,
  *             finishing New Post, finishing Import, or Duplicate. WP-2.6 is
@@ -371,7 +375,7 @@ function ensureStyles(doc) {
  * @param {{ mount: HTMLElement, store: object, bus?: EventTarget, onOpen?: (id: string) => void }} opts
  * @returns {{ refresh: () => Promise<void>, destroy: () => void, openNewPostForm: () => void }}
  */
-export function createDocList({ mount, store, bus, onOpen } = {}) {
+export function createDocList({ mount, store, bus, onOpen, onSync } = {}) {
   if (!mount) throw new Error('createDocList: mount is required');
   if (!store || !store.docs) throw new Error('createDocList: store (with a .docs subset) is required');
 
@@ -654,6 +658,12 @@ export function createDocList({ mount, store, bus, onOpen } = {}) {
 
     const actions = doc.createElement('div');
     actions.className = 'dl-item-actions';
+    // "Sync with GitHub" leads the cluster when the host wires onSync — the
+    // primary discoverable entry point to the sync panel (the status-bar
+    // badge remains a secondary one).
+    if (onSync) {
+      actions.append(makeActionBtn('Sync with GitHub', () => onSync(docRecord.id)));
+    }
     actions.append(
       makeActionBtn('Rename path', () => {
         renamingId = renamingId === docRecord.id ? null : docRecord.id;

@@ -1344,6 +1344,9 @@ export async function init() {
         store: { docs: store.docs },
         bus,
         onOpen: (docId) => { openDoc(docId); },
+        // "Sync with GitHub" in each row's action cluster: open that document
+        // (no-op if already open), then the sync panel.
+        onSync: async (docId) => { await openDoc(docId); openSyncPanel(); },
       });
     } catch (error) {
       console.error('[storykit-editor] doclist failed to mount', error);
