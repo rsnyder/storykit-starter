@@ -734,10 +734,16 @@
 
             const tag = lines.join("\n");
 
-            navigator.clipboard.writeText(tag).then(() => {
-                $toast.textContent = "Tag copied!";
-                $toast.classList.add("show");
-                setTimeout(() => $toast.classList.remove("show"), 2000);
+            StoryKit.copyText(tag).then((copied) => {
+                if (copied) {
+                    $toast.textContent = "Tag copied!";
+                    $toast.classList.add("show");
+                    setTimeout(() => $toast.classList.remove("show"), 2000);
+                } else {
+                    // Both clipboard paths refused — surface the tag for
+                    // manual copying instead of failing silently.
+                    window.prompt("Copy the tag manually:", tag);
+                }
             });
         });
 

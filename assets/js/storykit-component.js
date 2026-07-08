@@ -166,6 +166,41 @@
     });
   }
 
+  /**
+   * Copy text to the clipboard as robustly as an embedded context allows.
+   * Components run inside iframes (sometimes nested inside a preview frame),
+   * where the async Clipboard API additionally requires clipboard-write to
+   * be delegated by EVERY ancestor frame's allow attribute. When it isn't
+   * (older embedders, third-party sites), fall back to the legacy
+   * execCommand path, which only needs a user gesture.
+   * @param {string} text
+   * @returns {Promise<boolean>} true when a copy path succeeded
+   */
+  function copyText(text) {
+    var value = String(text == null ? "" : text);
+    function legacyCopy() {
+      try {
+        var ta = document.createElement("textarea");
+        ta.value = value;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.top = "-1000px";
+        document.body.appendChild(ta);
+        ta.select();
+        var ok = document.execCommand("copy");
+        document.body.removeChild(ta);
+        return !!ok;
+      } catch (e) { return false; }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(value).then(
+        function () { return true; },
+        function () { return legacyCopy(); }
+      );
+    }
+    return Promise.resolve(legacyCopy());
+  }
+
   window.StoryKit = {
     safeParse: safeParse,
     sendToHost: sendToHost,
@@ -174,6 +209,7 @@
     showDialog: showDialog,
     reportHeight: reportHeight,
     getHostId: getHostId,
-    requestHostElement: requestHostElement
+    requestHostElement: requestHostElement,
+    copyText: copyText
   };
 })();

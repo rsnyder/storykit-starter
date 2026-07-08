@@ -187,9 +187,13 @@
      WARNING: allow-scripts + allow-same-origin together allow the iframe to
      escape sandboxing in theory — acceptable here because the content is from
      a trusted GitHub repo, not user-supplied arbitrary HTML. -->
+<!-- allow: Permissions-Policy delegation must pass every frame hop — the
+     viewer components' copy-coordinates/copy-tag features use the Clipboard
+     API from iframes nested inside this one. -->
 <iframe id="__preview-frame"
   style="position:fixed;top:36px;left:0;right:0;bottom:0;width:100%;height:calc(100vh - 36px);border:none;"
   sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-modals"
+  allow="clipboard-write; fullscreen"
 ></iframe>
 
 <script type="module">

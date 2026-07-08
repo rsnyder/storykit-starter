@@ -495,6 +495,12 @@ export function createPreviewPane({
   const iframe = doc.createElement('iframe');
   iframe.className = 'pv-frame';
   iframe.setAttribute('sandbox', SANDBOX_ATTRS);
+  // Permissions-Policy delegation must pass EVERY frame hop: the viewer
+  // components' copy-coordinates / copy-tag features use the async Clipboard
+  // API from iframes nested inside this one (component → expand dialog).
+  // Without this, clipboard writes fail everywhere inside the preview even
+  // though the inner iframes carry their own allow attributes.
+  iframe.setAttribute('allow', 'clipboard-write; fullscreen');
   iframe.setAttribute('title', 'Post preview');
 
   // ── "Quiet" overlay (WP-6.2 §5.4 no-CLS/empty-states) ───────────────────

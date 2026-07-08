@@ -1357,10 +1357,14 @@
             hp = clamp(hp, 0, 100 - yp);
 
             const regionPct = `pct:${xp.toFixed(2)},${yp.toFixed(2)},${wp.toFixed(2)},${hp.toFixed(2)}`;
-            await navigator.clipboard.writeText(regionPct);
+            const copied = await StoryKit.copyText(regionPct);
+            if (!copied) {
+              // Both clipboard paths refused (no delegation AND execCommand
+              // blocked) — show the value so the author can copy manually.
+              window.prompt('Copy the region manually:', regionPct);
+            }
           } catch (err) {
             console.error('Copy failed:', err);
-            alert('Copy failed. Your browser may block clipboard without focus/user gesture.');
           }
         });
       }
