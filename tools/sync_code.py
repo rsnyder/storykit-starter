@@ -206,7 +206,17 @@ def summarize_diff(rel: str, local: bytes, remote: bytes, max_lines: int = 10) -
 
 def run(repo_root: Path, ref: str, apply: bool, verbose: bool) -> Result:
     result = Result()
+    # Detect whether we're running INSIDE the canonical repo itself: its
+    # working tree is by definition ahead of any pinned SRC_REF, and this
+    # file cannot contain its own future commit hash, so self-comparison
+    # would report permanent phantom drift. Skip self for --check in the
+    # canonical repo; downstream copies still compare and sync everything.
+    in_canonical = (repo_root / "docs" / "editor-plan.md").exists() and \
+                   (repo_root / "tests" / "render" / "corpus.json").exists()
     for rel in FILES_TO_SYNC:
+        if rel == "tools/sync_code.py" and in_canonical and not apply:
+            result.unchanged.append(rel)
+            continue
         target = repo_root / rel
         try:
             remote_data = fetch(raw_url(rel, ref), GITHUB_TOKEN)
