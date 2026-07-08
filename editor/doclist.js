@@ -359,6 +359,11 @@ const CSS_TEXT = `
   border-radius: 4px;
 }
 .dl-item-active .dl-item-title { color: var(--sk-accent); }
+/* AA: the faint/muted tones fail 4.5:1 on the selection background —
+   darken supporting text inside the highlighted row. */
+.dl-item-active .dl-item-meta,
+.dl-item-active .dl-path,
+.dl-item-active .dl-repo-chip { color: var(--sk-text); }
 .dl-repo-chip { color: var(--sk-text-muted); font-family: var(--sk-mono, ui-monospace, monospace); }
 .dl-item-actions { display: flex; flex-wrap: wrap; gap: var(--sk-space-xs); padding: 4px 4px 0; }
 .dl-action { font-size: var(--sk-fs-xs); padding: 2px 8px; }
