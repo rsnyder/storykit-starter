@@ -930,8 +930,11 @@ export function showFatalBanner(message) {
 // and reflects state.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Path to the shared token-setup guide (same PAT key as the preview tool). */
-const TOKEN_SETUP_HREF = '../admin/storykit-preview-setup';
+/** The shared token-setup guide (same PAT key as the preview tool). Absolute:
+ *  the central editor's own origin has no admin docs — the guide lives on the
+ *  canonical site (and page-relative '../admin/…' resolved to the wrong path
+ *  from the central deployment's root-level page anyway). */
+const TOKEN_SETUP_HREF = 'https://rsnyder.github.io/storykit-starter/admin/storykit-preview-setup';
 
 /** @type {{ dialog: HTMLDialogElement, refresh: () => void }|null} */
 let syncPanel = null;
