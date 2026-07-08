@@ -18,14 +18,30 @@ Messages whose `type` does not start with `storykit:` are ignored.
 
 ## Origins
 
-Host and components are always same-origin (components are static pages
-served by the same site), so:
+Host and components are usually same-origin (components are static pages
+served by the same site), but two embedding contexts break the naive
+`location.origin` assumption and are handled explicitly:
 
-- Components send to and accept from `location.origin` only
-  (override: set `window.SK_TARGET_ORIGIN` before loading the runtime).
-- The host accepts messages from `location.origin` only
-  (override: edit `allowedMessageOrigins` in `storykit.js`; `null`
-  disables the check).
+1. **srcdoc hosts** — the preview tool and the editor preview render posts
+   into `about:srcdoc` iframes, where `location.origin` serializes as the
+   literal string `"null"` even though the document's security origin is
+   inherited. The host uses `HOST_ORIGIN` (falls back to `window.origin`)
+   for its own identity.
+2. **Cross-origin components** — a local-dev editor/preview page loads
+   components from the deployed site. The component runtime derives the
+   embedder's origin from `document.referrer` (referrer policies expose at
+   least the origin for cross-origin embeds); the host trusts exactly the
+   origins its component iframes load from (`registerComponentOrigins()`)
+   and addresses each send to the target iframe's own origin.
+
+Resulting rules:
+
+- Components send to `SK_TARGET_ORIGIN override → referrer origin (when
+  embedded cross-origin) → own origin`, and accept from that origin or
+  their own.
+- The host accepts from `HOST_ORIGIN` plus the origins of its component
+  iframes (override: edit `allowedMessageOrigins` in `storykit.js`;
+  `null` disables the check).
 
 There is no cross-version compatibility concern: host and components
 deploy atomically from the same site, so protocol changes are safe as a

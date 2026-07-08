@@ -222,3 +222,59 @@ def test_action_link_zoomto_reaches_the_component(editor_prod):
         page.wait_for_timeout(250)
     assert got, "no storykit:action message reached the component"
     assert got[0]["action"] == "zoomto"
+
+
+def test_expand_works_when_editor_is_cross_origin_with_components(playwright, built_site):
+    """The local-dev topology: editor page on a localhost origin while
+    components load from the deployed origin (assetOrigin = config.url).
+    Pins the cross-origin trust model — component runtime derives the
+    embedder origin from document.referrer; the host trusts the origins its
+    component iframes actually load from (registerComponentOrigins)."""
+    import http.server, functools, socket, threading
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+    handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=str(SITE))
+    httpd = http.server.ThreadingHTTPServer(("127.0.0.1", port), handler)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    browser = playwright.chromium.launch(headless=True)
+    try:
+        page = browser.new_context(locale="en-US", timezone_id="UTC").new_page()
+        page.route(f"{ORIGIN}/**", _route_site)          # deployed origin ← local _site
+        page.route("https://raw.githubusercontent.com/**", _route_raw)
+        page.route("https://res.cloudinary.com/**", _route_cloudinary)
+        page.goto(f"http://127.0.0.1:{port}/editor/index.html", wait_until="load", timeout=60000)
+        page.wait_for_selector("#new-doc:not([disabled])", timeout=30000)
+        page.evaluate(
+            """async (content) => {
+                const app = await import('/editor/app.js');
+                const rec = await app.modules.store.docs.create({
+                    title: 'XO', path: '_posts/2026-07-08-xo.md', content });
+                await app.openDoc(rec.id);
+                app.setMode('preview');
+            }""",
+            FRONT + '{% include embed/image.html id="v1" src="Monument_Valley.jpg" %}\n')
+        fr = page.locator("#preview-mount iframe.pv-frame")
+        fr.wait_for(state="attached", timeout=30000)
+        rr._poll_srcdoc(page, fr)
+        v = page.frame_locator("#preview-mount iframe.pv-frame").frame_locator(
+            "iframe.embed-image").first
+        v.locator("#osd").wait_for(timeout=45000)
+        page.wait_for_timeout(2000)
+        # sanity: components really are cross-origin with the page
+        comp = page.evaluate("""() => {
+            const d = document.querySelector('#preview-mount iframe.pv-frame').contentDocument;
+            return d.querySelector('iframe.embed-image').src; }""")
+        assert comp.startswith(ORIGIN), f"expected cross-origin components, got {comp}"
+        v.locator("#osd").click(position={"x": 30, "y": 30})
+        opened = False
+        for _ in range(24):
+            st = _dialog_state(page)
+            if st["open"] and st["hasIframe"]:
+                opened = True
+                break
+            page.wait_for_timeout(250)
+        assert opened, f"cross-origin expand failed: {_dialog_state(page)}"
+    finally:
+        browser.close()
+        httpd.shutdown()

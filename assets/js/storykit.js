@@ -48,11 +48,28 @@ const isStatic = false;
 const HOST_ORIGIN =
     (location.origin && location.origin !== 'null') ? location.origin : window.origin;
 
-// Origins accepted for postMessage. Components are always same-origin
-// (static pages served by this site), so default to our own origin.
-// Set to null to allow all origins (not recommended), or add origins for
-// unusual embedding setups.
+// Origins accepted for postMessage. Components are usually same-origin
+// (static pages served by this site) but MAY be cross-origin — e.g. this
+// page rendered by a local-dev editor/preview while components load from
+// the deployed site. registerComponentOrigins() adds the origins of the
+// actual component iframes on the page at init, so we trust exactly the
+// places we load viewers from. Set to null to allow all origins (not
+// recommended).
 const allowedMessageOrigins = new Set([HOST_ORIGIN]);
+
+/** Trust the origins we actually load viewer component iframes from. */
+function registerComponentOrigins(root = document) {
+    root.querySelectorAll('iframe[src*="/assets/components/"]').forEach((f) => {
+        try { allowedMessageOrigins.add(new URL(f.src, location.href).origin); }
+        catch { /* unparsable src — skip */ }
+    });
+}
+
+/** targetOrigin for posting INTO a component iframe: its own origin. */
+function originOfIframe(el) {
+    try { return new URL(el.src, location.href).origin; }
+    catch { return HOST_ORIGIN; }
+}
 
 /* ---------------------------------------------
  * Small utilities
@@ -578,7 +595,7 @@ function addActionLinks({ root = document.body } = {}) {
             targetEl.contentWindow.postMessage({
                 type: "storykit:action",
                 payload: { action: ds.action, args: parsedArgs, label: ds.label }
-            }, HOST_ORIGIN);
+            }, originOfIframe(targetEl));
         });
     }
 
@@ -1230,6 +1247,11 @@ function getViewMode() {
  *   autoFloat, groupEmbeds, wikidataInfoPopups - feature flags (default true)
  */
 function initStoryKit(cfg = {}) {
+    // Trust messages from wherever this page's viewer components actually
+    // load — same-origin normally, the deployed site when a local-dev
+    // editor/preview renders this page.
+    registerComponentOrigins();
+
     const contentEl = document.querySelector(".post-content");
     if (contentEl) {
         const restructured = restructureMarkdownToSections(contentEl);

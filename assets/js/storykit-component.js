@@ -22,7 +22,24 @@
 (function () {
   "use strict";
 
-  var TARGET_ORIGIN = window.SK_TARGET_ORIGIN || window.location.origin;
+  // The host is usually same-origin (components are static pages on the same
+  // site), but a host page may embed components CROSS-origin — e.g. the
+  // editor/preview running on a local Jekyll server while components load
+  // from the deployed site. The embedder's origin is then available via
+  // document.referrer (referrer policies expose at least the origin for
+  // cross-origin embeds). Trust order: explicit override → referrer origin
+  // (when embedded and different) → own origin.
+  var EMBEDDER_ORIGIN = null;
+  try {
+    if (window.parent !== window && document.referrer) {
+      var refOrigin = new URL(document.referrer).origin;
+      if (refOrigin && refOrigin !== "null" && refOrigin !== window.location.origin) {
+        EMBEDDER_ORIGIN = refOrigin;
+      }
+    }
+  } catch (e) { /* unparsable referrer — fall through to own origin */ }
+
+  var TARGET_ORIGIN = window.SK_TARGET_ORIGIN || EMBEDDER_ORIGIN || window.location.origin;
 
   /** Tolerant message parse: accepts objects or JSON strings, never throws. */
   function safeParse(data) {
@@ -33,7 +50,10 @@
   }
 
   function isTrustedOrigin(origin) {
-    return origin === TARGET_ORIGIN;
+    // Accept the embedder (TARGET_ORIGIN) and our own origin: host messages
+    // arrive with the host document's SECURITY origin — the site origin in
+    // same-origin setups, the embedder origin in cross-origin ones.
+    return origin === TARGET_ORIGIN || origin === window.location.origin;
   }
 
   /** Send an enveloped message to the host page. */
