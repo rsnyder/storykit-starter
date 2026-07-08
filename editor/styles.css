@@ -750,3 +750,19 @@ body .cm-editor.cm-focused .cm-selectionBackground { background: var(--sk-select
    narrow viewports — dialogs/menus already clamp their own width, this is
    the backstop for anything that doesn't). */
 html, body { max-width: 100%; overflow-x: hidden; }
+
+/* Bookmarklet chip in the sync panel — a draggable link that must read as
+   "grab me", not as a normal hyperlink. */
+.sk-bookmarklet {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 1px solid var(--sk-border-strong);
+  border-radius: 6px;
+  background: var(--sk-surface);
+  color: var(--sk-accent);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: grab;
+  white-space: nowrap;
+}
+.sk-bookmarklet:active { cursor: grabbing; }

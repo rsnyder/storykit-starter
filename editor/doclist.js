@@ -375,7 +375,7 @@ function ensureStyles(doc) {
  * @param {{ mount: HTMLElement, store: object, bus?: EventTarget, onOpen?: (id: string) => void }} opts
  * @returns {{ refresh: () => Promise<void>, destroy: () => void, openNewPostForm: () => void }}
  */
-export function createDocList({ mount, store, bus, onOpen, onSync } = {}) {
+export function createDocList({ mount, store, bus, onOpen, onSync, onOpenRemote } = {}) {
   if (!mount) throw new Error('createDocList: mount is required');
   if (!store || !store.docs) throw new Error('createDocList: store (with a .docs subset) is required');
 
@@ -403,6 +403,23 @@ export function createDocList({ mount, store, bus, onOpen, onSync } = {}) {
   fileInput.className = 'dl-file-input';
   fileInput.setAttribute('aria-label', 'Import Markdown file');
   toolbar.append(importBtn, fileInput);
+
+  // Optional "Open…" (from GitHub): shown only when the host wires
+  // onOpenRemote. Prompts for a GitHub file URL / repo path and delegates
+  // parsing + fetching to the host (app.js → sync.openFromGitHub).
+  if (typeof onOpenRemote === 'function') {
+    const openBtn = doc.createElement('button');
+    openBtn.type = 'button';
+    openBtn.className = 'btn btn-sm dl-open-remote-btn';
+    openBtn.textContent = 'Open…';
+    openBtn.title = 'Open a file that already exists on GitHub';
+    openBtn.addEventListener('click', () => {
+      const ref = doc.defaultView.prompt(
+        'Open from GitHub — paste a file URL (github.com/…/blob/…) or a repo path like _posts/2026-01-01-post.md:');
+      if (ref && ref.trim()) onOpenRemote(ref.trim());
+    });
+    toolbar.insertBefore(openBtn, importBtn);
+  }
 
   const formHost = doc.createElement('div');
   formHost.className = 'dl-form-host';
@@ -446,8 +463,15 @@ export function createDocList({ mount, store, bus, onOpen, onSync } = {}) {
     const types = e.dataTransfer && e.dataTransfer.types;
     return !!types && Array.from(types).includes('Files');
   }
+  // A link dragged from a GitHub page arrives as text/uri-list (no Files).
+  // Only light up / accept when the host can actually open remote files.
+  function hasLinkPayload(e) {
+    if (typeof onOpenRemote !== 'function') return false;
+    const types = e.dataTransfer && e.dataTransfer.types;
+    return !!types && Array.from(types).includes('text/uri-list');
+  }
   function onDragOver(e) {
-    if (!hasFilesPayload(e)) return;
+    if (!hasFilesPayload(e) && !hasLinkPayload(e)) return;
     e.preventDefault();
     mount.classList.add('dl-drop-target');
   }
@@ -455,9 +479,18 @@ export function createDocList({ mount, store, bus, onOpen, onSync } = {}) {
     mount.classList.remove('dl-drop-target');
   }
   async function onDrop(e) {
-    if (!hasFilesPayload(e)) return;
+    const isFiles = hasFilesPayload(e);
+    const isLink = !isFiles && hasLinkPayload(e);
+    if (!isFiles && !isLink) return;
     e.preventDefault();
     mount.classList.remove('dl-drop-target');
+    if (isLink) {
+      // uri-list: one URL per line, comment lines start with '#'
+      const uris = String(e.dataTransfer.getData('text/uri-list') || '')
+        .split(/\r?\n/).map((u) => u.trim()).filter((u) => u && !u.startsWith('#'));
+      for (const uri of uris) onOpenRemote(uri);
+      return;
+    }
     const files = Array.from((e.dataTransfer && e.dataTransfer.files) || []).filter((f) => /\.md$/i.test(f.name));
     for (const file of files) await importFile(file);
   }

@@ -558,3 +558,52 @@ describe('doclist: Sync with GitHub action (onSync)', () => {
     }
   });
 });
+
+describe('doclist: Open from GitHub affordances', () => {
+  it('shows the Open… button only when onOpenRemote is wired', async () => {
+    const store = makeFakeStore([]);
+    const withBtn = makeMount();
+    const without = makeMount();
+    const apiA = createDocList({ mount: withBtn, store, onOpenRemote: () => {} });
+    const apiB = createDocList({ mount: without, store });
+    try {
+      assert.ok(withBtn.querySelector('.dl-open-remote-btn'), 'button present when wired');
+      assert.equal(without.querySelector('.dl-open-remote-btn'), null, 'absent when not wired');
+    } finally {
+      withBtn.remove(); without.remove();
+    }
+  });
+
+  it('routes a dropped GitHub link (text/uri-list) to onOpenRemote, not file import', async () => {
+    const store = makeFakeStore([]);
+    const mount = makeMount();
+    const opened = [];
+    createDocList({ mount, store, onOpenRemote: (ref) => opened.push(ref) });
+    try {
+      const dt = new DataTransfer();
+      dt.setData('text/uri-list', 'https://github.com/o/r/blob/main/_posts/a.md\r\n# comment line');
+      const drop = new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt });
+      mount.dispatchEvent(drop);
+      await new Promise((r) => setTimeout(r, 0));
+      assert.deepEqual(opened, ['https://github.com/o/r/blob/main/_posts/a.md']);
+      assert.ok(drop.defaultPrevented, 'drop accepted (default prevented)');
+    } finally {
+      mount.remove();
+    }
+  });
+
+  it('ignores link drops when onOpenRemote is not wired (no crash, not prevented)', async () => {
+    const store = makeFakeStore([]);
+    const mount = makeMount();
+    createDocList({ mount, store });
+    try {
+      const dt = new DataTransfer();
+      dt.setData('text/uri-list', 'https://github.com/o/r/blob/main/_posts/a.md');
+      const drop = new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt });
+      mount.dispatchEvent(drop);
+      assert.equal(drop.defaultPrevented, false, 'link payload ignored without handler');
+    } finally {
+      mount.remove();
+    }
+  });
+});

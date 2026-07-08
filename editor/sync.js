@@ -443,6 +443,102 @@ export async function pullDocument(docId) {
   }
 }
 
+// ── openFromGitHub (Open an existing repo file) ──────────────────────────────
+
+/**
+ * Parse a reference to a file on GitHub. Accepts, in order of preference:
+ *   - github.com blob/edit/raw page URLs:
+ *       https://github.com/<o>/<r>/(blob|edit|raw)/<branch>/<path>
+ *   - raw.githubusercontent URLs:
+ *       https://raw.githubusercontent.com/<o>/<r>/<branch>/<path>
+ *       (also the /refs/heads/<branch>/ form GitHub's Raw button now emits)
+ *   - the shorthand `owner/repo/branch/path/to/file.md`
+ *   - a bare repo path (`_posts/x.md`), resolved against `binding` when given
+ * @param {string} ref
+ * @param {{owner?:string, repo?:string, branch?:string}|null} [binding]
+ * @returns {{owner:string, repo:string, branch:string, path:string}|null}
+ */
+export function parseGitHubFileRef(ref, binding = null) {
+  const s = String(ref || '').trim();
+  if (!s) return null;
+
+  let m = s.match(/^https?:\/\/github\.com\/([^/]+)\/([^/]+)\/(?:blob|edit|raw)\/([^/]+)\/(.+?)(?:[?#].*)?$/i);
+  if (m) return { owner: m[1], repo: m[2], branch: m[3], path: decodeURIComponent(m[4]) };
+
+  m = s.match(/^https?:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/refs\/heads\/([^/]+)\/(.+?)(?:[?#].*)?$/i)
+   || s.match(/^https?:\/\/raw\.githubusercontent\.com\/([^/]+)\/([^/]+)\/([^/]+)\/(.+?)(?:[?#].*)?$/i);
+  if (m) return { owner: m[1], repo: m[2], branch: m[3], path: decodeURIComponent(m[4]) };
+
+  if (/^https?:/i.test(s)) return null; // some other URL — not a GitHub file
+
+  const parts = s.replace(/^\/+/, '').split('/');
+  if (parts.length >= 4 && !s.startsWith('_') && !s.startsWith('assets/')) {
+    // owner/repo/branch/path…
+    return { owner: parts[0], repo: parts[1], branch: parts[2], path: parts.slice(3).join('/') };
+  }
+  if (binding && binding.owner && binding.repo) {
+    return { owner: binding.owner, repo: binding.repo,
+             branch: binding.branch || 'main', path: parts.join('/') };
+  }
+  return null;
+}
+
+/**
+ * Open an existing file from GitHub as a bound local document.
+ * Dedupe: a local document already bound to the same owner/repo/branch+path
+ * is opened as-is (its content is NOT replaced — checkRemote surfaces any
+ * remote drift through the normal banner). Otherwise the file is fetched and
+ * a new document is created, bound, and sha-anchored exactly as if it had
+ * been committed from here.
+ * @param {{owner:string, repo:string, branch?:string, path:string}} ref
+ * @returns {Promise<{docId:string, created:boolean}>}
+ */
+export async function openFromGitHub({ owner, repo, branch = 'main', path } = {}) {
+  if (!owner || !repo || !path) throw new Error('openFromGitHub: owner, repo and path are required');
+
+  const existing = (await _deps.store.docs.list()).find((d) =>
+    d.path === path && d.github &&
+    d.github.owner === owner && d.github.repo === repo &&
+    (d.github.branch || 'main') === branch);
+  if (existing) {
+    checkRemote(existing.id); // fire-and-forget freshness probe
+    return { docId: existing.id, created: false };
+  }
+
+  let file;
+  try {
+    file = await _deps.github.getFile({ owner, repo, ref: branch, path });
+  } catch (err) {
+    if (isGitHubError(err)) toastGitHubError(err);
+    throw err;
+  }
+  if (!file || file === 'not-modified') {
+    toast(`${path} not found in ${owner}/${repo}@${branch}.`, 'error');
+    throw new Error(`openFromGitHub: ${path} not found`);
+  }
+
+  const title = titleFromContent(file.content, basename(path));
+  const created = await _deps.store.docs.create({ title, path, content: file.content });
+  const github = { owner, repo, branch, sha: file.sha, remoteChanged: false };
+  if (file.etag) github.etag = file.etag;
+  // Anchor syncedAt to the record's exact updatedAt (github-only patches
+  // don't bump it) so the badge reads Synced deterministically.
+  const saved = await _deps.store.docs.update(created.id, {
+    github: { ...github, syncedAt: created.updatedAt },
+  });
+  emitStatus(saved);
+  toast(`Opened ${basename(path)} from ${owner}/${repo}@${branch}.`, 'success');
+  return { docId: created.id, created: true };
+}
+
+/** Front-matter `title:` (quotes stripped) with a fallback. */
+function titleFromContent(content, fallback) {
+  const m = String(content || '').match(/^---[\s\S]*?^title:\s*(.+?)\s*$/m);
+  if (!m) return fallback;
+  const t = m[1].trim().replace(/^["']|["']$/g, '').trim();
+  return t || fallback;
+}
+
 // ── checkRemote (FR-GH.5, passive) ───────────────────────────────────────────
 
 /**

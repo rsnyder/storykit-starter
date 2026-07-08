@@ -1063,9 +1063,30 @@ function buildSyncPanel() {
     h('div', { class: 'sk-field-row' }, [commitBtn, pullBtn]),
   ]);
 
+  // Bookmarklet: drag to the bookmarks bar; on any GitHub file page it opens
+  // this editor with that file (?open=<blob URL> → openRemoteRef at boot).
+  const editorUrl = new URL(window.location.pathname, window.location.origin).href;
+  const bookmarklet = h('a', {
+    class: 'sk-bookmarklet', id: 'open-bookmarklet', text: 'Edit in StoryKit',
+    title: 'Drag me to your bookmarks bar, then click me on any GitHub file page',
+  });
+  bookmarklet.setAttribute('href',
+    `javascript:(function(){var u=location.href;` +
+    `if(!/github\\.com\\/[^/]+\\/[^/]+\\/(blob|edit)\\//.test(u)){alert('Open a file on GitHub first');return;}` +
+    `window.open(${JSON.stringify(editorUrl)}+'?open='+encodeURIComponent(u));})();`);
+  bookmarklet.addEventListener('click', (e) => e.preventDefault()); // drag-only in situ
+  const bookmarkletSection = h('section', { class: 'sk-dialog-section' }, [
+    h('h3', { class: 'sk-dialog-h', text: 'Bookmarklet' }),
+    h('p', { class: 'sk-field-note' }, [
+      document.createTextNode('Drag '),
+      bookmarklet,
+      document.createTextNode(' to your bookmarks bar. Clicking it on any GitHub file page opens that file here. You can also drag a file link from GitHub straight into the document list.'),
+    ]),
+  ]);
+
   const body = h('div', { class: 'sk-dialog-body' }, [
     h('header', { class: 'sk-dialog-head' }, [h('h2', { class: 'sk-dialog-title', text: 'GitHub sync' }), closeBtn]),
-    tokenSection, bindingSection, syncSection,
+    tokenSection, bindingSection, syncSection, bookmarkletSection,
   ]);
   dialog.append(body);
   document.body.appendChild(dialog);
@@ -1347,6 +1368,9 @@ export async function init() {
         // "Sync with GitHub" in each row's action cluster: open that document
         // (no-op if already open), then the sync panel.
         onSync: async (docId) => { await openDoc(docId); openSyncPanel(); },
+        // "Open…" button + GitHub-link drops: open an EXISTING repo file as a
+        // bound document (or focus it if it's already in the list).
+        onOpenRemote: (ref) => { openRemoteRef(ref); },
       });
     } catch (error) {
       console.error('[storykit-editor] doclist failed to mount', error);
@@ -1370,10 +1394,59 @@ export async function init() {
   }
   if (!restored) showEditorEmptyState();
 
+  // ── Open-from-URL (bookmarklet entry point) ────────────────────────────────
+  // ?repo=<owner>/<name>&branch=<b>&open=<repo/path.md> — or a single
+  // ?open=<full github.com blob URL>. Takes precedence over the restored
+  // document; the params are stripped afterwards so a plain reload returns
+  // to normal last-document behavior (reopening is idempotent anyway).
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const openParam = params.get('open');
+    if (openParam) {
+      let ref = openParam;
+      const repoParam = params.get('repo');
+      if (repoParam && !/^https?:/i.test(openParam)) {
+        const [owner, repo] = repoParam.split('/');
+        ref = `${owner}/${repo}/${params.get('branch') || 'main'}/${openParam.replace(/^\/+/, '')}`;
+      }
+      const opened = await openRemoteRef(ref);
+      if (opened) {
+        params.delete('open'); params.delete('repo'); params.delete('branch');
+        const qs = params.toString();
+        window.history.replaceState(null, '',
+          window.location.pathname + (qs ? `?${qs}` : '') + window.location.hash);
+      }
+    }
+  } catch (error) {
+    console.warn('[storykit-editor] open-from-URL failed', error);
+  }
+
   // Request durable storage (non-blocking; FR-DOC.8).
   requestPersistenceNotice();
 
   return { ok: true, editor: editorHandle };
+}
+
+/**
+ * Open an existing GitHub file (URL, owner/repo/branch/path shorthand, or a
+ * bare repo path resolved against the current binding) as a bound document.
+ * Used by the doclist "Open…" button, GitHub-link drops, and ?open= URLs.
+ * @param {string} ref
+ * @returns {Promise<boolean>} true when a document was opened
+ */
+export async function openRemoteRef(ref) {
+  const parsed = sync.parseGitHubFileRef(ref, appState.binding);
+  if (!parsed) {
+    showToast({ message: `Couldn't understand "${String(ref).slice(0, 80)}" as a GitHub file — paste a github.com file URL or bind a repository first.`, level: 'error' });
+    return false;
+  }
+  try {
+    const { docId } = await sync.openFromGitHub(parsed);
+    await openDoc(docId);
+    return true;
+  } catch {
+    return false; // openFromGitHub already toasted the specific failure
+  }
 }
 
 function wireControls() {

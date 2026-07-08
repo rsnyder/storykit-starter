@@ -747,3 +747,92 @@ describe('statusbar: five-state badge + surfaces', () => {
     mount.remove();
   });
 });
+
+// ── parseGitHubFileRef + openFromGitHub (Open an existing repo file) ─────────
+
+describe('sync: parseGitHubFileRef grammar', () => {
+  const parse = sync.parseGitHubFileRef;
+
+  it('parses github.com blob/edit/raw URLs (query/hash stripped, path decoded)', () => {
+    assert.deepEqual(parse('https://github.com/o/r/blob/main/_posts/2026-01-01-a.md'),
+      { owner: 'o', repo: 'r', branch: 'main', path: '_posts/2026-01-01-a.md' });
+    assert.deepEqual(parse('https://github.com/o/r/edit/dev/docs/x.md?plain=1#L10'),
+      { owner: 'o', repo: 'r', branch: 'dev', path: 'docs/x.md' });
+    assert.equal(parse('https://github.com/o/r/blob/main/_posts/with%20space.md').path,
+      '_posts/with space.md');
+  });
+
+  it('parses raw.githubusercontent URLs including the refs/heads form', () => {
+    assert.deepEqual(parse('https://raw.githubusercontent.com/o/r/main/_posts/a.md'),
+      { owner: 'o', repo: 'r', branch: 'main', path: '_posts/a.md' });
+    assert.deepEqual(parse('https://raw.githubusercontent.com/o/r/refs/heads/dev/_posts/a.md'),
+      { owner: 'o', repo: 'r', branch: 'dev', path: '_posts/a.md' });
+  });
+
+  it('parses owner/repo/branch/path shorthand and binding-relative bare paths', () => {
+    assert.deepEqual(parse('o/r/main/_posts/a.md'),
+      { owner: 'o', repo: 'r', branch: 'main', path: '_posts/a.md' });
+    assert.deepEqual(parse('_posts/a.md', { owner: 'bo', repo: 'br', branch: 'dev' }),
+      { owner: 'bo', repo: 'br', branch: 'dev', path: '_posts/a.md' });
+    assert.deepEqual(parse('_posts/a.md', { owner: 'bo', repo: 'br' }).branch, 'main');
+  });
+
+  it('rejects non-GitHub URLs, bare paths without a binding, and empties', () => {
+    assert.equal(parse('https://example.com/x.md'), null);
+    assert.equal(parse('_posts/a.md'), null);
+    assert.equal(parse('_posts/a.md', {}), null);
+    assert.equal(parse(''), null);
+    assert.equal(parse(null), null);
+  });
+});
+
+describe('sync: openFromGitHub', () => {
+  it('fetches, creates a bound + sha-anchored document, and reports Synced', async () => {
+    const remote = '---\ntitle: "Remote Post"\n---\n\nBody.\n';
+    const gh = fakeGitHub({ files: { '_posts/2026-02-02-remote.md': { content: remote, sha: 'sha-r1' } } });
+    await withSyncEnv({ github: gh }, async ({ events }) => {
+      const { docId, created } = await sync.openFromGitHub(
+        { owner: 'o', repo: 'r', branch: 'main', path: '_posts/2026-02-02-remote.md' });
+      assert.equal(created, true);
+      const rec = await docs.get(docId);
+      assert.equal(rec.title, 'Remote Post', 'title extracted from front matter');
+      assert.equal(rec.path, '_posts/2026-02-02-remote.md');
+      assert.equal(rec.content, remote);
+      assert.equal(rec.github.owner, 'o');
+      assert.equal(rec.github.sha, 'sha-r1');
+      assert.equal(rec.github.syncedAt, rec.updatedAt, 'syncedAt anchored to updatedAt');
+      const status = events.find((e) => e.type === 'sync:status');
+      assert.ok(status, 'emits sync:status');
+      await docs.remove(docId);
+    });
+  });
+
+  it('dedupes: a doc already bound to the same repo/branch/path is reused as-is', async () => {
+    const gh = fakeGitHub({ files: { [BOUND.path]: { content: 'remote', sha: 'sha-x' } } });
+    const rec = await makeDoc('local content', { github: boundGithubField({ sha: 'sha-x' }) });
+    await withSyncEnv({ github: gh }, async () => {
+      const { docId, created } = await sync.openFromGitHub(
+        { owner: BOUND.owner, repo: BOUND.repo, branch: BOUND.branch, path: BOUND.path });
+      assert.equal(created, false);
+      assert.equal(docId, rec.id);
+      const after = await docs.get(rec.id);
+      assert.equal(after.content, 'local content', 'existing content is NOT replaced');
+    });
+    await docs.remove(rec.id);
+  });
+
+  it('missing remote file toasts an error and throws (no document created)', async () => {
+    const gh = fakeGitHub({ files: {} });
+    await withSyncEnv({ github: gh }, async ({ events }) => {
+      const before = (await docs.list()).length;
+      let threw = false;
+      try {
+        await sync.openFromGitHub({ owner: 'o', repo: 'r', path: '_posts/none.md' });
+      } catch { threw = true; }
+      assert.ok(threw, 'throws on 404');
+      assert.equal((await docs.list()).length, before, 'no document created');
+      const toastEvt = events.find((e) => e.type === 'toast' && e.detail.level === 'error');
+      assert.ok(toastEvt, 'error toast emitted');
+    });
+  });
+});
