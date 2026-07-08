@@ -68,7 +68,7 @@ from conftest import _cached_chromium  # noqa: E402
 from github_mock import GitHubMock  # noqa: E402
 
 MOUNT_TIMEOUT = 25_000  # ms
-ACTION_TIMEOUT = 30_000  # ms — badge-state waits chain several mocked API calls; generous for loaded CI runners (was 10s, flaked at 82% depth of the 40-test run)
+ACTION_TIMEOUT = 60_000  # ms — badge-state waits chain several mocked API calls; must absorb loaded CI runners (10s flaked at 82% depth of a 40-test run; 30s flaked once at 66% depth of the 50-test run)
 
 
 # ── fixtures ─────────────────────────────────────────────────────────────────

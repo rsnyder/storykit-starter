@@ -60,7 +60,7 @@ from conftest import _cached_chromium  # noqa: E402
 from github_mock import GitHubMock  # noqa: E402
 
 MOUNT_TIMEOUT = 25_000  # ms — CM editor mounted after a doc is opened
-ACTION_TIMEOUT = 10_000  # ms — a sync network round-trip against the mock
+ACTION_TIMEOUT = 60_000  # ms — a sync round-trip against the mock; same loaded-CI-runner ceiling as test_m6_keyboard (10s/30s ceilings both flaked there)
 
 
 # ── fixtures ─────────────────────────────────────────────────────────────────
