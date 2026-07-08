@@ -645,3 +645,29 @@ describe('doclist: Sync with GitHub button state + icon', () => {
     }
   });
 });
+
+describe('doclist: repo chip (central editor, one list spans repos)', () => {
+  it('bound rows show owner/repo (+branch when not main); unbound rows do not', async () => {
+    const store = makeFakeStore([
+      { id: 'm', title: 'Main branch', path: '_posts/a.md', content: 'a',
+        updatedAt: '2026-07-01T00:00:00.000Z',
+        github: { owner: 'rsnyder', repo: 'storykit', branch: 'main', sha: 's', syncedAt: '2026-07-01T00:00:00.000Z' } },
+      { id: 'd', title: 'Draft branch', path: '_posts/b.md', content: 'b',
+        updatedAt: '2026-06-01T00:00:00.000Z',
+        github: { owner: 'o', repo: 'r', branch: 'draft', sha: 's', syncedAt: '2026-06-01T00:00:00.000Z' } },
+      { id: 'u', title: 'Unbound', path: null, content: 'c', updatedAt: '2026-05-01T00:00:00.000Z', github: null },
+    ]);
+    const mount = makeMount();
+    const api = createDocList({ mount, store });
+    try {
+      await api.refresh();
+      const chips = Array.from(mount.querySelectorAll('.dl-repo-chip')).map((c) => c.textContent);
+      assert.deepEqual(chips, ['rsnyder/storykit', 'o/r@draft']);
+      const unboundRow = Array.from(mount.querySelectorAll('.dl-item'))
+        .find((li) => li.textContent.includes('Unbound'));
+      assert.equal(unboundRow.querySelector('.dl-repo-chip'), null);
+    } finally {
+      mount.remove();
+    }
+  });
+});

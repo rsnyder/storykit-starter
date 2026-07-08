@@ -940,6 +940,25 @@ export async function renderPost({ content, path, context }) {
   });
   html = html.replace(/(<body[^>]*>)/i, '$1' + inlineBannerHtml);
 
+  // ── Framework-asset origin override (central editor; editor-central.md) ──
+  // When context.frameworkAssetOrigin is set (origin+baseurl of the CANONICAL
+  // framework deployment), rewrite FRAMEWORK runtime assets — viewer
+  // component pages, the storykit host/component runtimes, storykit.css —
+  // away from the bound site to the canonical. The bound site may be
+  // undeployed or framework-stale; the canonical is always both. Site
+  // content/media URLs are untouched. Unset (the default, incl. all per-site
+  // preview tools and the regression goldens) → no-op.
+  if (context.frameworkAssetOrigin) {
+    const siteBase = (deployedOrigin + baseurl).replace(/\/$/, '');
+    const fwBase = String(context.frameworkAssetOrigin).replace(/\/$/, '');
+    if (siteBase && fwBase && siteBase !== fwBase) {
+      const esc = siteBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      html = html.replace(
+        new RegExp(`${esc}(/assets/(?:components/|js/storykit[^"'\\s]*|css/storykit\\.css))`, 'g'),
+        `${fwBase}$1`);
+    }
+  }
+
   // A final info diagnostic carrying the applied layout chain for status UI.
   diag('info', 'layout', layoutChain.map(l => l.name).join(' → '));
 

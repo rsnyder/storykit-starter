@@ -180,17 +180,30 @@ function fmtDate(ms) {
 let _cachedWrap = null;
 async function getResolveFileCacheWrapper() {
   if (_cachedWrap) return _cachedWrap;
-  try {
-    const mod = await import('../assets/js/skrender.js');
-    if (typeof mod.createResolveFileCache === 'function') {
-      _cachedWrap = mod.createResolveFileCache;
-      return _cachedWrap;
+  // ONLY attempt the import when skrender's evaluation preconditions hold:
+  // its module top-level calls window.markdownit(...). Importing before the
+  // classic globals are loaded doesn't just fail — the THROWING evaluation is
+  // permanently cached in the realm's module map (module poisoning), so every
+  // later import of skrender rethrows even after the globals arrive. That
+  // would break the preview for the whole session on any call-order slip.
+  const globalsReady = typeof window !== 'undefined'
+    && typeof window.markdownit === 'function'
+    && !!window.liquidjs && !!window.jsyaml;
+  if (globalsReady) {
+    try {
+      const mod = await import('../assets/js/skrender.js');
+      if (typeof mod.createResolveFileCache === 'function') {
+        _cachedWrap = mod.createResolveFileCache;
+        return _cachedWrap;
+      }
+    } catch {
+      // unexpected import failure — use the local copy below.
     }
-  } catch {
-    // skrender's render globals aren't present — use the local copy below.
   }
-  _cachedWrap = localCreateResolveFileCache;
-  return _cachedWrap;
+  // Local copy this call; don't memoize it as final — globals may be loaded
+  // by preview.js before the next buildContext, letting skrender's own
+  // implementation take over then.
+  return localCreateResolveFileCache;
 }
 
 /** Inline copy of skrender's createResolveFileCache (per-session memoization). */
@@ -415,6 +428,12 @@ export async function buildContext({ binding } = {}) {
     layouts: new Map(), // empty pre-seed: layouts fall through to resolveFile
     includes: new Map(), // empty pre-seed: includes fall through to resolveFile
     diagnostics,
+    // Central-editor asset policy (docs/editor-central.md): framework runtime
+    // assets (viewer components, storykit.js/css) always render from the
+    // canonical deployment — the bound site may be undeployed or framework-
+    // stale. skrender no-ops when this equals the bound site's own base, so
+    // per-site editors and the harness stay byte-identical.
+    frameworkAssetOrigin: `https://${STARTER.owner}.github.io/${STARTER.repo}`,
   };
   // Match the preview shell: only expose `origin` when the data file was found
   // (skrender omits origin-driven <link> tags when context.origin is undefined).

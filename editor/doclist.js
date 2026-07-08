@@ -353,6 +353,7 @@ const CSS_TEXT = `
 .dl-badge[data-status='local-changes'] { color: var(--sk-warning); }
 .dl-badge[data-status='remote-changed'] { color: var(--sk-danger); }
 .dl-item-meta { font-size: var(--sk-fs-xs); color: var(--sk-text-faint); padding: 0 4px; }
+.dl-repo-chip { color: var(--sk-text-muted); font-family: var(--sk-mono, ui-monospace, monospace); }
 .dl-item-actions { display: flex; flex-wrap: wrap; gap: var(--sk-space-xs); padding: 4px 4px 0; }
 .dl-action { font-size: var(--sk-fs-xs); padding: 2px 8px; }
 .dl-sync-action { display: inline-flex; align-items: center; gap: 5px; }
@@ -707,6 +708,15 @@ export function createDocList({ mount, store, bus, onOpen, onSync, onOpenRemote 
     const meta = doc.createElement('div');
     meta.className = 'dl-item-meta';
     meta.textContent = `Updated ${formatUpdated(docRecord.updatedAt)}`;
+    // One list can span repos (central editor) — bound rows say which.
+    if (docRecord.github && docRecord.github.owner) {
+      const repoChip = doc.createElement('span');
+      repoChip.className = 'dl-repo-chip';
+      const gh = docRecord.github;
+      repoChip.textContent = `${gh.owner}/${gh.repo}`;
+      if (gh.branch && gh.branch !== 'main') repoChip.textContent += `@${gh.branch}`;
+      meta.append(' · ', repoChip);
+    }
 
     const actions = doc.createElement('div');
     actions.className = 'dl-item-actions';

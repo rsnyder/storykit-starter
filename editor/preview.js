@@ -141,7 +141,16 @@ const LIB_SCRIPTS = [
   'https://cdn.jsdelivr.net/npm/js-yaml@4.3.0/dist/js-yaml.min.js',
 ];
 
-const SKRENDER_MODULE_PATH = '../assets/js/skrender.js';
+// skrender's location relative to THIS page differs by deployment layout:
+// per-site (page at <site>/editor/, skrender at <site>/assets/js/) vs the
+// central editor (page at the repo's Pages root, skrender under ./assets/).
+// Candidates are tried in order; a 404 on the first import is not module-
+// poisoning (only a THROWING evaluation is cached — a failed fetch retries
+// cleanly on a different specifier).
+const SKRENDER_MODULE_CANDIDATES = [
+  '../assets/js/skrender.js',
+  './assets/js/skrender.js',
+];
 
 // Sandbox attrs copied verbatim from preview/index.html's #__preview-frame.
 const SANDBOX_ATTRS = 'allow-scripts allow-same-origin allow-popups allow-forms allow-modals';
@@ -443,7 +452,13 @@ async function defaultLoadLibraries(doc) {
   if (!win.liquidjs || !win.markdownit || !win.jsyaml) {
     throw new Error('Preview libraries loaded but expected globals are missing (liquidjs/markdownit/jsyaml)');
   }
-  return import(SKRENDER_MODULE_PATH);
+  let lastErr = null;
+  for (const candidate of SKRENDER_MODULE_CANDIDATES) {
+    try {
+      return await import(candidate);
+    } catch (err) { lastErr = err; }
+  }
+  throw lastErr || new Error('skrender.js not found at any known location');
 }
 
 // ═════════════════════════════════════════════════════════════════════════
