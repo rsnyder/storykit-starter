@@ -353,6 +353,12 @@ const CSS_TEXT = `
 .dl-badge[data-status='local-changes'] { color: var(--sk-warning); }
 .dl-badge[data-status='remote-changed'] { color: var(--sk-danger); }
 .dl-item-meta { font-size: var(--sk-fs-xs); color: var(--sk-text-faint); padding: 0 4px; }
+.dl-item-active {
+  background: var(--sk-selection);
+  border-left: 3px solid var(--sk-accent);
+  border-radius: 4px;
+}
+.dl-item-active .dl-item-title { color: var(--sk-accent); }
 .dl-repo-chip { color: var(--sk-text-muted); font-family: var(--sk-mono, ui-monospace, monospace); }
 .dl-item-actions { display: flex; flex-wrap: wrap; gap: var(--sk-space-xs); padding: 4px 4px 0; }
 .dl-action { font-size: var(--sk-fs-xs); padding: 2px 8px; }
@@ -360,6 +366,14 @@ const CSS_TEXT = `
 .dl-sync-action:disabled { opacity: 0.45; cursor: default; }
 .dl-gh-icon { flex: none; }
 .dl-danger { color: var(--sk-accent-contrast); background: var(--sk-danger); border-color: var(--sk-danger); }
+/* Keep the danger scheme on hover: the generic .btn:hover swaps the
+   background to gray while the white text stays — unreadable. Extra
+   specificity (.btn.dl-danger) so this wins regardless of sheet order. */
+.btn.dl-danger:hover:not(:disabled) {
+  background: var(--sk-danger);
+  border-color: var(--sk-danger);
+  filter: brightness(0.88);
+}
 .doclist.dl-drop-target { outline: 2px dashed var(--sk-accent); outline-offset: -2px; background: var(--sk-selection); }
 `;
 
@@ -390,6 +404,7 @@ export function createDocList({ mount, store, bus, onOpen, onSync, onOpenRemote 
   let confirmingDeleteId = null;
   let renamingId = null;
   let currentDocs = [];
+  let activeDocId = null; // the document on the editing surface (doc:opened)
 
   const root = doc.createElement('div');
   root.className = 'dl-root';
@@ -679,6 +694,7 @@ export function createDocList({ mount, store, bus, onOpen, onSync, onOpenRemote 
   function renderItem(docRecord) {
     const li = doc.createElement('li');
     li.className = 'dl-item';
+    if (docRecord.id === activeDocId) li.classList.add('dl-item-active');
     li.dataset.docId = docRecord.id;
 
     const main = doc.createElement('div');
@@ -787,6 +803,9 @@ export function createDocList({ mount, store, bus, onOpen, onSync, onOpenRemote 
     try {
       await store.docs.remove(docRecord.id);
       confirmingDeleteId = null;
+      // Tell the host which document is gone — if it's the open one, the
+      // editor/preview panes must clear rather than keep showing a ghost.
+      notify('doc:deleted', { docId: docRecord.id });
       notify('toast', { message: `Deleted "${docRecord.title || 'document'}"`, level: 'success' });
       await refresh();
     } catch (err) {
@@ -862,9 +881,19 @@ export function createDocList({ mount, store, bus, onOpen, onSync, onOpenRemote 
   function onBusEvent() {
     refresh();
   }
+  // The host announces which document is on the editing surface
+  // (`doc:opened`, detail.docId — null when the surface is cleared); the
+  // matching row gets `.dl-item-active`. Updated in place, no refetch.
+  function onDocOpened(e) {
+    activeDocId = (e.detail && e.detail.docId) || null;
+    for (const li of mount.querySelectorAll('.dl-item')) {
+      li.classList.toggle('dl-item-active', li.dataset.docId === activeDocId);
+    }
+  }
   if (bus && typeof bus.addEventListener === 'function') {
     bus.addEventListener('doc:saved', onBusEvent);
     bus.addEventListener('sync:status', onBusEvent);
+    bus.addEventListener('doc:opened', onDocOpened);
   }
 
   refresh();

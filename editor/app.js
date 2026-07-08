@@ -582,6 +582,13 @@ function wirePreview() {
     }
   });
 
+  // Deleting the OPEN document must clear the editor and preview panes —
+  // otherwise both keep showing a ghost of the removed record.
+  bus.addEventListener('doc:deleted', (e) => {
+    const id = e.detail && e.detail.docId;
+    if (id && id === appState.currentDocId) closeCurrentDoc();
+  });
+
   // Diagnostics-panel "Line N" buttons (preview.js) move the CM6 selection.
   bus.addEventListener('preview:goto-line', (e) => {
     const line = e.detail && e.detail.line;
@@ -603,6 +610,38 @@ function wirePreview() {
 let docListHandle = null;
 /** @type {object|null} the full record for appState.currentDocId (path/title for preview) */
 let currentDocRecord = null;
+
+/**
+ * Clear the editing surface after the OPEN document is deleted: dispose the
+ * autosaver WITHOUT flushing (a flush would try to write the removed record
+ * back), drop current-doc state/prefs, destroy + recreate the preview pane
+ * (its iframe still shows the deleted document's last render), and return
+ * to Edit mode's empty state.
+ */
+function closeCurrentDoc() {
+  if (currentAutosaver) {
+    currentAutosaver.dispose();
+    currentAutosaver = null;
+  }
+  appState.currentDocId = null;
+  if (appState.prefs.lastDocId) {
+    appState.prefs.lastDocId = null;
+    savePrefs();
+  }
+  if (previewHandle) {
+    previewHandle.destroy();
+    const mount = document.getElementById('preview-mount');
+    if (mount) {
+      mount.replaceChildren();
+      previewHandle = preview.createPreviewPane({ mount });
+    } else {
+      previewHandle = null;
+    }
+  }
+  setMode('edit');
+  showEditorEmptyState();
+  bus.dispatchEvent(new CustomEvent('doc:opened', { detail: { docId: null } }));
+}
 
 /**
  * Switch the editing surface to `docId`: flush + dispose the outgoing
@@ -638,6 +677,8 @@ export async function openDoc(docId) {
   appState.prefs.lastDocId = docId;
   savePrefs();
   currentDocRecord = record;
+  // Announce the active document — the docs pane highlights its row.
+  bus.dispatchEvent(new CustomEvent('doc:opened', { detail: { docId } }));
   // Binding drives preview context resolution (FR-PRE.4) and the status bar.
   appState.binding = record.github
     ? { owner: record.github.owner, repo: record.github.repo, branch: record.github.branch, path: record.path }

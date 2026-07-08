@@ -153,3 +153,41 @@ def test_local_edit_flips_badge_and_reenables_sync_button(browser, site_dir):
             assert ui_state()["btnDisabled"] is False, "local edit re-enables the sync button"
         finally:
             context.close()
+
+
+def test_deleting_the_open_document_clears_editor_and_preview(browser, site_dir):
+    """Regression pin: deleting the open document from the docs pane left the
+    editor and preview panes showing a ghost of the removed record."""
+    with rr.serve_site(site_dir) as base_url:
+        context, page, _ = _hermetic_page(browser)
+        try:
+            page.set_viewport_size({"width": 1280, "height": 800})
+            page.goto(f"{base_url}/editor/index.html", wait_until="load",
+                      timeout=rr.POLL_TIMEOUT_MS)
+            page.wait_for_selector("#new-doc:not([disabled])", timeout=rr.POLL_TIMEOUT_MS)
+            page.evaluate(
+                """async () => {
+                    const app = await import('/editor/app.js');
+                    const r = await app.modules.store.docs.create({
+                        title: 'Ghost check', path: null,
+                        content: '---\\ntitle: Ghost check\\n---\\n\\nGhost body.' });
+                    await app.openDoc(r.id);
+                    app.setMode('split');
+                    app.bus.dispatchEvent(new CustomEvent('doc:saved'));
+                }""")
+            page.wait_for_selector(".cm-content", timeout=30_000)
+            page.wait_for_timeout(2500)  # let the split preview render the doc
+
+            page.locator(".dl-item .dl-action", has_text="Delete").first.click()
+            page.locator(".dl-danger", has_text="Confirm").click()
+
+            page.wait_for_selector("#editor-mount .empty-state", timeout=15_000)
+            assert page.locator(".cm-content").count() == 0, "editor cleared"
+            ghost = page.evaluate(
+                """() => Array.from(document.querySelectorAll('#preview-mount iframe'))
+                    .some(f => { try {
+                        return (f.contentDocument?.body?.textContent || '').includes('Ghost body');
+                    } catch { return false; } })""")
+            assert not ghost, "preview no longer shows the deleted document"
+        finally:
+            context.close()

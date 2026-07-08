@@ -671,3 +671,33 @@ describe('doclist: repo chip (central editor, one list spans repos)', () => {
     }
   });
 });
+
+describe('doclist: active-document highlight (doc:opened)', () => {
+  it('marks the opened row, moves on switch, clears on null', async () => {
+    const store = makeFakeStore([
+      { id: 'a', title: 'A', path: null, content: 'a', updatedAt: '2026-07-01T00:00:00.000Z', github: null },
+      { id: 'b', title: 'B', path: null, content: 'b', updatedAt: '2026-06-01T00:00:00.000Z', github: null },
+    ]);
+    const mount = makeMount();
+    const bus = new EventTarget();
+    const api = createDocList({ mount, store, bus });
+    try {
+      await api.refresh();
+      const active = () => Array.from(mount.querySelectorAll('.dl-item-active'))
+        .map((li) => li.dataset.docId);
+      assert.deepEqual(active(), [], 'nothing active initially');
+      bus.dispatchEvent(new CustomEvent('doc:opened', { detail: { docId: 'a' } }));
+      assert.deepEqual(active(), ['a']);
+      bus.dispatchEvent(new CustomEvent('doc:opened', { detail: { docId: 'b' } }));
+      assert.deepEqual(active(), ['b'], 'highlight moves, never duplicates');
+      bus.dispatchEvent(new CustomEvent('doc:opened', { detail: { docId: null } }));
+      assert.deepEqual(active(), [], 'cleared surface clears the highlight');
+      // survives a full refresh (re-render must reapply the active id)
+      bus.dispatchEvent(new CustomEvent('doc:opened', { detail: { docId: 'a' } }));
+      await api.refresh();
+      assert.deepEqual(active(), ['a'], 'active row persists across refresh');
+    } finally {
+      mount.remove();
+    }
+  });
+});
