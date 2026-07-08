@@ -395,15 +395,34 @@ function buildLiquidEngine(liquidContext, resolveFile, assetOrigin) {
 
   // ── Server-side-only tag stubs ───────────────────────────────────────────
   // These tags require the Jekyll build environment and cannot be replicated
-  // client-side. They render as visible placeholders so the developer knows
-  // something is missing, rather than silently producing broken output.
+  // client-side.
   //
-  // TO ADD MORE STUBS: add the tag name to the array below.
-  for (const tag of ['seo','feed_meta','include_relative','paginate','post_url','highlight','endhighlight']) {
+  // HEAD-ONLY tags (seo, feed_meta) emit invisible metadata in a real build,
+  // so their stubs are HTML comments — a visible element here gets hoisted
+  // out of <head> by the HTML parser and rendered as garbage text at the top
+  // of the preview body (the "{% seo %} (server-side only)" line).
+  //
+  // BODY-context tags keep a visible placeholder so an author knows content
+  // is missing rather than silently absent (styled by the injected
+  // supplementary CSS in renderPost, since the shell page's stylesheet
+  // cannot reach inside the srcdoc iframe).
+  //
+  // TO ADD MORE STUBS: add the tag name to the appropriate array below.
+  // (token.getText() returns the full tag source including the {% %}
+  // delimiters — do not re-wrap it.)
+  for (const tag of ['seo','feed_meta']) {
     try {
       engine.registerTag(tag, {
-        parse(token) { this.raw = token.getText ? token.getText() : tag; },
-        render() { return `<div class="include-placeholder">{% ${this.raw||tag} %} (server-side only)</div>`; }
+        parse(token) { this.raw = token.getText ? token.getText() : `{% ${tag} %}`; },
+        render() { return `<!-- ${this.raw||tag} (server-side only) -->`; }
+      });
+    } catch { /* tag already registered */ }
+  }
+  for (const tag of ['include_relative','paginate','post_url','highlight','endhighlight']) {
+    try {
+      engine.registerTag(tag, {
+        parse(token) { this.raw = token.getText ? token.getText() : `{% ${tag} %}`; },
+        render() { return `<div class="include-placeholder">${this.raw||tag} (server-side only)</div>`; }
       });
     } catch { /* tag already registered */ }
   }
@@ -838,6 +857,9 @@ export async function renderPost({ content, path, context }) {
     .footnote-ref a, .footnote-backref { color: var(--link-color, #4a9eff); text-decoration: none; }
     .footnote-ref a:hover, .footnote-backref:hover { text-decoration: underline; }
     .footnotes-sep { display: none; }
+    /* Server-side-only body-tag placeholders (skrender stubs) — styled here
+       because the shell page's CSS cannot reach inside the srcdoc iframe. */
+    .include-placeholder { border: 1px dashed rgba(127,127,127,.45); padding: 6px 10px; border-radius: 6px; font-family: ui-monospace, monospace; font-size: 12px; opacity: .8; color: #b58900; }
   </style>`;
   html = html.replace(/<\/head>/i, footnoteCss + '\n</head>');
 

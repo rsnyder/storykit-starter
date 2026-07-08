@@ -28,7 +28,7 @@
 
   
 
-  <div class="include-placeholder">{% {% seo title=false %} %} (server-side only)</div>
+  <!-- {% seo title=false %} (server-side only) -->
 
   <title>StoryKit: Authoring a Visual Narrative | StoryKit</title>
 
@@ -150,6 +150,9 @@
     .footnote-ref a, .footnote-backref { color: var(--link-color, #4a9eff); text-decoration: none; }
     .footnote-ref a:hover, .footnote-backref:hover { text-decoration: underline; }
     .footnotes-sep { display: none; }
+    /* Server-side-only body-tag placeholders (skrender stubs) — styled here
+       because the shell page's CSS cannot reach inside the srcdoc iframe. */
+    .include-placeholder { border: 1px dashed rgba(127,127,127,.45); padding: 6px 10px; border-radius: 6px; font-family: ui-monospace, monospace; font-size: 12px; opacity: .8; color: #b58900; }
   </style>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous">
 <style>
