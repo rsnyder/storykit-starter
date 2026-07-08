@@ -41,7 +41,7 @@ SRC_USER = "rsnyder"
 SRC_REPO = "storykit-starter"
 # Pinned commit of storykit-starter that this repo was last baselined to.
 # Bump deliberately (see module docstring), never point back at a branch name.
-SRC_REF = "2df0913fc0221dd07764b40f1111781efa3da6b6"
+SRC_REF = "733fe79867b8cb1d70b42192656a3aa0ee8a8644"
 
 # Optional: GitHub token (env var) to avoid rate limits / access private repos
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
@@ -109,6 +109,30 @@ FILES_TO_SYNC = [
     "assets/posts/image-compare/Westgate_Towers_c1905.jpg",
     "assets/posts/image-compare/Westgate_Towers_2021.jpg",
     "preview/index.html",
+    "assets/js/skrender.js",
+    # ── StoryKit editor (added 2026-07-08). NOTE: preview/index.html now
+    #    REQUIRES assets/js/skrender.js from the same ref. ────────────────
+    "_admin/2026-07-06-storykit-authoring-a-visual-narrative.md",
+    "editor/app.js",
+    "editor/commands.js",
+    "editor/conflict.js",
+    "editor/context.js",
+    "editor/dnd.js",
+    "editor/doclist.js",
+    "editor/editor.js",
+    "editor/github.js",
+    "editor/index.html",
+    "editor/lang-storykit.js",
+    "editor/palette.js",
+    "editor/preview.js",
+    "editor/statusbar.js",
+    "editor/store.js",
+    "editor/styles.css",
+    "editor/sync.js",
+    "editor/toolbar.js",
+    "editor/url-grammars.js",
+    "editor/viewer-catalog.js",
+    "editor/wikidata.js",
     "tools/sync_code.py",
     "Gemfile",
     ".github/workflows/pages-deploy.yml",
