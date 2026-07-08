@@ -373,7 +373,7 @@
     const onPreviewClick = () => {
       const maxParams = new URLSearchParams(location.search)
       maxParams.set('max', 'true')
-      const maxSrc = `${location.pathname}?${maxParams.toString()}`
+      const maxSrc = `${location.origin}${location.pathname}?${maxParams.toString()}`
       StoryKit.showDialog(maxSrc, 1.7)
     }
 
@@ -412,7 +412,7 @@
         if (end !== null) maxParams.set('end', end)
         else maxParams.delete('end')
 
-        const maxSrc = `${location.pathname}?${maxParams.toString()}`
+        const maxSrc = `${location.origin}${location.pathname}?${maxParams.toString()}`
         StoryKit.showDialog(maxSrc, 1.7)
 
       } else if (action === 'play') {

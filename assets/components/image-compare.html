@@ -609,7 +609,7 @@
             function onPreviewClick() {
                 const maxParams = new URLSearchParams(location.search);
                 maxParams.set("max", "true");
-                const maxSrc = `${location.pathname}?${maxParams.toString()}`;
+                const maxSrc = `${location.origin}${location.pathname}?${maxParams.toString()}`;
                 // Prefer the aspect ratio we detected from the loaded images;
                 // fall back to the explicit ?aspect= param, then 1.0.
                 const dialogAspect = detectedAr || (aspect ? parseFloat(aspect) : 1.0);

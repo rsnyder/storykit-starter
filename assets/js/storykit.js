@@ -213,9 +213,23 @@ function addMessageHandler() {
             event.source?.postMessage({ type: `storykit:${type}`, payload: replyPayload }, event.origin);
 
         switch (name) {
-            case "showDialog":
+            case "showDialog": {
+                // Resolve a relative src against the SENDING component's URL,
+                // not this document's. Inside an about:srcdoc host (preview
+                // tool, editor preview) location.href is not a usable base —
+                // a component that sends a pathname-relative src (youtube/
+                // image-compare historically did) would silently fail
+                // safeURL. Components run at real URLs, so their iframe src
+                // is always a valid base.
+                const sender = findIframeBySourceWindow(event.source);
+                if (sender && sender.src && payload && typeof payload.src === "string"
+                    && !/^https?:/i.test(payload.src)) {
+                    const resolved = safeURL(payload.src, sender.src);
+                    if (resolved) payload = { ...payload, src: resolved.href };
+                }
                 showDialog(payload);
                 return;
+            }
 
             case "height": {
                 const h = Number(payload.height);

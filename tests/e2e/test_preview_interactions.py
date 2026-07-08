@@ -40,6 +40,8 @@ CTYPES = {
     ".woff2": "font/woff2", ".map": "application/json", ".webp": "image/webp",
 }
 
+FRONT = "---\ntitle: Interaction probe\nmedia_subpath: /assets/posts/monument-valley\n---\n\n"
+
 DOC = (
     "---\ntitle: Interaction probe\nmedia_subpath: /assets/posts/monument-valley\n---\n\n"
     "Before the viewer.\n\n"
@@ -112,19 +114,22 @@ def editor_prod(playwright, built_site):
     page.route("https://res.cloudinary.com/**", _route_cloudinary)
     page.goto(f"{ORIGIN}{BASEPATH}editor/index.html", wait_until="load", timeout=60000)
     page.wait_for_selector("#new-doc:not([disabled])", timeout=30000)
-    page.evaluate(
-        """async (content) => {
-            const app = await import('/storykit-starter/editor/app.js');
-            const rec = await app.modules.store.docs.create({
-                title: 'Interaction probe',
-                path: '_posts/2026-07-08-interaction-probe.md', content });
-            await app.openDoc(rec.id);
-            app.setMode('preview');
-        }""", DOC)
-    fr = page.locator("#preview-mount iframe.pv-frame")
-    fr.wait_for(state="attached", timeout=30000)
-    rr._poll_srcdoc(page, fr)
-    yield page
+
+    def load(content):
+        page.evaluate(
+            """async (content) => {
+                const app = await import('/storykit-starter/editor/app.js');
+                const rec = await app.modules.store.docs.create({
+                    title: 'Interaction probe',
+                    path: '_posts/2026-07-08-interaction-probe.md', content });
+                await app.openDoc(rec.id);
+                app.setMode('preview');
+            }""", content)
+        fr = page.locator("#preview-mount iframe.pv-frame")
+        fr.wait_for(state="attached", timeout=30000)
+        rr._poll_srcdoc(page, fr)
+
+    yield page, load
     context.close()
     browser.close()
 
@@ -144,26 +149,52 @@ def _dialog_state(page):
     }""")
 
 
-def test_clicking_a_viewer_opens_the_expand_dialog(editor_prod):
-    page = editor_prod
-    v = _viewer(page)
-    v.locator("#osd").wait_for(timeout=45000)
-    page.wait_for_timeout(1500)  # let the component runtime finish wiring
-    v.locator("#osd").click(position={"x": 40, "y": 40})
-    deadline_ok = False
-    for _ in range(20):
+EXPAND_CASES = {
+    # name: (include tag, component frame selector, click target selector)
+    "image-wc": (
+        '{% include embed/image.html id="v1" src="wc:Monument_Valley,_Utah,_USA.jpg" %}',
+        "iframe.embed-image", "#osd"),
+    "image-local": (
+        '{% include embed/image.html id="v1" src="Monument_Valley.jpg" %}',
+        "iframe.embed-image", "#osd"),
+    "map": (
+        '{% include embed/map.html id="v1" center="37.01056, -110.2425" zoom="10" %}',
+        "iframe.embed-map", "#expandBtn"),
+    "youtube": (
+        '{% include embed/youtube.html id="v1" vid="yg0As_HOvJk" %}',
+        "iframe.embed-youtube", "body"),
+    "image-compare": (
+        '{% include embed/image-compare.html '
+        'before="/assets/posts/image-compare/Westgate_Towers_c1905.jpg" '
+        'after="/assets/posts/image-compare/Westgate_Towers_2021.jpg" %}',
+        "iframe.embed-image-compare", '[aria-label="Click to enlarge"]'),
+}
+
+
+@pytest.mark.parametrize("case", list(EXPAND_CASES))
+def test_clicking_a_viewer_opens_the_expand_dialog(editor_prod, case):
+    page, load = editor_prod
+    tag, frame_sel, click_sel = EXPAND_CASES[case]
+    load(FRONT + tag + "\n")
+    v = page.frame_locator("#preview-mount iframe.pv-frame").frame_locator(frame_sel).first
+    v.locator(click_sel).wait_for(timeout=45000)
+    page.wait_for_timeout(2000)  # let the component runtime finish wiring
+    v.locator(click_sel).click(position={"x": 30, "y": 30} if click_sel == "#osd" else None)
+    opened = False
+    for _ in range(24):
         st = _dialog_state(page)
         if st["open"] and st["hasIframe"]:
-            deadline_ok = True
+            opened = True
             break
         page.wait_for_timeout(250)
-    assert deadline_ok, f"expand dialog did not open: {_dialog_state(page)}"
+    assert opened, f"[{case}] expand dialog did not open: {_dialog_state(page)}"
 
 
 def test_action_link_zoomto_reaches_the_component(editor_prod):
     """Host→component direction: clicking a zoomto action link must deliver
     a storykit:action message into the viewer iframe (targetOrigin path)."""
-    page = editor_prod
+    page, load = editor_prod
+    load(DOC)
     v = _viewer(page)
     v.locator("#osd").wait_for(timeout=45000)
     page.wait_for_timeout(1500)
