@@ -246,6 +246,14 @@ function buildLiquidEngine(liquidContext, resolveFile, assetOrigin) {
     return words.length <= n ? v : words.slice(0, n).join(' ') + '…';
   });
   engine.registerFilter('number_of_words', v => String(v||'').split(/\s+/).filter(Boolean).length);
+  // Ruby/Shopify Liquid divides INTEGERS with floor division (400/180 → 2);
+  // LiquidJS's built-in returns floats (→ "2.2222… min read" in Chirpy's
+  // read-time). Override with Ruby semantics; float operands stay float.
+  engine.registerFilter('divided_by', (v, arg) => {
+    const a = Number(v), b = Number(arg);
+    if (!Number.isFinite(a) || !Number.isFinite(b) || b === 0) return 0;
+    return (Number.isInteger(a) && Number.isInteger(b)) ? Math.floor(a / b) : a / b;
+  });
   engine.registerFilter('downcase',   v => String(v||'').toLowerCase());
   engine.registerFilter('upcase',     v => String(v||'').toUpperCase());
   engine.registerFilter('capitalize', v => { const s=String(v||''); return s.charAt(0).toUpperCase()+s.slice(1); });
@@ -901,11 +909,21 @@ export async function renderPost({ content, path, context }) {
       font-family: ui-monospace, monospace; font-size: 11px; color: #8b949e;
       border-bottom: 1px solid rgba(255,255,255,0.06);
       pointer-events: none;
+      /* fixed height so the sticky-offset compensations below are exact */
+      height: 26px; box-sizing: border-box;
     }
     #__preview-banner .pb-badge {
       background: #238636; color: #fff; border-radius: 3px;
       padding: 1px 5px; font-weight: 700; font-size: 10px; pointer-events: none;
     }
+    /* Chirpy's own sticky elements pin to top:0 and would slide under (or be
+       obscured by) the banner while scrolling — offset them by its height. */
+    body.preview #topbar-wrapper { top: 26px; }
+    body.preview #toc-bar { top: 26px; }
+    body.preview #toc-wrapper::before, body.preview .toc-border-cover { top: 26px; }
+    /* anchor jumps: keep headings clear of the banner too */
+    body.preview h1, body.preview h2, body.preview h3,
+    body.preview h4, body.preview h5 { scroll-margin-top: 5.125rem; }
   </style>`;
   html = html.replace(/<\/head>/i, inlinebannerCss + '\n</head>');
 

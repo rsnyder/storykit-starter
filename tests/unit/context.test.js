@@ -130,7 +130,7 @@ describe('context: produced shape (skrender contract + additive fields)', () => 
         assert.ok(Array.isArray(ctx.diagnostics), 'additive diagnostics array present');
         assert.ok('origin' in ctx, 'origin present when _data/origin/default.yml resolves');
         assert.deepEqual(ctx.origin, { default: { seeded: true } });
-        assert.deepEqual(ctx.locales, { post: { seeded: true } });
+        assert.deepEqual(ctx.locales, { en: { post: { seeded: true } } });
       }
     );
   });
@@ -380,7 +380,7 @@ describe('context: unbound mode (binding=null, FR-PRE.4)', () => {
         assert.equal(ctx.assetOrigin, 'https://rsnyder.github.io', 'assetOrigin derived from fetched _config.yml');
         assert.equal(ctx.baseurl, '/storykit-starter', 'baseurl derived from fetched _config.yml');
         assert.equal(ctx.rawContentBase, RAW_STARTER, 'unbound rawContentBase is the starter raw base');
-        assert.deepEqual(ctx.locales, { post: { written_by: 'By' } });
+        assert.deepEqual(ctx.locales, { en: { post: { written_by: 'By' } } });
         assert.deepEqual(ctx.origin, { default: { cors: true } });
         assert.equal(await ctx.resolveFile('_includes/embed/image.html'), 'IMAGE EMBED SOURCE');
         assert.equal(await ctx.resolveFile('_layouts/default.html'), 'GEM DEFAULT LAYOUT');
@@ -451,7 +451,7 @@ describe('context: config / locales / origin parsing', () => {
         assert.equal(ctx.config.defaults[0].values.layout, 'post');
         assert.equal(ctx.assetOrigin, 'https://ex.io');
         assert.equal(ctx.baseurl, '/b');
-        assert.equal(ctx.locales.post.written_by, 'By');
+        assert.equal(ctx.locales.en.post.written_by, 'By');
         assert.deepEqual(ctx.origin, { default: { webfonts: 'https://fonts.example/css' } });
       }
     );
@@ -476,7 +476,7 @@ describe('context: config / locales / origin parsing', () => {
       },
       async () => {
         const ctx = await buildContext({ binding: { owner, repo: 'r', branch: 'main' } });
-        assert.deepEqual(ctx.locales, { post: { written_by: 'By' } }, 'en fallback locales');
+        assert.deepEqual(ctx.locales, { en: { post: { written_by: 'By' } } }, 'en fallback locales (keyed under en, the language actually loaded)');
       }
     );
   });

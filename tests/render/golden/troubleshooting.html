@@ -161,11 +161,21 @@
       font-family: ui-monospace, monospace; font-size: 11px; color: #8b949e;
       border-bottom: 1px solid rgba(255,255,255,0.06);
       pointer-events: none;
+      /* fixed height so the sticky-offset compensations below are exact */
+      height: 26px; box-sizing: border-box;
     }
     #__preview-banner .pb-badge {
       background: #238636; color: #fff; border-radius: 3px;
       padding: 1px 5px; font-weight: 700; font-size: 10px; pointer-events: none;
     }
+    /* Chirpy's own sticky elements pin to top:0 and would slide under (or be
+       obscured by) the banner while scrolling — offset them by its height. */
+    body.preview #topbar-wrapper { top: 26px; }
+    body.preview #toc-bar { top: 26px; }
+    body.preview #toc-wrapper::before, body.preview .toc-border-cover { top: 26px; }
+    /* anchor jumps: keep headings clear of the banner too */
+    body.preview h1, body.preview h2, body.preview h3,
+    body.preview h4, body.preview h5 { scroll-margin-top: 5.125rem; }
   </style>
 </head>
 
@@ -188,7 +198,7 @@
       <li class="nav-item">
         <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/storykit-starter/" class="nav-link">
           <i class="fa-fw fas fa-home"></i>
-          <span></span>
+          <span>HOME</span>
         </a>
       </li>
       <!-- the real tabs -->
@@ -225,7 +235,7 @@
         
           
             <span>
-              <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/storykit-starter/"></a>
+              <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/storykit-starter/">Home</a>
             </span>
 
           
@@ -261,9 +271,9 @@
 
     <search id="search" class="align-items-center ms-3 ms-lg-0">
       <i class="fas fa-search fa-fw"></i>
-      <input class="form-control" id="search-input" type="search" aria-label="search" autocomplete="off" placeholder="...">
+      <input class="form-control" id="search-input" type="search" aria-label="search" autocomplete="off" placeholder="Search...">
     </search>
-    <button type="button" class="btn btn-link text-decoration-none" id="search-cancel"></button>
+    <button type="button" class="btn btn-link text-decoration-none" id="search-cancel">Cancel</button>
   </div>
 </header>
 
@@ -386,7 +396,7 @@
     <div class="post-meta text-muted">
       <!-- published date -->
       <span>
-        
+        Posted
         <!--
   Date format snippet
   See: ${JS_ROOT}/modules/components/locale-datetime.js
@@ -395,8 +405,8 @@
 
 
 
-<time data-ts="1771113600" data-df="DD/MM/YYYY" data-bs-toggle="tooltip" data-bs-placement="bottom">
-  15/02/2026
+<time data-ts="1771113600" data-df="ll" data-bs-toggle="tooltip" data-bs-placement="bottom">
+  Feb 15, 2026
 </time>
 
       </span>
@@ -409,7 +419,7 @@
         <span>
           
 
-          
+          By
 
           <em>
             
@@ -439,8 +449,8 @@
 
 
 <!-- return element -->
-<span class="readtime" data-bs-toggle="tooltip" data-bs-placement="bottom" title="980 ">
-  <em>5.444444444444445 </em> </span>
+<span class="readtime" data-bs-toggle="tooltip" data-bs-placement="bottom" title="980 words">
+  <em>5 min</em> read</span>
 
         </div>
       </div>
@@ -456,7 +466,7 @@
     </div>
 
     <button id="toc-solo-trigger" type="button" class="toc-trigger btn btn-outline-secondary btn-sm">
-      <span class="label ps-2 pe-1"></span>
+      <span class="label ps-2 pe-1">Contents</span>
       <i class="fa-solid fa-angle-right fa-fw"></i>
     </button>
 
@@ -566,12 +576,20 @@
     >
       <div class="license-wrapper">
         
+          
+
+          This post is licensed under 
+        <a href="https://creativecommons.org/licenses/by/4.0/">
+          CC BY 4.0
+        </a>
+         by the author.
+        
       </div>
 
       <!-- Post sharing snippet -->
 
 <div class="share-wrapper d-flex align-items-center">
-  <span class="share-label text-muted"></span>
+  <span class="share-label text-muted">Share</span>
   <span class="share-icons">
     
     
@@ -579,7 +597,7 @@
 
     
 
-    <button id="copy-link" aria-label="Copy link" class="btn small" data-bs-toggle="tooltip" data-bs-placement="top" title="" data-title-succeed="">
+    <button id="copy-link" aria-label="Copy link" class="btn small" data-bs-toggle="tooltip" data-bs-placement="top" title="Copy link" data-title-succeed="Link copied successfully!">
       <i class="fa-fw fas fa-link pe-none fs-6"></i>
     </button>
   </span>
@@ -709,9 +727,11 @@
     
 
     
+      <span data-bs-toggle="tooltip" data-bs-placement="top" title="Except where otherwise noted, the blog posts on this site are licensed under the Creative Commons Attribution 4.0 International (CC BY 4.0) License by the author.">Some rights reserved.</span>
+    
   </p>
 
-  <p>
+  <p>Using the <a data-bs-toggle="tooltip" data-bs-placement="top" title="v" href="https://github.com/cotes2020/jekyll-theme-chirpy" target="_blank" rel="noopener">Chirpy</a> theme for <a href="https://jekyllrb.com" target="_blank" rel="noopener">Jekyll</a>.
   </p>
 </footer>
 
@@ -764,9 +784,9 @@
     <button type="button" class="btn-close ms-auto" data-bs-dismiss="toast" aria-label="Close"></button>
   </div>
   <div class="toast-body text-center pt-0">
-    <p class="px-2 mb-3"></p>
+    <p class="px-2 mb-3">A new version of content is available.</p>
     <button type="button" class="btn btn-primary" aria-label="Update">
-      
+      Update
     </button>
   </div>
 </aside>
@@ -794,7 +814,7 @@
       resultsContainer: document.getElementById('search-results'),
       json: 'https://rsnyder.github.io/storykit-starter/assets/js/data/search.json',
       searchResultTemplate: '  <article class="px-1 px-sm-2 px-lg-4 px-xl-0">    <header>      <h2><a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/{url}">{title}</a></h2>      <div class="post-meta d-flex flex-column flex-sm-row text-muted mt-1 mb-1">        {categories}        {tags}      </div>    </header>    <p>{content}</p>  </article>',
-      noResultsText: '<p class="mt-5"></p>',
+      noResultsText: '<p class="mt-5">Oops! No results found.</p>',
       templateMiddleware: function(prop, value, template) {
         if (prop === 'categories') {
           if (value === '') {

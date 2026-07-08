@@ -383,10 +383,15 @@ export async function buildContext({ binding } = {}) {
   // ── locales (lang from config, default 'en') ────────────────────────────────
   const lang = (config && config.lang) || 'en';
   let localesText = await resolveFile(`_data/locales/${lang}.yml`);
+  let localesLang = lang;
   if (!localesText && lang !== 'en') {
     localesText = await resolveFile('_data/locales/en.yml');
+    localesLang = 'en';
   }
-  const locales = localesText ? parseYaml(localesText) : null;
+  // KEYED BY LANGUAGE: templates index site.data.locales[lang].<path> — a
+  // flat (unkeyed) object made every locale string render empty in previews
+  // ("2 min read" lost its unit, tooltips lost their labels, …).
+  const locales = localesText ? { [localesLang]: parseYaml(localesText) } : null;
 
   // ── origin (Chirpy head.html reads site.data.origin[type]) ──────────────────
   const originText = await resolveFile('_data/origin/default.yml');

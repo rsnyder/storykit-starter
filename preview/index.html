@@ -478,11 +478,13 @@ async function loadSiteConfig(o, r, ref) {
 async function loadDataDir(o, r, ref, lang) {
   const data = {};
 
-  // _data/locales/<lang>.yml — Chirpy i18n strings
+  // _data/locales/<lang>.yml — Chirpy i18n strings. KEYED BY LANGUAGE:
+  // templates index site.data.locales[lang].<path>; a flat object made every
+  // locale string render empty in previews (read-time units, tooltips, …).
   for (const candidate of [lang || 'en', 'en']) {
     try {
       const raw = await fetchFile(o, r, ref, `_data/locales/${candidate}.yml`);
-      data.locales = jsyaml.load(raw) || {};
+      data.locales = { [candidate]: jsyaml.load(raw) || {} };
       break;
     } catch { /* try next */ }
   }
