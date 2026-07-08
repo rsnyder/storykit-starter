@@ -28,7 +28,7 @@ The guides are organized in the order most authors need them:
 
 ### Tools
 
-The **[StoryKit Editor]({{ site.baseurl }}/editor/)** (beta) is a browser-based Markdown editor for StoryKit posts: live preview, viewer-tag autocomplete, drag-and-drop media, and GitHub sync — a one-window alternative to the GitHub web editor + preview tool workflow.
+The **[StoryKit Editor](https://rsnyder.github.io/storykit-editor/)** (beta) is a browser-based Markdown editor for StoryKit posts: live preview, viewer-tag autocomplete, drag-and-drop media, and GitHub sync — a one-window alternative to the GitHub web editor + preview tool workflow. One central editor serves every StoryKit repo: save a GitHub token once and open, edit, and commit files in any repository you can write to.
 
 ### Viewers
 

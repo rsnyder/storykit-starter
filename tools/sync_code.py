@@ -111,29 +111,11 @@ FILES_TO_SYNC = [
     "assets/posts/image-compare/Westgate_Towers_2021.jpg",
     "preview/index.html",
     "assets/js/skrender.js",
-    # ── StoryKit editor (added 2026-07-08). NOTE: preview/index.html now
-    #    REQUIRES assets/js/skrender.js from the same ref. ────────────────
+    # ── NOTE: preview/index.html REQUIRES assets/js/skrender.js from the
+    #    same ref. The editor itself is NOT synced per-repo anymore — one
+    #    central instance at https://rsnyder.github.io/storykit-editor/
+    #    serves all repos (storykit-starter/docs/editor-central.md).
     "_admin/2026-07-06-storykit-authoring-a-visual-narrative.md",
-    "editor/app.js",
-    "editor/commands.js",
-    "editor/conflict.js",
-    "editor/context.js",
-    "editor/dnd.js",
-    "editor/doclist.js",
-    "editor/editor.js",
-    "editor/github.js",
-    "editor/index.html",
-    "editor/lang-storykit.js",
-    "editor/palette.js",
-    "editor/preview.js",
-    "editor/statusbar.js",
-    "editor/store.js",
-    "editor/styles.css",
-    "editor/sync.js",
-    "editor/toolbar.js",
-    "editor/url-grammars.js",
-    "editor/viewer-catalog.js",
-    "editor/wikidata.js",
     "tools/sync_code.py",
     "Gemfile",
     ".github/workflows/pages-deploy.yml",
