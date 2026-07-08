@@ -97,3 +97,27 @@ describe('skrender: wc: URLs with non-ASCII filenames (UTF-8 md5)', () => {
     assert.ok(!html.includes('/thumb/5/52/'), 'the mangled UTF-16 hash must be gone');
   });
 });
+
+describe('skrender: absolute media_subpath (external asset host)', () => {
+  it('header and body images resolve to the external host, untouched by rawBase', async () => {
+    await loadClassicLibs();
+    const { renderPost } = await import('/assets/js/skrender.js');
+    const context = {
+      config: { url: 'https://user.github.io', baseurl: '/site', title: 'T' },
+      assetOrigin: 'https://user.github.io', baseurl: '/site',
+      rawContentBase: 'https://raw.githubusercontent.com/o/r/main/',
+      resolveFile: async (p) => (p === '_layouts/nolayout.html' ? '{{ content }}' : null),
+      layouts: new Map(), includes: new Map(), locales: null,
+    };
+    const content = [
+      '---', 'title: Turmeric', 'layout: nolayout',
+      'media_subpath: https://lab.plant-humanities.org/assets/posts/turmeric', '---', '',
+      '![banner](banner.jpg)',
+    ].join('\n');
+    const { html } = await renderPost({ content, path: '_posts/2026-07-08-turmeric.md', context });
+    assert.ok(html.includes('https://lab.plant-humanities.org/assets/posts/turmeric/banner.jpg'),
+      'media_subpath + relative image → external absolute URL');
+    assert.ok(!html.includes('raw.githubusercontent.com/o/r/main/_posts/https'),
+      'no rawBase glued onto an absolute URL');
+  });
+});

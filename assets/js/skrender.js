@@ -628,6 +628,11 @@ function rewriteRelativeUrlsInString(html, rawBase, fileDir, deployedOrigin, bas
     // Apply media_subpath to relative image URLs (Chirpy front matter feature)
     if (isImage && mediaSubpath && !u.startsWith('/')) {
       u = mediaSubpath.replace(/\/$/, '') + '/' + u;
+      // media_subpath may itself be ABSOLUTE (external asset host, e.g.
+      // https://lab.plant-humanities.org/assets/posts/turmeric) — the result
+      // is final then. Without this re-check it fell through to the
+      // doc-relative branch and got rawBase/_posts/ glued onto a full URL.
+      if (/^(https?:|\/\/)/i.test(u)) return u + qs;
     }
 
     let resolved;
