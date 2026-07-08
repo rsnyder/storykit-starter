@@ -652,7 +652,13 @@ export async function openDoc(docId) {
   // §5.5 "light editing must work" on narrow viewports).
   if (isNarrowViewport()) closeSidebarOverlay();
 
-  currentAutosaver = store.createAutosaver(docId);
+  currentAutosaver = store.createAutosaver(docId, {
+    // onSave emits the frozen `doc:saved` event (docs/editor-plan.md §1.2) —
+    // the document list listens for it to refresh badges + sync-button state
+    // after every autosave (nothing emitted it before, so "Synced" lingered
+    // after local edits until an unrelated re-render).
+    onSave: () => { bus.dispatchEvent(new CustomEvent('doc:saved', { detail: { docId } })); },
+  });
   editorHandle?.focus();
 
   // Switching documents while Preview/Split is already showing must reflect
@@ -687,7 +693,13 @@ function replaceOpenBuffer(docId, content) {
   }
   editorHandle.setContent(content);
   if (currentDocRecord) currentDocRecord.content = content;
-  currentAutosaver = store.createAutosaver(docId);
+  currentAutosaver = store.createAutosaver(docId, {
+    // onSave emits the frozen `doc:saved` event (docs/editor-plan.md §1.2) —
+    // the document list listens for it to refresh badges + sync-button state
+    // after every autosave (nothing emitted it before, so "Synced" lingered
+    // after local edits until an unrelated re-render).
+    onSave: () => { bus.dispatchEvent(new CustomEvent('doc:saved', { detail: { docId } })); },
+  });
   refreshPreviewForCurrentMode();
 }
 

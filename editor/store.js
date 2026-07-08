@@ -384,7 +384,7 @@ export const entityCache = {
  * @param {{ debounceMs?: number }} [opts]
  * @returns {{ push: (content: string) => void, flush: () => Promise<void>, dispose: () => void }}
  */
-export function createAutosaver(docId, { debounceMs = 1500 } = {}) {
+export function createAutosaver(docId, { debounceMs = 1500, onSave } = {}) {
   let latestContent = null;
   let timer = null;
   let pending = Promise.resolve();
@@ -393,7 +393,13 @@ export function createAutosaver(docId, { debounceMs = 1500 } = {}) {
     if (latestContent === null) return;
     const content = latestContent;
     latestContent = null;
-    await docs.update(docId, { content });
+    const saved = await docs.update(docId, { content });
+    // Post-save hook (additive, optional): app.js uses it to emit the frozen
+    // `doc:saved` bus event so save-time UI (the document list's badges and
+    // sync buttons) refreshes. Called only after a SUCCESSFUL write.
+    if (typeof onSave === 'function') {
+      try { onSave(saved); } catch (err) { console.error('[storykit-editor] onSave hook failed', err); }
+    }
   }
 
   function push(content) {

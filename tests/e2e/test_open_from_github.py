@@ -117,3 +117,39 @@ def test_dropping_a_github_blob_url_on_the_doclist_opens_it(browser, site_dir):
             assert docs[0]["content"] == REMOTE
         finally:
             context.close()
+
+
+def test_local_edit_flips_badge_and_reenables_sync_button(browser, site_dir):
+    """Regression pin: nothing emitted the frozen `doc:saved` event, so the
+    document list never re-rendered after autosave — a freshly opened (synced)
+    file kept its 'Synced' badge and disabled sync button through local edits."""
+    with rr.serve_site(site_dir) as base_url:
+        context, page, _ = _hermetic_page(browser)
+        try:
+            mock = GitHubMock(page, owner=OWNER, repo=REPO_NAME)
+            mock.set_remote("main", PATH, REMOTE)
+            page.goto(
+                f"{base_url}/editor/index.html?repo={OWNER}/{REPO_NAME}&branch=main&open={PATH}",
+                wait_until="load", timeout=rr.POLL_TIMEOUT_MS)
+            page.wait_for_selector(".cm-content", timeout=30_000)
+
+            def ui_state():
+                return page.evaluate(
+                    """() => ({
+                        badge: document.querySelector('.dl-item [class*=badge]')?.textContent.trim(),
+                        btnDisabled: document.querySelector('.dl-sync-action')?.disabled })""")
+
+            page.wait_for_function(
+                """() => document.querySelector('.dl-item [class*=badge]')?.textContent.trim() === 'Synced'""",
+                timeout=15_000)
+            assert ui_state()["btnDisabled"] is True, "in-sync doc starts with a disabled sync button"
+
+            page.locator(".cm-content").click()
+            page.keyboard.press("End")
+            page.keyboard.type(" Local edit.")
+            page.wait_for_function(
+                """() => document.querySelector('.dl-item [class*=badge]')?.textContent.trim() === 'Local changes'""",
+                timeout=30_000)  # autosave debounce + doc:saved re-render
+            assert ui_state()["btnDisabled"] is False, "local edit re-enables the sync button"
+        finally:
+            context.close()
