@@ -82,10 +82,18 @@ export function createStatusBar({ mount, bus } = {}) {
   left.append(badge, sep1, repoEl, sep2, pathEl);
 
   const right = el('div', 'status-group status-right');
-  const lintEl = el('span', 'status-item');
+  // A BUTTON since the audit feature landed: clicking opens the full
+  // document-audit report (bus 'audit:open' — app.js owns the dialog).
+  const lintEl = el('button', 'status-item status-lint-btn');
+  lintEl.type = 'button';
   lintEl.id = 'status-lint';
-  lintEl.setAttribute('title', 'Lint diagnostics');
+  lintEl.setAttribute('title', 'Audit this document (list all issues)');
   lintEl.textContent = '0 issues';
+  lintEl.addEventListener('click', () => {
+    if (bus && typeof bus.dispatchEvent === 'function') {
+      bus.dispatchEvent(new CustomEvent('audit:open'));
+    }
+  });
   const cursorEl = el('span', 'status-item');
   cursorEl.id = 'status-cursor';
   cursorEl.textContent = 'Ln 1, Col 1';

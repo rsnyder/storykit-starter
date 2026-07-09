@@ -825,3 +825,23 @@ a.icon-btn { text-decoration: none; }
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 420px;
 }
 #restore-list { max-height: 320px; overflow-y: auto; }
+
+/* Document-audit dialog */
+#audit-list { max-height: 340px; overflow-y: auto; }
+.sk-audit-row {
+  display: flex; align-items: baseline; gap: var(--sk-space-1);
+  padding: 6px 0; border-bottom: 1px solid var(--sk-border);
+  font-size: var(--sk-fs-sm);
+}
+.sk-audit-row:last-child { border-bottom: 0; }
+.sk-audit-sev { flex: none; }
+.sk-audit-error .sk-audit-sev { color: var(--sk-danger); }
+.sk-audit-warning .sk-audit-sev { color: var(--sk-warning); }
+.sk-audit-line { flex: none; }
+.sk-audit-msg { min-width: 0; }
+.status-lint-btn {
+  background: transparent; border: 0; padding: 0; font: inherit;
+  color: inherit; cursor: pointer; text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+.status-lint-btn:hover { color: var(--sk-text); }

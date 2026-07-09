@@ -1071,6 +1071,7 @@ function wireToasts() {
   };
   bus.addEventListener('doc:saved', refreshBadge);
   bus.addEventListener('sync:status', refreshBadge);
+  bus.addEventListener('audit:open', () => openAuditPanel());
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1427,6 +1428,87 @@ function refreshSyncPanel() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Document audit: the preview tool the editor grew from had an Audit feature;
+// this is its equivalent — computeDiagnostics() over the WHOLE buffer (the
+// same rules the inline squiggles use), presented as a navigable report.
+// ─────────────────────────────────────────────────────────────────────────────
+let auditPanel = null;
+
+function runAudit() {
+  if (!editorHandle) return null;
+  const view = editorHandle.view;
+  const text = view.state.doc.toString();
+  const diags = langStorykit.computeDiagnostics(text, { catalog }) || [];
+  const seen = new Set();
+  return diags.map((d) => {
+    const line = view.state.doc.lineAt(Math.min(d.from, view.state.doc.length)).number;
+    return { ...d, line };
+  }).filter((d) => {
+    // Dedupe identical (line, message) pairs — e.g. a front-matter YAML
+    // error is attached to both the open and close fence.
+    const key = `${d.line}|${d.message}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).sort((a, b) => a.line - b.line || (a.severity === 'error' ? -1 : 1));
+}
+
+async function openAuditPanel() {
+  if (!appState.currentDocId || !editorHandle) return;
+  if (!auditPanel) {
+    const dialog = /** @type {HTMLDialogElement} */ (h('dialog', { id: 'audit-panel', class: 'sk-dialog' }));
+    const closeX = h('button', { type: 'button', class: 'sk-dialog-close', 'aria-label': 'Close', text: '×' });
+    closeX.addEventListener('click', () => dialog.close());
+    const summary = h('p', { id: 'audit-summary', class: 'sk-field-note', role: 'status' });
+    const listHost = h('div', { id: 'audit-list' });
+    const rerunBtn = h('button', { type: 'button', class: 'btn', id: 'audit-rerun', text: 'Re-run audit' });
+    rerunBtn.addEventListener('click', () => populate());
+    const closeBtn = h('button', { type: 'button', class: 'btn btn-primary', text: 'Close' });
+    closeBtn.addEventListener('click', () => dialog.close());
+    dialog.append(h('div', { class: 'sk-dialog-body' }, [
+      h('header', { class: 'sk-dialog-head' }, [
+        h('h2', { class: 'sk-dialog-title', text: 'Document audit' }), closeX,
+      ]),
+      summary,
+      listHost,
+      h('footer', { class: 'sk-dialog-foot' }, [rerunBtn, closeBtn]),
+    ]));
+    document.body.appendChild(dialog);
+    auditPanel = { dialog, summary, listHost };
+  }
+  const { dialog, summary, listHost } = auditPanel;
+
+  function populate() {
+    const diags = runAudit() || [];
+    const errors = diags.filter((d) => d.severity === 'error').length;
+    const warns = diags.length - errors;
+    if (!diags.length) {
+      summary.textContent = '✓ No issues found — StoryKit tags, action links, and front matter all check out.';
+      listHost.replaceChildren();
+      return;
+    }
+    summary.textContent = `${errors} error${errors === 1 ? '' : 's'}, ${warns} warning${warns === 1 ? '' : 's'} — click a line number to jump there.`;
+    const rows = diags.map((d) => {
+      const lineBtn = h('button', { type: 'button', class: 'btn btn-sm sk-audit-line', text: `Line ${d.line}` });
+      lineBtn.addEventListener('click', () => {
+        dialog.close();
+        bus.dispatchEvent(new CustomEvent('preview:goto-line', { detail: { line: d.line } }));
+      });
+      return h('div', { class: `sk-audit-row sk-audit-${d.severity}` }, [
+        h('span', { class: 'sk-audit-sev', text: d.severity === 'error' ? '✖' : '⚠',
+                    'aria-label': d.severity }),
+        lineBtn,
+        h('span', { class: 'sk-audit-msg', text: d.message }),
+      ]);
+    });
+    listHost.replaceChildren(...rows);
+  }
+
+  populate();
+  if (typeof dialog.showModal === 'function' && !dialog.open) dialog.showModal();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Revision restore (UX review item #9): the safety snapshots existed since M5
 // but had no UI — an invisible safety net. This makes it visible.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1646,6 +1728,9 @@ function buildCommandRegistry() {
 
     { id: 'entity.link', label: 'Link entity', group: 'Entity', shortcut: '⌘⇧K', when: hasEditor,
       run: () => wikidata.linkEntityCommand(editorHandle.view) },
+
+    { id: 'doc.audit', label: 'Audit document', group: 'Document',
+      when: () => !!appState.currentDocId, run: () => openAuditPanel() },
 
     { id: 'doc.restore', label: 'Restore previous version…', group: 'Document',
       when: () => !!appState.currentDocId, run: () => openRestorePanel() },

@@ -376,3 +376,25 @@ def test_axe_restore_dialog(browser, site_dir):
             _assert_clean(_run_axe(page), "restore dialog")
         finally:
             context.close()
+
+
+def test_axe_audit_dialog(browser, site_dir):
+    """The document-audit dialog meets the AA bar."""
+    with rr.serve_site(site_dir) as base_url:
+        context, page, _ = _hermetic_page(browser)
+        try:
+            _boot_editor(page, base_url)
+            page.evaluate(
+                """async () => {
+                    const app = await import('/editor/app.js');
+                    const r = await app.modules.store.docs.create({
+                        title: 'A11y audit', path: null,
+                        content: '{% include embed/image.html id="v" src="x.jpg" bogus="1" %}' });
+                    await app.openDoc(r.id);
+                }""")
+            page.wait_for_selector(".cm-content", timeout=25_000)
+            page.click("#status-lint")
+            page.wait_for_selector("dialog#audit-panel[open]", timeout=8000)
+            _assert_clean(_run_axe(page), "audit dialog")
+        finally:
+            context.close()

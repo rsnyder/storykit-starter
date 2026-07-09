@@ -191,3 +191,56 @@ def test_deleting_the_open_document_clears_editor_and_preview(browser, site_dir)
             assert not ghost, "preview no longer shows the deleted document"
         finally:
             context.close()
+
+
+def test_document_audit_reports_and_jumps(browser, site_dir):
+    """Audit feature: whole-document report of StoryKit syntax issues,
+    reachable from the status-bar issues button; line buttons move the
+    cursor. Clean documents get the all-clear message."""
+    with rr.serve_site(site_dir) as base_url:
+        context, page, _ = _hermetic_page(browser)
+        try:
+            page.goto(f"{base_url}/editor/index.html", wait_until="load",
+                      timeout=rr.POLL_TIMEOUT_MS)
+            page.wait_for_selector("#new-doc:not([disabled])", timeout=rr.POLL_TIMEOUT_MS)
+            bad = ('---\ntitle: Audit\n---\n\n'
+                   '{% include embed/image.html id="v1" src="x.jpg" bogus="1" %}\n\n'
+                   'A [dead action](nosuchid/zoomto/pct:1,1,4,4) link.\n')
+            page.evaluate(
+                """async (c) => {
+                    const app = await import('/editor/app.js');
+                    const r = await app.modules.store.docs.create({
+                        title: 'Audit', path: '_posts/2026-07-09-audit.md', content: c });
+                    await app.openDoc(r.id);
+                }""", bad)
+            page.wait_for_selector(".cm-content", timeout=30_000)
+            page.click("#status-lint")
+            page.wait_for_selector("dialog#audit-panel[open]", timeout=8000)
+            rows = page.locator(".sk-audit-row")
+            assert rows.count() >= 2, "unknown attr + dead action link expected"
+            texts = page.evaluate(
+                """() => Array.from(document.querySelectorAll('.sk-audit-msg')).map(e => e.textContent)""")
+            assert any('bogus' in t for t in texts), texts
+            assert any('nosuchid' in t for t in texts), texts
+
+            # line button jumps the cursor and closes the dialog
+            page.locator(".sk-audit-line").first.click()
+            page.wait_for_function(
+                """() => !document.getElementById('audit-panel').open""", timeout=5000)
+
+            # clean document → all-clear
+            page.evaluate(
+                """async () => {
+                    const app = await import('/editor/app.js');
+                    const r = await app.modules.store.docs.create({
+                        title: 'Clean', path: '_posts/2026-07-09-clean.md',
+                        content: '---\\ntitle: Clean\\n---\\n\\nJust prose.\\n' });
+                    await app.openDoc(r.id);
+                }""")
+            page.wait_for_timeout(500)
+            page.click("#status-lint")
+            page.wait_for_selector("dialog#audit-panel[open]", timeout=8000)
+            summary = page.text_content("#audit-summary")
+            assert 'No issues found' in summary, summary
+        finally:
+            context.close()
