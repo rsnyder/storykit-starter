@@ -332,3 +332,18 @@ def test_axe_mobile_drawer(browser, site_dir):
             _assert_clean(_run_axe(page), "mobile drawer (390px)")
         finally:
             context.close()
+
+
+def test_axe_help_page(browser, site_dir):
+    """The editor help page (editor/help.html) must meet the same AA bar."""
+    with rr.serve_site(site_dir) as base_url:
+        context, page, _ = _hermetic_page(browser)
+        try:
+            page.goto(f"{base_url}/editor/help.html", wait_until="load",
+                      timeout=rr.POLL_TIMEOUT_MS)
+            # sanity: the bookmarklet built itself for this deployment
+            href = page.get_attribute("#bookmarklet-link", "href")
+            assert href and href.startswith("javascript:") and "?open=" in href
+            _assert_clean(_run_axe(page, context="body"), "help page")
+        finally:
+            context.close()

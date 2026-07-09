@@ -971,11 +971,9 @@ export function showFatalBanner(message) {
 // and reflects state.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** The shared token-setup guide (same PAT key as the preview tool). Absolute:
- *  the central editor's own origin has no admin docs — the guide lives on the
- *  canonical site (and page-relative '../admin/…' resolved to the wrong path
- *  from the central deployment's root-level page anyway). */
-const TOKEN_SETUP_HREF = 'https://rsnyder.github.io/storykit-starter/admin/storykit-preview-setup';
+/** Token setup lives in the editor's own help page (ships with every
+ *  deployment, so instructions always match the running version). */
+const TOKEN_SETUP_HREF = './help.html#github-token';
 
 /** @type {{ dialog: HTMLDialogElement, refresh: () => void }|null} */
 let syncPanel = null;
@@ -1325,6 +1323,9 @@ function buildCommandRegistry() {
 
     { id: 'entity.link', label: 'Link entity', group: 'Entity', shortcut: '⌘⇧K', when: hasEditor,
       run: () => wikidata.linkEntityCommand(editorHandle.view) },
+
+    { id: 'help.open', label: 'Open help', group: 'Help',
+      run: () => window.open('./help.html', '_blank', 'noopener') },
 
     { id: 'sync.panel', label: 'Open sync panel', group: 'Sync', run: () => openSyncPanel() },
     { id: 'sync.commit', label: 'Commit', group: 'Sync', when: hasBoundDoc,

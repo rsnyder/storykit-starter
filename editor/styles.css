@@ -766,3 +766,6 @@ html, body { max-width: 100%; overflow-x: hidden; }
   white-space: nowrap;
 }
 .sk-bookmarklet:active { cursor: grabbing; }
+
+/* .icon-btn is also used on <a> (the Help link) — suppress anchor defaults. */
+a.icon-btn { text-decoration: none; }

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<!-- StoryKit editor help. Ships WITH the editor (per-site and central
+     deployments) so instructions always match the running version.
+     Self-contained: no dependency on styles.css or the app modules — only a
+     small inline script to honor the editor's saved theme preference and to
+     build the bookmarklet link for THIS deployment's URL. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StoryKit Editor — Help</title>
+<style>
+  :root {
+    --bg: #ffffff; --surface: #f6f8fa; --border: #d0d7de;
+    --text: #1f2328; --muted: #59636e; --accent: #0969da;
+    --code-bg: #f6f8fa; --warn-bg: #fff8c5; --warn-border: #d4a72c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --surface: #161b22; --border: #30363d;
+      --text: #e6edf3; --muted: #9198a1; --accent: #4493f8;
+      --code-bg: #161b22; --warn-bg: #3a2d12; --warn-border: #9e6a03;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #ffffff; --surface: #f6f8fa; --border: #d0d7de;
+    --text: #1f2328; --muted: #59636e; --accent: #0969da;
+    --code-bg: #f6f8fa; --warn-bg: #fff8c5; --warn-border: #d4a72c;
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1117; --surface: #161b22; --border: #30363d;
+    --text: #e6edf3; --muted: #9198a1; --accent: #4493f8;
+    --code-bg: #161b22; --warn-bg: #3a2d12; --warn-border: #9e6a03;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 20px 80px; }
+  h1 { font-size: 1.7rem; margin: 0 0 4px; }
+  h1 + p.lede { color: var(--muted); margin-top: 0; }
+  h2 { font-size: 1.25rem; margin: 2.2em 0 .5em; padding-top: .6em; border-top: 1px solid var(--border); }
+  h3 { font-size: 1.02rem; margin: 1.6em 0 .4em; }
+  a { color: var(--accent); }
+  code, kbd {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 5px;
+    padding: 1px 5px; font: 0.86em ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  kbd { border-bottom-width: 2px; }
+  ol li, ul li { margin: .35em 0; }
+  .note {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 14px; margin: 1em 0; font-size: .93em;
+  }
+  .warn { background: var(--warn-bg); border-color: var(--warn-border); }
+  .bookmarklet {
+    display: inline-block; padding: 6px 14px; border: 1px solid var(--accent);
+    border-radius: 8px; color: var(--accent); font-weight: 600; text-decoration: none;
+    cursor: grab; background: var(--surface);
+  }
+  .bookmarklet:active { cursor: grabbing; }
+  table { border-collapse: collapse; width: 100%; font-size: .93em; }
+  th, td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+  th { background: var(--surface); }
+  .topnav { font-size: .9em; margin-bottom: 24px; }
+  .badge-demo { display: inline-block; border: 1px solid var(--border); border-radius: 10px;
+    padding: 0 8px; font-size: .82em; background: var(--surface); }
+</style>
+</head>
+<body>
+<main>
+  <p class="topnav"><a href="./">← Back to the editor</a></p>
+
+  <h1>StoryKit Editor help</h1>
+  <p class="lede">A browser-based Markdown editor for StoryKit posts: live preview,
+  viewer-tag autocomplete, drag-and-drop media, Wikidata entity linking, and GitHub sync.</p>
+
+  <h2 id="overview">Overview</h2>
+  <p>The editor runs entirely in your browser — there is nothing to install and no
+  server-side account. Documents are saved automatically (about two seconds after you
+  stop typing) to your browser's local storage; the badge on each document tells you how
+  it relates to GitHub (see <a href="#sync-states">sync states</a>). One editor serves
+  every StoryKit repository: connect it to GitHub once and you can open, edit, and
+  commit files in any repository you can write to.</p>
+  <ul>
+    <li><strong>Edit / Split / Preview</strong> — switch with the top-bar buttons or
+      <kbd>⌘E</kbd>. The preview is a high-fidelity render of the published page,
+      including working viewers (click an image viewer to zoom; shift-drag in the
+      expanded view to copy region coordinates).</li>
+    <li><strong>Command palette</strong> — <kbd>⌘K</kbd> reaches every action from the keyboard.</li>
+    <li><strong>Document list</strong> — the left pane: create (<em>+ New</em>), import a
+      local <code>.md</code> file (<em>Import…</em>), or open a file that already exists
+      on GitHub (<em>Open…</em>, drag-and-drop, or the <a href="#bookmarklet">bookmarklet</a>).
+      The highlighted row is the document you're editing.</li>
+  </ul>
+  <div class="note warn"><strong>Your drafts live in this browser.</strong> They survive
+  reloads and restarts, but clearing site data deletes them — commit to GitHub (or
+  Export) anything you care about.</div>
+
+  <h2 id="github-token">Connecting to GitHub (one-time token setup)</h2>
+  <p>To read private repositories and commit changes, the editor needs a GitHub
+  <em>personal access token</em> — think of it as a password you mint specifically for
+  this purpose, limited to exactly the repositories and abilities you choose. It takes
+  about two minutes:</p>
+  <ol>
+    <li>Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">
+      github.com/settings/personal-access-tokens/new</a> (GitHub → Settings →
+      Developer settings → Personal access tokens → Fine-grained tokens → Generate new token).</li>
+    <li><strong>Token name:</strong> anything memorable, e.g. <code>storykit-editor</code>.</li>
+    <li><strong>Expiration:</strong> your choice — 90 days is a sensible default. (When it
+      expires, sync starts failing with an auth error; just mint a new token and save it here.)</li>
+    <li><strong>Repository access:</strong> choose <em>Only select repositories</em> and pick
+      the repositories you'll author in — or <em>All repositories</em> if you prefer one
+      token that covers everything you own.</li>
+    <li><strong>Permissions → Repository permissions</strong> (expand the accordion):
+      find the <strong>Contents</strong> row and set it to <strong>Read and write</strong>.
+      That single permission covers everything the editor does. <em>Metadata: Read-only</em>
+      is added automatically; leave everything else at <em>No access</em>.</li>
+    <li>Click <strong>Generate token</strong> and copy the value (it's shown only once).</li>
+    <li>Back in the editor: open the sync panel (the status-bar chip, or any document's
+      <em>Sync with GitHub</em> button), paste the token, and click <strong>Save token</strong>.</li>
+  </ol>
+  <div class="note">The token is stored <strong>only in this browser's local storage</strong>
+  and is sent only to <code>api.github.com</code>. Nothing else ever sees it, and
+  <em>Forget token</em> removes it. Public repositories can be <em>opened</em> without a
+  token; committing always requires one.</div>
+
+  <h2 id="sync">Working with GitHub</h2>
+  <h3>Opening an existing file</h3>
+  <ul>
+    <li><strong>Open…</strong> (document list) — paste a GitHub file URL
+      (<code>github.com/&lt;owner&gt;/&lt;repo&gt;/blob/&lt;branch&gt;/&lt;path&gt;</code>) or, once a
+      repository is connected, just a repo path like <code>_posts/2026-01-01-my-post.md</code>.</li>
+    <li><strong>Drag-and-drop</strong> — drag a file link from any GitHub page straight
+      into the document list.</li>
+    <li><strong>Bookmarklet</strong> — see <a href="#bookmarklet">below</a>.</li>
+  </ul>
+  <p>Opening is idempotent: if the file is already in your list, the existing copy is
+  focused instead of duplicated — your local edits are never overwritten.</p>
+
+  <h3>Binding, committing, pulling</h3>
+  <p>Each document remembers its own repository, branch, and path (its
+  <em>binding</em>). The sync panel shows the binding, lets you change it, and offers
+  <strong>Commit</strong> (push your version to GitHub) and <strong>Pull</strong> (replace
+  your buffer with GitHub's version — a snapshot of your text is kept in the revision
+  history first, so pulling is never destructive).</p>
+
+  <h3 id="sync-states">What the badges mean</h3>
+  <table>
+    <tr><th>Badge</th><th>Meaning</th></tr>
+    <tr><td><span class="badge-demo">Local only</span></td><td>Not connected to GitHub yet.</td></tr>
+    <tr><td><span class="badge-demo">Synced</span></td><td>Your copy matches GitHub (the Sync button is disabled — nothing to do).</td></tr>
+    <tr><td><span class="badge-demo">Local changes</span></td><td>You've edited since the last commit — commit when ready.</td></tr>
+    <tr><td><span class="badge-demo">Remote changed</span></td><td>GitHub has newer changes (someone else committed) — pull, or commit to see the conflict dialog.</td></tr>
+    <tr><td><span class="badge-demo">Conflict</span></td><td>Your commit raced someone else's. Choose <em>Keep mine</em>, <em>Take remote</em>, or view the diff — whichever you pick, a snapshot of your text is saved first.</td></tr>
+  </table>
+
+  <h2 id="bookmarklet">The "Edit in StoryKit" bookmarklet</h2>
+  <p>The fastest route from GitHub to the editor. <strong>Drag this link to your
+  browser's bookmarks bar:</strong></p>
+  <p><a id="bookmarklet-link" class="bookmarklet" href="#">Edit in StoryKit</a></p>
+  <p>Then, on any Markdown file page on GitHub (a <code>blob</code> or <code>edit</code>
+  URL), click the bookmark: the editor opens with that file loaded and bound — ready to
+  edit, preview, and commit. If the file was already in your document list, it's simply
+  focused.</p>
+  <div class="note">Bookmarks bar hidden? <kbd>⌘⇧B</kbd> (Chrome/Edge) or
+  View&nbsp;→&nbsp;Always&nbsp;Show&nbsp;Bookmarks&nbsp;Bar (Safari) toggles it.
+  You can also skip the bookmarklet entirely: the editor URL accepts
+  <code>?open=&lt;GitHub file URL&gt;</code>.</div>
+
+  <h2 id="media">Drag-and-drop media</h2>
+  <p>Drop media <em>into the text</em> where you want the viewer tag inserted:</p>
+  <ul>
+    <li><strong>Wikimedia Commons</strong> — drag an image from any Commons page (or paste
+      its URL) and it becomes an image-viewer tag using the compact
+      <code>wc:</code> shorthand, e.g. <code>src="wc:Sunflowers.jpg"</code>. The shorthand
+      also works in front matter: <code>image.path: wc:Sunflowers.jpg</code> renders the
+      page header image.</li>
+    <li><strong>YouTube</strong> — drop or paste a video URL (including Shorts) for a
+      video-viewer tag with the id extracted.</li>
+    <li><strong>Google Maps</strong> — drop or paste a Maps URL for a map-viewer tag with
+      the center and zoom extracted.</li>
+  </ul>
+  <p>Pasting one of these URLs as plain text offers a one-click "Paste as StoryKit tag?"
+  affordance instead of inserting the raw URL. The toolbar's <em>Insert viewer</em> menu
+  covers every viewer type with a template tag.</p>
+
+  <h2 id="entities">Wikidata entity linking</h2>
+  <p>Select a name or term and press <kbd>⌘⇧K</kbd>: search Wikidata, pick the match,
+  and the selection becomes an entity link like <code>[Charles Darwin](Q1035)</code> —
+  rendered pages show an info popup for it. Hovering an existing QID in the text shows a
+  reference card.</p>
+
+  <h2 id="tips">Tips &amp; troubleshooting</h2>
+  <ul>
+    <li><strong>The preview looks stale or a just-fixed problem persists</strong> —
+      reload the editor tab. A long-lived tab keeps the old renderer in memory until reload.</li>
+    <li><strong>Sync fails with an authentication error</strong> — your token likely
+      expired. Mint a new one (<a href="#github-token">steps above</a>) and save it in the
+      sync panel.</li>
+    <li><strong>Editing workflow files</strong> — committing changes under
+      <code>.github/workflows/</code> needs the additional <em>Workflows: Read and write</em>
+      token permission; normal StoryKit authoring never does.</li>
+    <li><strong>Keyboard shortcuts</strong> — <kbd>⌘K</kbd> palette · <kbd>⌘E</kbd> cycle
+      Edit/Split/Preview · <kbd>⌘⇧K</kbd> link entity · <kbd>⌘B</kbd>/<kbd>⌘I</kbd>
+      bold/italic. (Ctrl on Windows/Linux.)</li>
+  </ul>
+
+  <p class="topnav" style="margin-top:40px"><a href="./">← Back to the editor</a></p>
+</main>
+<script>
+  // Honor the editor's saved theme preference (same localStorage key).
+  try {
+    var prefs = JSON.parse(localStorage.getItem('storykit-editor-prefs') || '{}');
+    if (prefs.theme === 'light' || prefs.theme === 'dark') {
+      document.documentElement.setAttribute('data-theme', prefs.theme);
+    }
+  } catch (e) { /* system theme via media query */ }
+
+  // Build the bookmarklet for THIS deployment's editor URL.
+  (function () {
+    var editorUrl = new URL('./', window.location.href).href;
+    var a = document.getElementById('bookmarklet-link');
+    a.setAttribute('href',
+      "javascript:(function(){var u=location.href;" +
+      "if(!/github\\.com\\/[^/]+\\/[^/]+\\/(blob|edit)\\//.test(u)){alert('Open a file on GitHub first');return;}" +
+      "window.open(" + JSON.stringify(editorUrl) + "+'?open='+encodeURIComponent(u));})();");
+    a.addEventListener('click', function (e) { e.preventDefault(); });
+  })();
+</script>
+</body>
+</html>
