@@ -517,7 +517,7 @@
 </style>
 <p>StoryKit lets you add <strong>interactive maps</strong> to your Markdown posts using a simple include. You do not need to write HTML, CSS, or JavaScript.</p>
 <hr>
-<h1>The Simplest Example</h1>
+<h1 id="the-simplest-example">The Simplest Example</h1>
 <p>This creates a map centered on Monument Valley in Utah.</p>
 <div class="example">
 <div markdown="1">
@@ -534,7 +534,7 @@
 </div>
 </div>
 <hr>
-<h1>Example with a Custom Caption and Location Marker</h1>
+<h1 id="example-with-a-custom-caption-and-location-marker">Example with a Custom Caption and Location Marker</h1>
 <p>In this example a custom caption is defined</p>
 <div class="example">
 <div markdown="1">
@@ -553,10 +553,10 @@
 </div>
 </div>
 <hr>
-<h1>Component Attribute</h1>
-<h2>Required Attributes</h2>
+<h1 id="component-attribute">Component Attribute</h1>
+<h2 id="required-attributes">Required Attributes</h2>
 <p>You must provide a <strong>center</strong> attribute to the map tag.  This defines the map location.  The <strong>zoom</strong> attribute is typically provided to control the level of detail displayed on the map when initially displayed.  This can be changed by viewer.  If not specified in an attribute, the initial zoom level is <code>8</code>.</p>
-<h3>center</h3>
+<h3 id="center">center</h3>
 
 <p>Defines the location the map is centered on.</p>
 <p>You can use:</p>
@@ -581,51 +581,51 @@
 </div>
 </div>
 <hr>
-<h1>Optional Attributes</h1>
+<h1 id="optional-attributes">Optional Attributes</h1>
 <p>These improve presentation but are not required.</p>
 <hr>
-<h2>allmaps</h2>
+<h2 id="allmaps">allmaps</h2>
 
 <p>Defines an Allmaps ID referencing an IIIF image to use as a map layer.  This is often used to create a historical map overlay.</p>
-<h2>aspect</h2>
+<h2 id="aspect">aspect</h2>
 
 <p>The width-to-height ratio of the map. Defaults to <code>1.0</code> (square).</p>
 <pre><code>aspect=&quot;1.5&quot;
 </code></pre>
-<h2>basemap</h2>
+<h2 id="basemap">basemap</h2>
 
 <p>Defines a basemap to add to the map.</p>
-<h2>caption</h2>
+<h2 id="caption">caption</h2>
 
 <p>Defines a caption to add to the map viewer.</p>
-<h2>class</h2>
+<h2 id="class">class</h2>
 
 <p>Size and position words like <code>medium right float</code> — see <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/storykit-formatting-tips">Formatting Tips</a>.</p>
 <pre><code>class=&quot;medium right&quot;
 </code></pre>
-<h2>geojson</h2>
+<h2 id="geojson">geojson</h2>
 
 <p>Defines a URL to a GeoJSON file to apply as a map layer.</p>
-<h2>id</h2>
+<h2 id="id">id</h2>
 
 <p>An identifier for the viewer, <strong>required when using action links</strong> such as <code>flyto</code> (see below).</p>
 <pre><code>id=&quot;map1&quot;
 </code></pre>
-<h2>markers</h2>
+<h2 id="markers">markers</h2>
 
 <p>Defines markers to add to the map.  Multiple markers are delimited with the pipe (‘|’) character.  A marker can be defined using a Wikidata ID or lat/lon position coordinates.  When using coordinates a label and image can also be provided using a tilde (‘~’) delimited values for the marker.</p>
 <pre><code>markers=&quot;37.01056,-110.2425~Monument Valley&quot;
 </code></pre>
-<h2>src</h2>
+<h2 id="src">src</h2>
 
 <p>An image or IIIF resource to use as a map layer.</p>
-<h2>zoom</h2>
+<h2 id="zoom">zoom</h2>
 
 <p>Defines initial zoom level.  This is a number between 1 and 20, where the higher number reveals more detail.  Defaults to <code>8</code>.</p>
 <pre><code>zoom=&quot;10&quot;
 </code></pre>
 <hr>
-<h1>Action Links — Flying the Map from Your Text</h1>
+<h1 id="action-links--flying-the-map-from-your-text">Action Links — Flying the Map from Your Text</h1>
 <p>The map’s distinguishing interactive feature is the <code>flyto</code> action: a normal-looking Markdown link that animates the map to a new location when clicked. To use it, the map must declare an <code>id</code>.</p>
 <div class="example">
 <div markdown="1">

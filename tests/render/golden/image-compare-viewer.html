@@ -514,14 +514,14 @@
         font-weight: bold;
     }
 </style>
-<h2>Overview</h2>
+<h2 id="overview">Overview</h2>
 <p>The StoryKit Image Compare Viewer places two images side by side in an interactive slider that lets readers reveal one image beneath the other by dragging a divider. It is designed for comparing before/after photographs, historical images against modern views, or any pair of images that share the same subject.</p>
 <p>When a reader clicks the viewer, StoryKit opens a <strong>larger, expanded viewer</strong> using the full available screen width. This gives a much better experience for detailed comparison without forcing a large element into the article layout itself.</p>
-<h3>Preview Mode and Expanded Mode</h3>
+<h3 id="preview-mode-and-expanded-mode">Preview Mode and Expanded Mode</h3>
 <p>The viewer operates in two modes:</p>
 <p><strong>Preview mode</strong> (default) renders a compact, interactive slider in the page. The drag handle is visible but clicking anywhere on the viewer opens the expanded version. This keeps the article layout clean while still making the comparison immediately visible.</p>
 <p><strong>Expanded mode</strong> opens automatically when the reader clicks the preview. The viewer loads in a large dialog at full width, where the drag handle is fully interactive and the alignment adjustment tool becomes available.</p>
-<h3>Alignment Adjustment</h3>
+<h3 id="alignment-adjustment">Alignment Adjustment</h3>
 <p>Where the Image Compare viewer goes beyond a simple image slider is in its built-in <strong>alignment tool</strong>.</p>
 <p>Real-world before/after photographs are rarely taken from exactly the same position or at exactly the same scale. The alignment tool lets you correct for these differences by independently offsetting and scaling each image until the subjects line up precisely. Your corrections are encoded directly in the tag so the alignment is preserved for every reader.</p>
 <hr>
@@ -531,11 +531,11 @@
 <li>Use the StoryKit Image Compare viewer when you want an interactive slider, a clean layout, or precise alignment between the two images.</li>
 </ul>
 <hr>
-<h2>Attributes</h2>
-<h3>Required Attributes</h3>
+<h2 id="attributes">Attributes</h2>
+<h3 id="required-attributes">Required Attributes</h3>
 <p>You must provide both a <strong>before</strong> and an <strong>after</strong> attribute.</p>
 <hr>
-<h4>before</h4>
+<h4 id="before">before</h4>
 
 <p>The filename of the bottom image — the one revealed as the divider is dragged left. For relative paths only the filename is required; absolute URLs are also accepted.</p>
 <pre><code>before=&quot;Canterbury_1920.jpg&quot;
@@ -543,7 +543,7 @@ before=&quot;https://example.com/images/Canterbury_1920.jpg&quot;
 </code></pre>
 <p>Alignment corrections for the before image are appended directly to this value as query parameters. You do not need to add them by hand — the adjustment tool generates the correct value for you.</p>
 <hr>
-<h4>after</h4>
+<h4 id="after">after</h4>
 
 <p>The filename of the top image — the one visible when the divider is fully to the right. Accepts the same formats as <code>before</code>.</p>
 <pre><code>after=&quot;Canterbury_today.jpg&quot;
@@ -551,42 +551,42 @@ after=&quot;https://example.com/images/Canterbury_today.jpg&quot;
 </code></pre>
 <p>As with <code>before</code>, alignment corrections are appended to this value automatically by the adjustment tool.</p>
 <hr>
-<h3>Optional Attributes</h3>
+<h3 id="optional-attributes">Optional Attributes</h3>
 <hr>
-<h4>caption</h4>
+<h4 id="caption">caption</h4>
 
 <p>Text displayed below the viewer. If omitted, no caption is shown.</p>
 <pre><code>caption=&quot;Canterbury High Street — 1920 vs today&quot;
 </code></pre>
 <hr>
-<h4>aspect</h4>
+<h4 id="aspect">aspect</h4>
 
 <p>The width-to-height ratio used to size the expanded dialog. Expressed as a decimal.</p>
 <pre><code>aspect=&quot;1.5&quot;
 </code></pre>
 <p>A value of <code>1.5</code> produces a dialog that is one and a half times wider than it is tall, which suits most landscape photographs. A value of <code>0.75</code> suits portrait images. If omitted, the dialog uses its own default sizing.</p>
 <hr>
-<h4>position</h4>
+<h4 id="position">position</h4>
 
 <p>The initial position of the divider, expressed as a percentage of the viewer width from the left edge. Defaults to <code>50</code>.</p>
 <pre><code>position=&quot;40&quot;
 </code></pre>
 <p>Use a value other than <code>50</code> when one image is more recognisable and you want it to dominate the initial view.</p>
 <hr>
-<h4>width / height</h4>
+<h4 id="width--height">width / height</h4>
 
 <p>Explicit pixel dimensions for the in-page viewer. Normally omitted — the viewer sizes itself to the available width and the <code>aspect</code> ratio.</p>
 <pre><code>width=&quot;600&quot;
 height=&quot;400&quot;
 </code></pre>
 <hr>
-<h4>id</h4>
+<h4 id="id">id</h4>
 
 <p>An identifier for the viewer. The Image Compare viewer doesn’t currently support <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/storykit-action-links">action links</a>, so an <code>id</code> is rarely needed.</p>
 <pre><code>id=&quot;compare1&quot;
 </code></pre>
 <hr>
-<h2>Alignment Query Parameters</h2>
+<h2 id="alignment-query-parameters">Alignment Query Parameters</h2>
 <p>These parameters are appended to the <code>before</code> or <code>after</code> attribute values by the adjustment tool. You will not normally write them by hand, but they are documented here for completeness.</p>
 <table>
 <thead>
@@ -641,8 +641,8 @@ height=&quot;400&quot;
 </code></pre>
 <p>Positive offset values shift the image right (X) or down (Y). Negative values shift it left or up. Scale values greater than <code>1</code> zoom in; values less than <code>1</code> zoom out.</p>
 <hr>
-<h2>Examples</h2>
-<h3>The Simplest Example</h3>
+<h2 id="examples">Examples</h2>
+<h3 id="the-simplest-example">The Simplest Example</h3>
 <div class="example">
 <div markdown="1">
 <pre><code class="language-liquid">{% include embed/image-compare.html
@@ -662,7 +662,7 @@ height=&quot;400&quot;
 </div>
 <p>The divider starts at the centre. Click the viewer to open the expanded version. Drag the divider left or right to reveal each image.</p>
 <hr>
-<h3>Custom Caption and Initial Position</h3>
+<h3 id="custom-caption-and-initial-position">Custom Caption and Initial Position</h3>
 <div class="example">
 <div markdown="1">
 <pre><code class="language-liquid">{% include embed/image-compare.html
@@ -682,7 +682,7 @@ height=&quot;400&quot;
 </div>
 <p>Setting <code>position=&quot;35&quot;</code> opens the viewer with the divider shifted left so the modern image dominates the initial view. The caption provides context visible without opening the expanded viewer.</p>
 <hr>
-<h3>With Alignment Corrections</h3>
+<h3 id="with-alignment-corrections">With Alignment Corrections</h3>
 <p>When images were photographed at different distances or angles, the alignment tool generates corrected values like these:</p>
 <div class="example">
 <div markdown="1">
@@ -703,16 +703,16 @@ height=&quot;400&quot;
 </div>
 <p>The <code>after</code> image has been shifted left by 4%, up by 2%, and zoomed in by 17% to align the tower with its historical counterpart. These values were generated automatically by the adjustment tool described below.</p>
 <hr>
-<h2>The Alignment Adjustment Tool</h2>
+<h2 id="the-alignment-adjustment-tool">The Alignment Adjustment Tool</h2>
 <p>The adjustment tool is available in the expanded viewer. It lets you nudge and scale each image independently until the subjects line up, then copies a ready-to-use Liquid tag to your clipboard.</p>
-<h3>Opening the Tool</h3>
+<h3 id="opening-the-tool">Opening the Tool</h3>
 <ol>
 <li>Click the viewer in your article to open the expanded version.</li>
 <li><strong>Double-click</strong> anywhere on the image comparison. The alignment panel slides open below the viewer.</li>
 <li>Double-click again, or click the <strong>×</strong> button in the panel header, to close it.</li>
 </ol>
 <p>When the alignment panel is open, the top (after) image becomes slightly transparent so the bottom (before) image shows through. This ghosting effect makes misalignment immediately visible as a double-image, and disappears when the panel is closed.</p>
-<h3>Using the Controls</h3>
+<h3 id="using-the-controls">Using the Controls</h3>
 <p>The panel has two tabs — <strong>Before</strong> and <strong>After</strong> — one for each image. Each tab contains three sliders:</p>
 <table>
 <thead>
@@ -742,7 +742,7 @@ height=&quot;400&quot;
 </table>
 <p>Adjust the sliders on whichever image needs moving. In most cases only one image needs correction — use the After tab to align a newer photograph to a fixed historical reference.</p>
 <p><strong>Tip:</strong> Start with Zoom to match the scale of the two images, then use X and Y to bring the subjects into register.</p>
-<h3>Copying the Tag</h3>
+<h3 id="copying-the-tag">Copying the Tag</h3>
 <p>Once aligned, click <strong>Copy tag</strong> at the bottom right of the panel. The tag is copied to your clipboard in this format:</p>
 <pre><code class="language-liquid">{% include embed/image-compare.html
     before=&quot;Westgate_Towers_c1905.jpg&amp;bx=-8&amp;by=-6&amp;bs=1.31&quot;
@@ -755,7 +755,7 @@ height=&quot;400&quot;
 
 <p>Alignment corrections that differ from the defaults are appended as query parameters on the relevant <code>before</code> or <code>after</code> value. Parameters at their default values are omitted to keep the tag clean.</p>
 <p>Paste the tag directly into your Markdown. No further editing is required.</p>
-<h3>Resetting</h3>
+<h3 id="resetting">Resetting</h3>
 <p>Click <strong>Reset all</strong> to return all six sliders to their defaults (zero offset, 1× scale on both images). This is useful if you want to start the alignment process over.</p>
 </div>
     <div class="viewer"></div>

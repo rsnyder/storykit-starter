@@ -514,15 +514,15 @@
         font-weight: bold;
     }
 </style>
-<h2>Overview</h2>
+<h2 id="overview">Overview</h2>
 <p>The StoryKit YouTube Viewer embeds a YouTube video in your page as a clean, responsive preview. It looks similar to a standard embedded video, but behaves differently when clicked.</p>
 <p>When a reader clicks the preview, StoryKit opens a <strong>larger, expanded viewer</strong> using the full available screen width. This gives the reader a much better viewing experience without forcing a large player on the page itself.</p>
 <p>This two-mode design keeps your article layout clean and readable while still making video a first-class part of the content.</p>
-<h3>Preview Mode and Expanded Mode</h3>
+<h3 id="preview-mode-and-expanded-mode">Preview Mode and Expanded Mode</h3>
 <p>The viewer operates in two modes:</p>
 <p><strong>Preview mode</strong> (default) renders a compact, non-playing embed in the page. The player is intentionally inactive — clicking anywhere on it opens the expanded viewer. No video loads or plays until the reader chooses to watch.</p>
 <p><strong>Expanded mode</strong> opens automatically when the reader clicks the preview. The video loads in a large dialog at full width and, if configured, begins playing immediately at a specified time.</p>
-<h3>Interactive Storytelling</h3>
+<h3 id="interactive-storytelling">Interactive Storytelling</h3>
 <p>Where the YouTube viewer goes beyond a simple embed is in <strong>interactivity</strong>.</p>
 <p>You can link text in your article to viewer actions, such as:</p>
 <ul>
@@ -535,28 +535,28 @@
 <li>Use a standard YouTube embed when you simply need a video in the page.</li>
 <li>Use the StoryKit YouTube Viewer when timing, interactivity, or a clean layout matters.</li>
 </ul>
-<h2>Attributes</h2>
-<h3>Required Attributes</h3>
+<h2 id="attributes">Attributes</h2>
+<h3 id="required-attributes">Required Attributes</h3>
 <p>You must provide a <strong>vid</strong> attribute.</p>
 <hr>
-<h4>vid</h4>
+<h4 id="vid">vid</h4>
 
 <p>The YouTube video ID. This is the short code found in the video’s URL after <code>?v=</code>.</p>
 <pre><code>vid=&quot;dQw4w9WgXcQ&quot;
 </code></pre>
 <p>For the URL <code>https://www.youtube.com/watch?v=dQw4w9WgXcQ</code>, the ID is <code>dQw4w9WgXcQ</code>.</p>
 <hr>
-<h3>Optional Attributes</h3>
+<h3 id="optional-attributes">Optional Attributes</h3>
 <p>These improve presentation and control playback but are not required.</p>
 <hr>
-<h4>caption</h4>
+<h4 id="caption">caption</h4>
 
 <p>Text displayed below the video in the caption bar. If omitted, the video’s title is fetched automatically from YouTube.</p>
 <pre><code>caption=&quot;Apollo 11 Moon Landing, July 1969&quot;
 </code></pre>
 <p>Use a caption when you want to provide context that differs from the YouTube title, or to avoid a network request on page load.</p>
 <hr>
-<h4>autoplay</h4>
+<h4 id="autoplay">autoplay</h4>
 
 <p>When present, the video begins playing automatically when the expanded viewer opens.</p>
 <pre><code>autoplay=&quot;true&quot;
@@ -566,7 +566,7 @@
 <p><strong>Note:</strong> Autoplay with sound requires the viewer to be served from a page that passes <code>allow=&quot;autoplay&quot;</code> on its iframe. This is handled automatically by StoryKit.</p>
 </blockquote>
 <hr>
-<h4>start</h4>
+<h4 id="start">start</h4>
 
 <p>The time at which playback begins. Accepts either seconds or <code>h:mm:ss</code> format. Defaults to <code>0</code> if omitted.</p>
 <pre><code>start=&quot;90&quot;
@@ -575,7 +575,7 @@ start=&quot;1:02:30&quot;
 </code></pre>
 <p>When used with <code>autoplay</code>, the video opens and immediately begins playing from this position.</p>
 <hr>
-<h4>end</h4>
+<h4 id="end">end</h4>
 
 <p>The time at which playback stops. Accepts either seconds or <code>h:mm:ss</code> format. If omitted, the video plays to its natural end.</p>
 <pre><code>end=&quot;150&quot;
@@ -583,27 +583,27 @@ end=&quot;2:30&quot;
 </code></pre>
 <p>The player pauses precisely at this time. Use <code>start</code> and <code>end</code> together to highlight a specific clip within a longer video.</p>
 <hr>
-<h4>id</h4>
+<h4 id="id">id</h4>
 
 <p>An identifier for the viewer, required when using action links.</p>
 <pre><code>id=&quot;vid1&quot;
 </code></pre>
 <p>The <code>id</code> is used by action links in the article text to target this specific viewer. See the <a href="#action-link-example">Action Link Example</a> below.</p>
 <hr>
-<h4>aspect</h4>
+<h4 id="aspect">aspect</h4>
 
 <p>The width-to-height ratio of the in-page preview. Defaults to <code>1.55</code>.</p>
 <pre><code>aspect=&quot;1.78&quot;
 </code></pre>
 <hr>
-<h4>class</h4>
+<h4 id="class">class</h4>
 
 <p>Size and position words like <code>medium right float</code> — see <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/storykit-formatting-tips">Formatting Tips</a>.</p>
 <pre><code>class=&quot;medium right&quot;
 </code></pre>
 <hr>
-<h2>Examples</h2>
-<h3>The Simplest Example</h3>
+<h2 id="examples">Examples</h2>
+<h3 id="the-simplest-example">The Simplest Example</h3>
 <p>This creates a video preview that when clicked will open the expanded viewer.</p>
 <div class="example">
 <div markdown="1">
@@ -620,7 +620,7 @@ end=&quot;2:30&quot;
 </div>
 <p>The video title is fetched automatically from YouTube and displayed in the caption bar. Click the preview to open the expanded viewer.</p>
 <hr>
-<h3>Autoplay with Start and End Times</h3>
+<h3 id="autoplay-with-start-and-end-times">Autoplay with Start and End Times</h3>
 <p>This example opens the expanded viewer and immediately plays a specific segment of the video.</p>
 <div class="example">
 <div markdown="1">
@@ -641,7 +641,7 @@ end=&quot;2:30&quot;
 </div>
 <p>When the preview is clicked, the expanded viewer opens, seeks immediately to 0:42, plays until 1:15, then pauses. The custom caption overrides the YouTube title.</p>
 <hr>
-<h3>Action Link Example</h3>
+<h3 id="action-link-example">Action Link Example</h3>
 <p>An action link is a standard Markdown link where the URL is formatted to trigger an action on a referenced viewer when clicked. To use an action link the viewer must include an <code>id</code> attribute.</p>
 <div class="example">
 <div markdown="1">
@@ -665,7 +665,7 @@ end=&quot;2:30&quot;
 <p>Click this link to jump to the chorus: <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/vid1/playat/42,75">Watch the chorus</a></p>
 <p>The expanded viewer will open and begin playing from 0:42, stopping at 1:15.</p>
 <hr>
-<h3>Action Link Example with Only a Start Time</h3>
+<h3 id="action-link-example-with-only-a-start-time">Action Link Example with Only a Start Time</h3>
 <p>If you only want to open the viewer at a specific point and let it play through, omit the end time.</p>
 <div class="example">
 <div markdown="1">
@@ -687,7 +687,7 @@ end=&quot;2:30&quot;
 <p>Click this link to open the viewer at 1:30: <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/vid2/playat/1:30">Watch from here</a></p>
 <p>The expanded viewer opens and plays from 1:30 to the end of the video.</p>
 <hr>
-<h2>Action Link Reference</h2>
+<h2 id="action-link-reference">Action Link Reference</h2>
 <p>Action links follow this URL format:</p>
 <pre><code>{viewer-id}/{action}/{args}
 </code></pre>
@@ -713,7 +713,7 @@ end=&quot;2:30&quot;
 </tr>
 </tbody>
 </table>
-<h3>Supported Actions</h3>
+<h3 id="supported-actions">Supported Actions</h3>
 <table>
 <thead>
 <tr>
@@ -741,7 +741,7 @@ end=&quot;2:30&quot;
 </tbody>
 </table>
 <p>The full action-link syntax and the actions supported by every viewer are covered in the <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/storykit-action-links">Action Links reference</a>.</p>
-<h3>Argument Format Examples</h3>
+<h3 id="argument-format-examples">Argument Format Examples</h3>
 <table>
 <thead>
 <tr>

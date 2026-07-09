@@ -508,10 +508,10 @@
         word-break: break-word;
     }
 </style>
-<h2>What Is an Action Link?</h2>
+<h2 id="what-is-an-action-link">What Is an Action Link?</h2>
 <p>An action link is a standard Markdown link whose URL, instead of pointing to a web page, tells a viewer on the same page to do something. To the reader it looks like any other link — but clicking it zooms an image, flies a map to a location, or plays a video segment.</p>
 <p>This is the heart of StoryKit’s interactive storytelling: your prose guides the reader visually. Instead of writing “see the butte in the upper right,” you write a link that makes the image zoom to it.</p>
-<h2>The Syntax</h2>
+<h2 id="the-syntax">The Syntax</h2>
 <p>Action links always follow the same three-part format:</p>
 <pre><code>[link text]({viewer-id}/{action}/{arguments})
 </code></pre>
@@ -549,8 +549,8 @@
 <p><strong>The <code>id</code> is not optional.</strong> An action link can only find its viewer through the <code>id</code>. If the include tag has no <code>id</code>, or the <code>id</code> in the link doesn’t match, clicking the link does nothing. This is the single most common reason an action link “doesn’t work.”</p>
 </blockquote>
 
-<h2>Actions by Viewer</h2>
-<h3>Image Viewer — <code>zoomto</code></h3>
+<h2 id="actions-by-viewer">Actions by Viewer</h2>
+<h3 id="image-viewer--zoomto">Image Viewer — <code>zoomto</code></h3>
 <p>Zooms and pans the image to a region, and displays a label over it.</p>
 <table>
 <thead>
@@ -573,7 +573,7 @@
 </code></pre>
 
 <p>You normally don’t work out region values by hand — the image viewer’s selection tool generates them for you. See the <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/storykit-image-viewer">Image Viewer guide</a> for details.</p>
-<h3>Map Viewer — <code>flyto</code></h3>
+<h3 id="map-viewer--flyto">Map Viewer — <code>flyto</code></h3>
 <p>Animates the map to a new location and zoom level. Accepts either coordinates or a Wikidata ID:</p>
 <table>
 <thead>
@@ -598,7 +598,7 @@
 </table>
 <p>When you use a Wikidata ID (a <code>Q</code> number), the location is looked up automatically — handy when you don’t know the coordinates.</p>
 <p>Clicking the <strong>same</strong> fly-to link a second time returns the map to where it was before — readers can peek at a location and come right back.</p>
-<h3>YouTube Viewer — <code>playat</code>, <code>play</code>, <code>pause</code></h3>
+<h3 id="youtube-viewer--playat-play-pause">YouTube Viewer — <code>playat</code>, <code>play</code>, <code>pause</code></h3>
 <table>
 <thead>
 <tr>
@@ -626,14 +626,14 @@
 </tbody>
 </table>
 <p><code>playat</code> opens the expanded viewer and plays from <code>start</code>, stopping at <code>end</code> if given. See the <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/storykit-youtube-viewer">YouTube Viewer guide</a> for time format details.</p>
-<h3>Viewers Without Actions</h3>
+<h3 id="viewers-without-actions">Viewers Without Actions</h3>
 <p>The <strong>Image Compare</strong>, <strong>Network</strong>, and <strong>Iframe</strong> viewers do not currently support action links. If a story needs text-driven behavior, use one of the viewers above.</p>
-<h2>Live Example</h2>
+<h2 id="live-example">Live Example</h2>
 <p>The image below has <code>id=&quot;demo&quot;</code>. Try the links that follow it.</p>
 <iframe id="demo" class="embed-image " loading="lazy" title="StoryKit image viewer" allow="clipboard-write" allowfullscreen style="aspect-ratio: ;" src="https://rsnyder.github.io/storykit-starter/assets/components/image.html?src=https%3A%2F%2Fupload.wikimedia.org%2Fwikipedia%2Fcommons%2Fthumb%2F3%2F3b%2FMonument_Valley%2C_Utah%2C_USA.jpg%2F1280px-Monument_Valley%2C_Utah%2C_USA.jpg&caption=Monument+Valley%2C+UT">
 </iframe>
 <p>Zoom to <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/demo/zoomto/pct:67.68,34.23,23.22,27">Merrick Butte</a>, or to the <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/demo/zoomto/pct:48.49,66.82,11.31,7.44" label="Visitors">people in the foreground</a> for a sense of scale.</p>
-<h2>Checklist When an Action Link Doesn’t Work</h2>
+<h2 id="checklist-when-an-action-link-doesnt-work">Checklist When an Action Link Doesn’t Work</h2>
 <ol>
 <li>Does the viewer’s include tag have an <code>id</code> attribute?</li>
 <li>Does the first segment of the link URL match that <code>id</code> exactly (case-sensitive)?</li>

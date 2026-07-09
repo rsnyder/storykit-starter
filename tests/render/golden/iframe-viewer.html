@@ -514,57 +514,57 @@
         font-weight: bold;
     }
 </style>
-<h2>Overview</h2>
+<h2 id="overview">Overview</h2>
 <p>The iframe viewer is the general-purpose embed: it places any external web page inside your post, framed and captioned consistently with the other StoryKit viewers.</p>
 <p>Use it when none of the specialized viewers fits — digital exhibits, library viewers (like the Biodiversity Heritage Library), data dashboards, interactive timelines, or any web resource that offers an embeddable URL.</p>
 <p>Use a specialized viewer instead when one exists for your content: the <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/storykit-image-viewer">Image</a>, <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/storykit-map-viewer">Map</a>, <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/storykit-image-compare-viewer">Image Compare</a>, <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/storykit-youtube-viewer">YouTube</a>, and <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/storykit-vis-network-viewer">Network</a> viewers all offer interactivity that a plain iframe can’t (zooming, action links, and so on).</p>
-<h2>Attributes</h2>
-<h3>Required Attributes</h3>
-<h4>src</h4>
+<h2 id="attributes">Attributes</h2>
+<h3 id="required-attributes">Required Attributes</h3>
+<h4 id="src">src</h4>
 
 <p>The URL of the page to embed.</p>
 <pre><code>src=&quot;https://www.biodiversitylibrary.org/item/128371#page/12/mode/1up&quot;
 </code></pre>
 <p>Not every site allows itself to be embedded — see <a href="#troubleshooting">Troubleshooting</a> below.</p>
 <hr>
-<h3>Optional Attributes</h3>
-<h4>caption</h4>
+<h3 id="optional-attributes">Optional Attributes</h3>
+<h4 id="caption">caption</h4>
 
 <p>Text displayed below the embedded page.</p>
 <pre><code>caption=&quot;Curtis's Botanical Magazine, 1845&quot;
 </code></pre>
 <hr>
-<h4>aspect</h4>
+<h4 id="aspect">aspect</h4>
 
 <p>The width-to-height ratio of the frame (e.g. <code>1.5</code> for landscape, <code>0.75</code> for portrait). If neither <code>aspect</code> nor <code>height</code> is set, the frame uses the browser’s default iframe height, which is usually too short — set one of them.</p>
 <pre><code>aspect=&quot;1.33&quot;
 </code></pre>
 <hr>
-<h4>height</h4>
+<h4 id="height">height</h4>
 
 <p>An explicit frame height in pixels, as an alternative to <code>aspect</code>.</p>
 <pre><code>height=&quot;600&quot;
 </code></pre>
 <hr>
-<h4>width</h4>
+<h4 id="width">width</h4>
 
 <p>An explicit frame width in pixels. Normally omitted — the frame fills the available width.</p>
 <pre><code>width=&quot;800&quot;
 </code></pre>
 <hr>
-<h4>class</h4>
+<h4 id="class">class</h4>
 
 <p>Size and position words like <code>medium right float</code> — see <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/storykit-formatting-tips">Formatting Tips</a>.</p>
 <pre><code>class=&quot;medium right&quot;
 </code></pre>
 <hr>
-<h4>id</h4>
+<h4 id="id">id</h4>
 
 <p>An identifier for the frame. The iframe viewer doesn’t support <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/storykit-action-links">action links</a>, so an <code>id</code> is rarely needed, but it can be useful as a link target.</p>
 <pre><code>id=&quot;bhl1&quot;
 </code></pre>
 <hr>
-<h2>Example</h2>
+<h2 id="example">Example</h2>
 <div class="example">
 <div markdown="1">
 <pre><code class="language-liquid">{% include embed/iframe.html
@@ -584,7 +584,7 @@
 </figure>
 </div>
 </div>
-<h2>Troubleshooting</h2>
+<h2 id="troubleshooting">Troubleshooting</h2>
 <p><strong>The frame is blank or shows a refusal message.</strong>
 Many sites block embedding (with the <code>X-Frame-Options</code> or <code>frame-ancestors</code> security headers). There’s no way around this from StoryKit — check whether the site offers a dedicated “embed” URL (many viewers and exhibits do), or link to it normally instead.</p>
 <p><strong>The frame is tiny or cut off.</strong>

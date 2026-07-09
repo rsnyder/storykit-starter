@@ -121,3 +121,41 @@ describe('skrender: absolute media_subpath (external asset host)', () => {
       'no rawBase glued onto an absolute URL');
   });
 });
+
+describe('skrender: kramdown-compatible heading auto-ids', () => {
+  async function renderBody(body) {
+    await loadClassicLibs();
+    const { renderPost } = await import('/assets/js/skrender.js');
+    const context = {
+      config: { url: 'https://u.io', baseurl: '/s', title: 'T' },
+      assetOrigin: 'https://u.io', baseurl: '/s',
+      resolveFile: async (p) => (p === '_layouts/nolayout.html' ? '{{ content }}' : null),
+      layouts: new Map(), includes: new Map(), locales: null,
+    };
+    const { html } = await renderPost({
+      content: '---\ntitle: H\nlayout: nolayout\n---\n\n' + body,
+      path: '_posts/2026-07-09-h.md', context });
+    return html;
+  }
+
+  it('matches kramdown basic_generate_id (ground-truthed against the Jekyll build)', async () => {
+    const html = await renderBody([
+      '## What is StoryKit?',
+      '## First-class support for Wikimedia Commons',
+      '## The `image` include',
+      '## 123 Numbers first',
+      '## Examples', '## Examples',   // duplicate → -1 suffix
+      '## ???',                        // nothing survives → section
+    ].join('\n\n'));
+    for (const id of [
+      'id="what-is-storykit"',
+      'id="first-class-support-for-wikimedia-commons"',
+      'id="the-image-include"',
+      'id="numbers-first"',
+      'id="examples"', 'id="examples-1"',
+      'id="section"',
+    ]) {
+      assert.ok(html.includes(id), `missing ${id}`);
+    }
+  });
+});

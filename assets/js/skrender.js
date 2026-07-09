@@ -46,6 +46,40 @@ if (window.markdownitFootnote) md.use(window.markdownitFootnote);
 if (window.markdownitSub)      md.use(window.markdownitSub);
 if (window.markdownitSup)      md.use(window.markdownitSup);
 
+// ── kramdown-compatible heading auto-ids ────────────────────────────────────
+// Jekyll (kramdown auto_ids) assigns every heading an id on the deployed
+// site; markdown-it does not, so in-page anchor links (#section) were dead in
+// previews. Mirror kramdown's basic_generate_id exactly (ground-truthed
+// against the local Jekyll build): strip leading non-letters, keep only ASCII
+// [a-zA-Z0-9 -], spaces→dashes, lowercase, empty→'section', duplicates get
+// -1/-2/… suffixes. Explicit ids (kramdown {#custom} IAL) are respected.
+function kramdownAutoId(text, used) {
+  let id = String(text || '')
+    .replace(/^[^a-zA-Z]+/, '')
+    .replace(/[^a-zA-Z0-9 -]/g, '')
+    .replace(/ /g, '-')
+    .toLowerCase();
+  if (!id) id = 'section';
+  const n = used.get(id) || 0;
+  used.set(id, n + 1);
+  return n === 0 ? id : `${id}-${n}`;
+}
+md.core.ruler.push('kramdown_auto_ids', (state) => {
+  const used = new Map();
+  const toks = state.tokens;
+  for (let i = 0; i < toks.length; i++) {
+    if (toks[i].type !== 'heading_open') continue;
+    if (toks[i].attrGet('id')) continue; // explicit id wins
+    const inline = toks[i + 1];
+    const text = inline && inline.children
+      ? inline.children
+          .filter((t) => t.type === 'text' || t.type === 'code_inline')
+          .map((t) => t.content).join('')
+      : (inline ? inline.content : '');
+    toks[i].attrSet('id', kramdownAutoId(text, used));
+  }
+});
+
 
 // ════════════════════════════════════════════════════════════════════════════
 //  FRONT MATTER PARSER

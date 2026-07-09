@@ -483,7 +483,7 @@
 
   <main>
     <div class="content post-content"><p>This guide covers the problems authors actually run into, roughly in order of how often they happen. Each section describes the symptom, the likely causes, and how to fix them.</p>
-<h2>An Action Link Does Nothing</h2>
+<h2 id="an-action-link-does-nothing">An Action Link Does Nothing</h2>
 <p><strong>Symptom:</strong> You click a link like <code>[West Butte](img1/zoomto/pct:10,20,30,40)</code> and nothing happens.</p>
 <p>This is the most common StoryKit problem, and it is almost always an <code>id</code> mismatch:</p>
 <ol>
@@ -503,7 +503,7 @@
 <p><strong>The arguments are malformed.</strong> Check for missing commas, extra spaces, or a missing <code>pct:</code> prefix where percentages were intended.</p>
 </li>
 </ol>
-<h2>A Viewer Shows Nothing (Blank or Placeholder)</h2>
+<h2 id="a-viewer-shows-nothing-blank-or-placeholder">A Viewer Shows Nothing (Blank or Placeholder)</h2>
 <p><strong>Symptom:</strong> Where the viewer should be, there’s an empty box, a broken layout, or nothing at all.</p>
 <ul>
 <li><strong>Check the include path.</strong> The tag must name a real include file: <code>embed/image.html</code>, <code>embed/map.html</code>, <code>embed/image-compare.html</code>, <code>embed/youtube.html</code>, <code>embed/vis-network.html</code>, or <code>embed/iframe.html</code>. A typo here (e.g. <code>embed/img.html</code>) renders nothing.</li>
@@ -511,7 +511,7 @@
 <li><strong>Check the file path or URL.</strong> If <code>src</code> points at a local image, the file must actually exist at that path (see the next section for <code>media_subpath</code> pitfalls). If it’s a remote URL, open it directly in a browser tab to confirm it loads.</li>
 <li><strong>Check the Liquid syntax.</strong> A missing <code>%}</code> or a smart-quote (<code>”</code>) pasted from a word processor instead of a straight quote (<code>&quot;</code>) will break the tag. Retype the quotes if you pasted the tag from anywhere.</li>
 </ul>
-<h2>Images Don’t Load (But the Viewer Appears)</h2>
+<h2 id="images-dont-load-but-the-viewer-appears">Images Don’t Load (But the Viewer Appears)</h2>
 <p><strong>Symptom:</strong> The viewer frame renders but the image inside is missing or broken.</p>
 <p>Nearly always a path problem:</p>
 <ul>
@@ -519,7 +519,7 @@
 <li><strong>Use only the filename when <code>media_subpath</code> is set.</strong> Write <code>src=&quot;Monument_Valley.jpg&quot;</code>, not the full path — the system joins them for you. A full path on top of <code>media_subpath</code> produces a doubled, broken URL.</li>
 <li><strong>Wikimedia Commons shorthand needs the exact file name.</strong> <code>wc:File_Name.jpg</code> must match the name on Commons, including underscores and capitalization. Open the Commons page and copy the name directly.</li>
 </ul>
-<h2>My Change Doesn’t Show Up on the Site</h2>
+<h2 id="my-change-doesnt-show-up-on-the-site">My Change Doesn’t Show Up on the Site</h2>
 <p><strong>Symptom:</strong> You committed an edit but the published page looks the same.</p>
 <ul>
 <li><strong>The site rebuild takes 1–5 minutes.</strong> After committing, GitHub Pages must rebuild before changes go live. Check your repository’s <em>Actions</em> tab to watch the build.</li>
@@ -527,31 +527,31 @@
 <li><strong>The build failed.</strong> If the Actions tab shows a red ✗, the build hit an error (often a Liquid syntax problem in the newest edit) and the site was never updated. Open the failed run to see the message.</li>
 <li><strong><code>published: false</code> is still set.</strong> Drafts don’t appear on the live site until you change it to <code>true</code>.</li>
 </ul>
-<h2>The Preview Tool Shows Something Different from the Live Site</h2>
+<h2 id="the-preview-tool-shows-something-different-from-the-live-site">The Preview Tool Shows Something Different from the Live Site</h2>
 <p><strong>Symptom:</strong> The post looks right in the live preview but different after publishing (or vice versa).</p>
 <p>The preview tool renders your post with a lightweight simulation of the site build, so tiny differences are expected in edge cases (unusual Markdown constructs, some theme features). The published site is always the authority. If a discrepancy matters, commit and check the deployed page before investigating further. See <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/storykit-preview-setup">Preview Setup</a> for what the preview can and can’t show.</p>
 <p>Also check the basics: the preview renders the <strong>committed</strong> version of the file — uncommitted editor changes won’t appear until you commit and reload.</p>
-<h2>An Entity Popup Never Loads</h2>
+<h2 id="an-entity-popup-never-loads">An Entity Popup Never Loads</h2>
 <p><strong>Symptom:</strong> Clicking a <code>[name](Q12345)</code> link shows an empty or stuck popup.</p>
 <ul>
 <li><strong>Wikidata may be slow or briefly unavailable.</strong> The popup data is fetched live from Wikidata when clicked. Try again in a moment.</li>
 <li><strong>Check the Q number.</strong> Open <code>https://www.wikidata.org/wiki/Q12345</code> in a browser to confirm it’s the entity you meant. A typo produces an empty or wrong popup.</li>
 <li><strong>Sparse entries produce sparse popups.</strong> The popup can only show what Wikidata has — obscure entities may have little more than a label.</li>
 </ul>
-<h2>Two-Column Mode Looks Wrong</h2>
+<h2 id="two-column-mode-looks-wrong">Two-Column Mode Looks Wrong</h2>
 <p><strong>Symptom:</strong> The right-hand viewer panel is empty, shows the wrong viewer, or the layout breaks.</p>
 <ul>
 <li><strong>Viewer order drives the pairing.</strong> The right panel shows the most recent viewer declared <em>before</em> the text currently in view. If the wrong viewer appears, check the order of paragraphs and includes in your Markdown — see <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/storykit-display-modes">Display Modes</a>.</li>
 <li><strong>On phones, two-column mode is disabled by design.</strong> Small screens always show the flat layout; that’s expected behavior, not a bug.</li>
 <li><strong>Toggling modes acts oddly?</strong> Reload the page in the mode you want to check. If you can reproduce a problem after a fresh reload, report it.</li>
 </ul>
-<h2>Adjacent Viewers Merged into Tabs Unexpectedly</h2>
+<h2 id="adjacent-viewers-merged-into-tabs-unexpectedly">Adjacent Viewers Merged into Tabs Unexpectedly</h2>
 <p><strong>Symptom:</strong> Two viewers you placed one after another appear as a single tabbed component.</p>
 <p>That’s the <code>group_embeds</code> feature, which combines directly adjacent viewers into tabs. If you want them stacked separately, either separate them with a paragraph of text, or turn the feature off for the post:</p>
 <pre><code class="language-yaml">storykit:
     group_embeds: false
 </code></pre>
-<h2>Still Stuck?</h2>
+<h2 id="still-stuck">Still Stuck?</h2>
 <ol>
 <li>Compare your tag against the worked example in the viewer’s reference page — the examples are tested and copy-pasteable.</li>
 <li>Simplify: reduce the tag to only its required attributes, confirm that works, then add attributes back one at a time.</li>

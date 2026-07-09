@@ -484,7 +484,7 @@
   <main>
     <div class="content post-content"><p>Viewers are the interactive elements you add to a StoryKit post. Each one is added with a single include tag in your Markdown — you describe <em>what</em> to show, and StoryKit handles the presentation, interactivity, and layout.</p>
 <p>This page lists every available viewer so you can pick the right one. Each viewer has its own reference page with a full attribute list, worked examples, and troubleshooting tips.</p>
-<h2>The Viewers at a Glance</h2>
+<h2 id="the-viewers-at-a-glance">The Viewers at a Glance</h2>
 <table>
 <thead>
 <tr>
@@ -527,7 +527,7 @@
 </tbody>
 </table>
 <p>There is one more interactive feature that isn’t a viewer include: <strong><a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/storykit-entity-info-popups">Entity Info Popups</a></strong> turn a plain Markdown link like <code>[Charles Darwin](Q1035)</code> into a contextual popup powered by Wikidata.</p>
-<h2>The Common Pattern</h2>
+<h2 id="the-common-pattern">The Common Pattern</h2>
 <p>Every viewer follows the same authoring pattern. You place an include tag in your Markdown where you want the viewer to appear:</p>
 <pre><code class="language-liquid">{% include embed/image.html
     id=&quot;fig1&quot;
@@ -563,13 +563,13 @@
 </tr>
 </tbody>
 </table>
-<h2>Making Text Control a Viewer</h2>
+<h2 id="making-text-control-a-viewer">Making Text Control a Viewer</h2>
 <p>The feature that sets StoryKit apart is that your prose can drive the viewers. A normal-looking Markdown link can zoom an image, fly a map to a location, or play a video segment:</p>
 <pre><code class="language-markdown">Major formations include [West Mitten Butte](fig1/zoomto/pct:10.94,27.88,21.05,30).
 </code></pre>
 
 <p>The complete syntax, and the list of actions each viewer supports, is in the <strong><a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/storykit-action-links">Action Links reference</a></strong>.</p>
-<h2>Layout</h2>
+<h2 id="layout">Layout</h2>
 <p>By default StoryKit floats a viewer beside the paragraph it follows and wraps the text around it. You can control size and placement per viewer, or switch the whole post to a two-column scrollytelling layout:</p>
 <ul>
 <li><a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/storykit-formatting-tips">Formatting Tips</a> — sizing, positioning, and floating individual viewers</li>

@@ -572,7 +572,10 @@ function refreshPreviewForCurrentMode() {
 // ── Split-view scroll sync (editor/scrollsync.js; default on, palette
 //    toggle). Anchor-interpolated: exact at headings/viewers, proportional
 //    between them; silently inactive when mapping isn't possible. ──────────
-const scrollSyncState = { map: null, lock: null, lockTimer: 0, detach: null };
+const scrollSyncState = {
+  map: null, lock: null, lockTimer: 0, detach: null,
+  raf: { editor: 0, preview: 0 }, pending: { editor: null, preview: null },
+};
 
 function scrollSyncEnabled() {
   return appState.prefs.scrollSync !== false && appState.mode === 'split';
@@ -581,7 +584,23 @@ function scrollSyncEnabled() {
 function scrollSyncLock(side) {
   scrollSyncState.lock = side;
   clearTimeout(scrollSyncState.lockTimer);
-  scrollSyncState.lockTimer = setTimeout(() => { scrollSyncState.lock = null; }, 160);
+  // Must outlive the driven pane's own scroll event (fires a frame after the
+  // programmatic scrollTo) or the panes correct each other in tiny steps.
+  scrollSyncState.lockTimer = setTimeout(() => { scrollSyncState.lock = null; }, 220);
+}
+
+/** One coalesced update per animation frame per side, with a small deadband —
+ *  re-applying near-identical positions on every scroll event is what reads
+ *  as jitter. */
+function scrollSyncSchedule(side, computeAndApply) {
+  scrollSyncState.pending[side] = computeAndApply;
+  if (scrollSyncState.raf[side]) return;
+  scrollSyncState.raf[side] = requestAnimationFrame(() => {
+    scrollSyncState.raf[side] = 0;
+    const fn = scrollSyncState.pending[side];
+    scrollSyncState.pending[side] = null;
+    if (fn) fn();
+  });
 }
 
 /** Rebuild the anchor map + (re)attach the preview-side scroll listener —
@@ -619,12 +638,21 @@ function rebuildScrollSync() {
   const onPreviewScroll = () => {
     if (!scrollSyncEnabled() || !scrollSyncState.map || scrollSyncState.lock === 'editor') return;
     scrollSyncLock('preview');
-    const line = scrollsync.previewToSource(scrollSyncState.map, iwin.scrollY);
-    const view = editorHandle && editorHandle.view;
-    if (!view) return;
-    const ln = Math.max(1, Math.min(Math.round(line), view.state.doc.lines));
-    const block = view.lineBlockAt(view.state.doc.line(ln).from);
-    view.scrollDOM.scrollTo({ top: Math.max(0, block.top) });
+    scrollSyncSchedule('preview', () => {
+      const view = editorHandle && editorHandle.view;
+      if (!view || scrollSyncState.lock === 'editor') return;
+      const lf = scrollsync.previewToSource(scrollSyncState.map, iwin.scrollY);
+      // FRACTIONAL target: line floor's block top + fraction into the block —
+      // rounding to whole lines made the editor move in visible steps.
+      const lines = view.state.doc.lines;
+      const ln = Math.max(1, Math.min(Math.floor(lf), lines));
+      const frac = Math.max(0, Math.min(lf - ln, 1));
+      const block = view.lineBlockAt(view.state.doc.line(ln).from);
+      const target = Math.max(0, block.top + frac * block.height);
+      if (Math.abs(view.scrollDOM.scrollTop - target) > 2) {
+        view.scrollDOM.scrollTo({ top: target });
+      }
+    });
   };
   iwin.addEventListener('scroll', onPreviewScroll, { passive: true });
   scrollSyncState.detach = () => { try { iwin.removeEventListener('scroll', onPreviewScroll); } catch { /* gone */ } };
@@ -633,15 +661,18 @@ rebuildScrollSync._seen = new Map();
 
 function onEditorScrollForSync() {
   if (!scrollSyncEnabled() || !scrollSyncState.map || scrollSyncState.lock === 'preview') return;
-  const view = editorHandle && editorHandle.view;
-  const iframe = previewHandle && previewHandle.getFrame && previewHandle.getFrame();
-  const iwin = iframe && iframe.contentWindow;
-  if (!view || !iwin) return;
   scrollSyncLock('editor');
-  const block = view.lineBlockAtHeight(view.scrollDOM.scrollTop);
-  const line = view.state.doc.lineAt(block.from).number
-    + (block.height > 0 ? (view.scrollDOM.scrollTop - block.top) / block.height : 0);
-  iwin.scrollTo({ top: scrollsync.sourceToPreview(scrollSyncState.map, line) });
+  scrollSyncSchedule('editor', () => {
+    const view = editorHandle && editorHandle.view;
+    const iframe = previewHandle && previewHandle.getFrame && previewHandle.getFrame();
+    const iwin = iframe && iframe.contentWindow;
+    if (!view || !iwin || scrollSyncState.lock === 'preview') return;
+    const block = view.lineBlockAtHeight(view.scrollDOM.scrollTop);
+    const line = view.state.doc.lineAt(block.from).number
+      + (block.height > 0 ? (view.scrollDOM.scrollTop - block.top) / block.height : 0);
+    const target = scrollsync.sourceToPreview(scrollSyncState.map, line);
+    if (Math.abs(iwin.scrollY - target) > 2) iwin.scrollTo({ top: target });
+  });
 }
 
 function wirePreview() {

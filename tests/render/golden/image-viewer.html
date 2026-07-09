@@ -515,7 +515,7 @@
         font-weight: bold;
     }
 </style>
-<h2>Overview</h2>
+<h2 id="overview">Overview</h2>
 <p>At first glance, the StoryKit Image Viewer looks similar to the standard image support built into Jekyll and the Chirpy theme. It displays a clean, responsive image in the page, just like a normal Markdown image.</p>
 <p>The difference becomes clear when the image is clicked.</p>
 <p>When a reader clicks the page image, StoryKit opens a larger viewer using the <strong>highest-resolution version available</strong>. This version supports smooth zooming and panning, allowing readers to explore fine detail. The image shown in the page itself is optimized for normal web viewing, so your page loads quickly and looks clean. The high-resolution version is only loaded when needed.</p>
@@ -527,7 +527,7 @@
 <li>Scientific or historical illustrations</li>
 <li>Any image where detail matters</li>
 </ul>
-<h3>First-Class Support for Wikimedia Commons</h3>
+<h3 id="first-class-support-for-wikimedia-commons">First-Class Support for Wikimedia Commons</h3>
 <p>The StoryKit viewer makes using Wikimedia Commons especially convenient.</p>
 <p>You can reference a Commons image either by:</p>
 <ul>
@@ -542,7 +542,7 @@
 <li>Displays proper credit and licensing automatically</li>
 </ul>
 <p>This removes much of the friction normally involved in correctly using Commons images.</p>
-<h3>Interactive Storytelling</h3>
+<h3 id="interactive-storytelling">Interactive Storytelling</h3>
 <p>Where StoryKit goes beyond a traditional image viewer is in <strong>interactivity</strong>.</p>
 <p>You can link text to viewer actions such as:</p>
 <ul>
@@ -557,11 +557,11 @@
 <li>Use the standard Chirpy image when you simply need to display a picture.</li>
 <li>Use the StoryKit Image Viewer when the image is something readers should explore.</li>
 </ul>
-<h2>Attributes</h2>
-<h3>Required Attributes</h3>
+<h2 id="attributes">Attributes</h2>
+<h3 id="required-attributes">Required Attributes</h3>
 <p>You must provide either a <strong>src</strong> or <strong>manifest</strong> attribute to the image tag.</p>
 <hr>
-<h4>src</h4>
+<h4 id="src">src</h4>
 
 <p>The <code>src</code> attribute define the image to display.  You can use:</p>
 <p><strong>A local image</strong></p>
@@ -574,15 +574,15 @@
 <pre><code>src=&quot;wc:File_Name.jpg&quot;
 </code></pre>
 <hr>
-<h4>manifest</h4>
+<h4 id="manifest">manifest</h4>
 
 <p>References a IIIF image by its manifest. A full URL to the IIIF manifest must be provided.</p>
 <pre><code>manifest=&quot;https://iiif.harvardartmuseums.org/manifests/object/299843&quot;
 </code></pre>
 <hr>
-<h3>Optional Attributes</h3>
+<h3 id="optional-attributes">Optional Attributes</h3>
 <p>These improve presentation but are not required.</p>
-<h4>aspect</h4>
+<h4 id="aspect">aspect</h4>
 
 <p>Controls the image shape (width-to-height ratio).</p>
 <pre><code>aspect=&quot;1200/630&quot;
@@ -590,65 +590,65 @@ aspect=&quot;1&quot;
 </code></pre>
 <p>You usually don’t need to change this unless you want a taller or more square presentation.</p>
 <hr>
-<h4>attribution</h4>
+<h4 id="attribution">attribution</h4>
 
 <p>A credit line displayed with the image. For Wikimedia Commons images the attribution is fetched automatically, so this is mainly useful for images from other sources.</p>
 <pre><code>attribution=&quot;Photo: J. Smith, CC BY 4.0&quot;
 </code></pre>
 <hr>
-<h4>caption</h4>
+<h4 id="caption">caption</h4>
 
 <p>Text displayed below the image.</p>
 <pre><code>caption=&quot;Monument Valley, UT&quot;
 </code></pre>
 <p>Keep captions short and descriptive.</p>
 <hr>
-<h4>class</h4>
+<h4 id="class">class</h4>
 
 <p>Size and position words like <code>medium right float</code> — see <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/storykit-formatting-tips">Formatting Tips</a>.</p>
 <pre><code>class=&quot;medium right&quot;
 </code></pre>
 <hr>
-<h4>cover</h4>
+<h4 id="cover">cover</h4>
 
 <p>Makes the image fill its space more dramatically, similar to a cover photo.</p>
 <pre><code>cover=&quot;true&quot;
 </code></pre>
 <p>This works well for wide landscape images.</p>
 <hr>
-<h4>id</h4>
+<h4 id="id">id</h4>
 
 <p>An identifier for the viewer, <strong>required when using action links</strong> such as <code>zoomto</code> (see the <a href="#action-link-example">Action Link Example</a> below).</p>
 <pre><code>id=&quot;img1&quot;
 </code></pre>
 <hr>
-<h4>region</h4>
+<h4 id="region">region</h4>
 
 <p>Starts the viewer zoomed into a specific area.</p>
 <pre><code>region=&quot;pct:10,20,30,40&quot;
 </code></pre>
 <p>Most users won’t type this manually. You can use the viewer’s selection tool to generate region values.</p>
 <hr>
-<h4>rotate</h4>
+<h4 id="rotate">rotate</h4>
 
 <p>Rotates the image.</p>
 <pre><code>rotate=&quot;90&quot;
 </code></pre>
 <hr>
-<h4>seq</h4>
+<h4 id="seq">seq</h4>
 
 <p>Selects the image in a multi-image IIIF manifest.  By default, the first image in a manifest is displayed.  If multiple images are defined in a manifest others can be referenced using the <code>seq</code> attribute.  In this example the 3rd image in the manifest is displayed.</p>
 <pre><code>seq=&quot;3&quot;
 </code></pre>
 <hr>
-<h4>width</h4>
+<h4 id="width">width</h4>
 
 <p>Requests a specific pixel width for the in-page image (the high-resolution version used in the expanded viewer is unaffected). Normally omitted — an appropriate size is chosen automatically.</p>
 <pre><code>width=&quot;800&quot;
 </code></pre>
 <hr>
-<h2>Examples</h2>
-<h3>The Simplest Example</h3>
+<h2 id="examples">Examples</h2>
+<h3 id="the-simplest-example">The Simplest Example</h3>
 <p>This creates an image that when clicked will open a dialog with an image at full resolution with zoom and pan features enabled.</p>
 <div class="example">
 <div markdown="1">
@@ -666,7 +666,7 @@ aspect=&quot;1&quot;
 <p>This uses a Wikimedia Commons image.  When using a Commons image the caption, attribution statement and license (if needed) are automatically added.</p>
 <p>Click on the image to open the interactive pan and zoom viewer on a high-resolution version of the image.</p>
 <hr>
-<h3>IIIF Example</h3>
+<h3 id="iiif-example">IIIF Example</h3>
 <p>In addition to displaying regular images, the image viewer can also display a IIIF image.  The IIIF image is referenced using a manifest URL.</p>
 <div class="example">
 <div markdown="1">
@@ -682,7 +682,7 @@ aspect=&quot;1&quot;
 </div>
 </div>
 <hr>
-<h3>Action Link Example</h3>
+<h3 id="action-link-example">Action Link Example</h3>
 <p>An action link is a standard Markdown link where the URL is formatted with information needed trigger an action on the referenced item when clicked.  To use an action link the image must include an <code>id</code> attribute so that it may be referenced in an action link.  In tbe example below that <code>zoomto</code> action is triggered on the image with the <code>img1</code> id.</p>
 <div class="example">
 <div markdown="1">
@@ -705,7 +705,7 @@ aspect=&quot;1&quot;
 <p>in this action link the first segment of the URL contains the <code>id</code> of the image to target in the action.  The second segment (<code>zoomto</code>) is the action to perform.  The third segment is the action argument, in this case the image region to zoom into.</p>
 <p>Click this link to zoom in on <a href="https://raw.githubusercontent.com/rsnyder/storykit-starter/main/_admin/img1/zoomto/pct:67.68,34.23,23.22,27">Merrick Butte</a>.</p>
 <p>Note that the label for the zoomed region is taken from the action link text in this example.  The next example shows how to define a custom label.</p>
-<h3>Action Link Example With Custom Label</h3>
+<h3 id="action-link-example-with-custom-label">Action Link Example With Custom Label</h3>
 <p>When the action link is clicked, the image viewer will zoom into the area defined and display a label.  By default the text in the action link is used for the label.  While this is convenient you may use other text by appending an attribute block to the link with a <em>label</em> attribute defined.</p>
 <div class="example">
 <div markdown="1">
