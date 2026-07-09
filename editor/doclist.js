@@ -443,11 +443,9 @@ export function createDocList({ mount, store, bus, onOpen, onSync, onOpenRemote 
     openBtn.className = 'btn btn-sm dl-open-remote-btn';
     openBtn.textContent = 'Open…';
     openBtn.title = 'Open a file that already exists on GitHub';
-    openBtn.addEventListener('click', () => {
-      const ref = doc.defaultView.prompt(
-        'Open from GitHub — paste a file URL (github.com/…/blob/…) or a repo path like _posts/2026-01-01-post.md:');
-      if (ref && ref.trim()) onOpenRemote(ref.trim());
-    });
+    // No-arg call = "prompt the user": only the host knows the current
+    // repo binding, so it owns the prompt copy (see app.js promptOpenRemote).
+    openBtn.addEventListener('click', () => onOpenRemote());
     toolbar.insertBefore(openBtn, importBtn);
   }
 

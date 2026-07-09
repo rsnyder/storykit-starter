@@ -543,11 +543,7 @@ function showEditorEmptyState() {
     openCta.className = 'btn';
     openCta.id = 'empty-open-remote';
     openCta.textContent = 'Open from GitHub…';
-    openCta.addEventListener('click', () => {
-      const ref = window.prompt(
-        'Open from GitHub — paste a file URL (github.com/…/blob/…) or a repo path like _posts/2026-01-01-post.md:');
-      if (ref && ref.trim()) openRemoteRef(ref.trim());
-    });
+    openCta.addEventListener('click', () => promptOpenRemote());
     const ctaRow = document.createElement('div');
     ctaRow.className = 'empty-cta-row';
     ctaRow.append(cta, openCta);
@@ -1905,8 +1901,10 @@ export async function init() {
         // (no-op if already open), then the sync panel.
         onSync: async (docId) => { await openDoc(docId); openSyncPanel(); },
         // "Open…" button + GitHub-link drops: open an EXISTING repo file as a
-        // bound document (or focus it if it's already in the list).
-        onOpenRemote: (ref) => { openRemoteRef(ref); },
+        // bound document (or focus it if it's already in the list). A no-arg
+        // call means "prompt the user" — the host owns the prompt copy since
+        // only it knows the current binding.
+        onOpenRemote: (ref) => { if (ref) openRemoteRef(ref); else promptOpenRemote(); },
       });
     } catch (error) {
       console.error('[storykit-editor] doclist failed to mount', error);
@@ -1988,6 +1986,19 @@ export async function init() {
   requestPersistenceNotice();
 
   return { ok: true, editor: editorHandle };
+}
+
+/** Prompt for a GitHub file reference with copy that matches reality: the
+ *  bare repo-path option resolves against the OPEN document's binding, so
+ *  it is only offered — naming the repo — when such a binding exists. */
+function promptOpenRemote() {
+  const b = appState.binding;
+  const hint = b
+    ? `, or a path in ${b.owner}/${b.repo} (like _posts/2026-01-01-post.md)`
+    : '';
+  const ref = window.prompt(
+    `Open from GitHub — paste a file URL (github.com/…/blob/…)${hint}:`);
+  if (ref && ref.trim()) openRemoteRef(ref.trim());
 }
 
 /**
