@@ -278,3 +278,33 @@ def test_expand_works_when_editor_is_cross_origin_with_components(playwright, bu
     finally:
         browser.close()
         httpd.shutdown()
+
+
+def test_footnote_click_stays_in_document(editor_prod):
+    """Regression pin: about:srcdoc inherits its BASE URL from the embedder,
+    so bare #fragment links (footnotes, heading anchors) resolved against the
+    EDITOR's URL — clicking a footnote replaced the preview with a second
+    editor instance. skrender now injects a fragment-click handler that
+    scrolls in-document instead."""
+    page, load = editor_prod
+    load(FRONT + "Text with a footnote.[^1]\n\n" + ("Filler paragraph. " * 40 + "\n\n") * 8 +
+         "[^1]: The footnote text lives far below.\n")
+    frame = page.frame_locator("#preview-mount iframe.pv-frame")
+    frame.locator("sup.footnote-ref a, a.footnote").first.wait_for(timeout=30_000)
+    page.wait_for_timeout(500)
+    frame.locator("sup.footnote-ref a, a.footnote").first.click()
+    page.wait_for_timeout(1500)  # smooth scroll
+    state = page.evaluate(
+        """() => {
+            const f = document.querySelector('#preview-mount iframe.pv-frame');
+            const d = f.contentDocument;
+            return {
+                stillSrcdoc: !!f.srcdoc && d.location.href.startsWith('about:srcdoc'),
+                hasFootnotes: !!d.querySelector('.footnotes, #fn1, [id^=fn]'),
+                scrolled: f.contentWindow.scrollY > 100,
+                noNestedEditor: !d.querySelector('#doclist-mount'),
+            };
+        }""")
+    assert state["stillSrcdoc"], f"iframe navigated away: {state}"
+    assert state["noNestedEditor"], "editor loaded inside the preview"
+    assert state["hasFootnotes"] and state["scrolled"], f"should scroll to the footnote: {state}"

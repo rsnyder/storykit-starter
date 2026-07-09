@@ -1051,5 +1051,17 @@ end=&quot;2:30&quot;
   });
 </script>
 
-  </body>
+  <script>
+    document.addEventListener('click', function (e) {
+      var a = e.target && e.target.closest ? e.target.closest('a[href^="#"]') : null;
+      if (!a) return;
+      var id = a.getAttribute('href').slice(1);
+      e.preventDefault();
+      if (!id) return;
+      var el = document.getElementById(id) ||
+               document.querySelector('[name="' + id.replace(/"/g, '') + '"]');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, true);
+  </script>
+</body>
 </html>

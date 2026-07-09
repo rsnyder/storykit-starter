@@ -984,6 +984,26 @@ export async function renderPost({ content, path, context }) {
   });
   html = html.replace(/(<body[^>]*>)/i, '$1' + inlineBannerHtml);
 
+  // ── In-document fragment navigation for srcdoc previews ──────────────────
+  // about:srcdoc documents inherit their BASE URL from the embedding page,
+  // so a plain `#fn1` (footnotes, heading anchors, back-references) resolves
+  // against the EDITOR/PREVIEW-TOOL URL — clicking one navigates the iframe
+  // to a whole new copy of the host app. Intercept fragment clicks and scroll
+  // in-document instead.
+  const fragmentNavScript = `<script>
+    document.addEventListener('click', function (e) {
+      var a = e.target && e.target.closest ? e.target.closest('a[href^="#"]') : null;
+      if (!a) return;
+      var id = a.getAttribute('href').slice(1);
+      e.preventDefault();
+      if (!id) return;
+      var el = document.getElementById(id) ||
+               document.querySelector('[name="' + id.replace(/"/g, '') + '"]');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, true);
+  </script>`;
+  html = html.replace(/<\/body>/i, fragmentNavScript + '\n</body>');
+
   // ── Framework-asset origin override (central editor; editor-central.md) ──
   // When context.frameworkAssetOrigin is set (origin+baseurl of the CANONICAL
   // framework deployment), rewrite FRAMEWORK runtime assets — viewer
