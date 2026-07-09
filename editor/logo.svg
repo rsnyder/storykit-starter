@@ -1,11 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="StoryKit Editor">
-  <!-- StoryKit Editor mark v2: a story page — prose lines above, a photo
-       below (inset mountain + sun so the pane reads as an image thumbnail).
-       Single accent color; verified at 96/32/16px on light and dark. -->
+  <!-- StoryKit Editor mark v3: an open book whose pages read "M ↓" — a story
+       written in Markdown. Filled pages (not outline) so the mark survives
+       favicon size; single accent color for both themes. -->
   <rect x="2" y="2" width="60" height="60" rx="14" fill="#0969da"/>
-  <rect x="14" y="13" width="36" height="5.5" rx="2.75" fill="#ffffff" opacity="0.95"/>
-  <rect x="14" y="22.5" width="24" height="5.5" rx="2.75" fill="#ffffff" opacity="0.72"/>
-  <rect x="14" y="32" width="36" height="19" rx="4.5" fill="#ffffff"/>
-  <circle cx="42.5" cy="38.5" r="2.7" fill="#0969da"/>
-  <path d="M18.5 47.5 l6.5-8 4.6 5.2 4.2-4.6 8.7 7.4 z" fill="#0969da"/>
+  <!-- open book: two filled page panels meeting at the spine -->
+  <path d="M31 20.5 C26.5 16.8 19.5 15.8 12.5 17.6 L12.5 43.5 C19.5 41.8 26.5 42.8 31 46.5 Z" fill="#ffffff"/>
+  <path d="M33 20.5 C37.5 16.8 44.5 15.8 51.5 17.6 L51.5 43.5 C44.5 41.8 37.5 42.8 33 46.5 Z" fill="#ffffff"/>
+  <!-- markdown M on the left page -->
+  <path d="M17.5 35.5 L17.5 25.5 L21.75 30.25 L26 25.5 L26 35.5" fill="none" stroke="#0969da" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- markdown down-arrow on the right page -->
+  <path d="M42.25 25.5 L42.25 32" fill="none" stroke="#0969da" stroke-width="2.7" stroke-linecap="round"/>
+  <path d="M38 31.5 L46.5 31.5 L42.25 36.5 Z" fill="#0969da"/>
 </svg>
