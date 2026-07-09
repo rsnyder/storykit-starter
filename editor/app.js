@@ -501,7 +501,28 @@ function showEditorEmptyState() {
     cta.textContent = '+ New document';
     cta.addEventListener('click', openNewDocFlow);
 
-    wrap.append(icon, title, hint, cta);
+    // Most new users' FIRST task is opening an existing post, not writing a
+    // fresh one — surface that path on the landing screen (review item #5).
+    const openCta = document.createElement('button');
+    openCta.type = 'button';
+    openCta.className = 'btn';
+    openCta.id = 'empty-open-remote';
+    openCta.textContent = 'Open from GitHub…';
+    openCta.addEventListener('click', () => {
+      const ref = window.prompt(
+        'Open from GitHub — paste a file URL (github.com/…/blob/…) or a repo path like _posts/2026-01-01-post.md:');
+      if (ref && ref.trim()) openRemoteRef(ref.trim());
+    });
+    const ctaRow = document.createElement('div');
+    ctaRow.className = 'empty-cta-row';
+    ctaRow.append(cta, openCta);
+
+    const helpLine = document.createElement('p');
+    helpLine.className = 'empty-hint';
+    helpLine.innerHTML = 'New here? The <a href="./help.html" target="_blank" rel="noopener">help page</a> '
+      + 'covers GitHub setup, the bookmarklet, and drag-and-drop media.';
+
+    wrap.append(icon, title, hint, ctaRow, helpLine);
     mount.replaceChildren(wrap);
   }
   appState.binding = null;
@@ -860,8 +881,37 @@ function updateDocChrome(record) {
   const titleBtn = document.getElementById('doc-title-menu');
   if (titleBtn) {
     const span = titleBtn.querySelector('.doc-title-text');
-    if (span) span.textContent = record?.title || 'Untitled draft';
+    // Match the empty state's story ("No document open") instead of implying
+    // a phantom "Untitled draft" exists.
+    if (span) span.textContent = record?.title || 'No document open';
   }
+  updateTopbarSyncBadge(record || null);
+}
+
+// ── Top-bar sync badge (review item #6): the active document's sync state,
+//    visible while writing — not only in the sidebar/status bar. ────────────
+function updateTopbarSyncBadge(record) {
+  let badge = document.getElementById('topbar-sync-badge');
+  if (!badge) {
+    const titleBtn = document.getElementById('doc-title-menu');
+    if (!titleBtn || !titleBtn.parentNode) return;
+    badge = document.createElement('span');
+    badge.id = 'topbar-sync-badge';
+    badge.className = 'topbar-sync-badge';
+    titleBtn.parentNode.insertBefore(badge, titleBtn.nextSibling);
+  }
+  if (!record) { badge.hidden = true; return; }
+  const status = doclist.deriveSyncStatus(record);
+  const LABEL = {
+    local: 'Local only', synced: 'Synced', 'local-changes': 'Local changes',
+    'remote-changed': 'Remote changed', conflict: 'Conflict',
+  };
+  badge.textContent = LABEL[status] || status;
+  badge.dataset.state = status;
+  badge.hidden = false;
+  badge.title = status === 'local'
+    ? 'This document is not connected to GitHub yet'
+    : `Sync state vs GitHub: ${LABEL[status]}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1010,12 +1060,28 @@ function showToast({ message, level = 'success' } = {}) {
 
 function wireToasts() {
   bus.addEventListener('toast', (e) => showToast(e.detail || {}));
+  // Keep the top-bar sync badge live: autosaves flip Synced → Local changes,
+  // sync operations flip it back.
+  const refreshBadge = async () => {
+    if (!appState.currentDocId) { updateTopbarSyncBadge(null); return; }
+    try {
+      const rec = await store.docs.get(appState.currentDocId);
+      if (rec) { currentDocRecord = rec; updateTopbarSyncBadge(rec); }
+    } catch { /* transient */ }
+  };
+  bus.addEventListener('doc:saved', refreshBadge);
+  bus.addEventListener('sync:status', refreshBadge);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Non-blocking notice bar (persistence — FR-DOC.8).
 // ─────────────────────────────────────────────────────────────────────────────
-function showNotice(message) {
+function showNotice(message, { dismissKey } = {}) {
+  // Dismissal is REMEMBERED (prefs) when a dismissKey is given — browsers
+  // rarely grant persistent storage to a non-installed site, so without
+  // this the storage notice greeted every user on every visit.
+  if (dismissKey && appState.prefs.dismissedNotices
+      && appState.prefs.dismissedNotices.includes(dismissKey)) return;
   let notice = document.getElementById('app-notice');
   if (!notice) {
     notice = document.createElement('div');
@@ -1035,7 +1101,15 @@ function showNotice(message) {
   dismiss.className = 'app-notice-dismiss';
   dismiss.setAttribute('aria-label', 'Dismiss notice');
   dismiss.textContent = '×';
-  dismiss.addEventListener('click', () => notice.remove());
+  dismiss.addEventListener('click', () => {
+    notice.remove();
+    if (dismissKey) {
+      const list = appState.prefs.dismissedNotices || [];
+      if (!list.includes(dismissKey)) list.push(dismissKey);
+      appState.prefs.dismissedNotices = list;
+      savePrefs();
+    }
+  });
   notice.append(span, dismiss);
 }
 
@@ -1048,9 +1122,8 @@ async function requestPersistenceNotice() {
   }
   if (!persisted) {
     showNotice(
-      'This browser hasn’t granted persistent storage. Your drafts are saved locally, '
-      + 'but the browser may evict them under storage pressure — keep important work '
-      + 'exported or (in M5) synced to GitHub.'
+      'Drafts live in this browser — commit to GitHub or export anything important.',
+      { dismissKey: 'storage-v1' }
     );
   }
 }
@@ -1209,7 +1282,7 @@ function buildSyncPanel() {
 
   // ── Sync section (FR-GH.3/5) ────────────────────────────────────────────────
   const syncState = h('p', { class: 'sk-field-note', id: 'sync-state-line' });
-  const msgInput = /** @type {HTMLInputElement} */ (h('input', { type: 'text', class: 'sk-input', id: 'sync-msg', placeholder: 'Commit message' }));
+  const msgInput = /** @type {HTMLInputElement} */ (h('input', { type: 'text', class: 'sk-input', id: 'sync-msg', placeholder: 'Commit message — a short note describing this change' }));
   const commitBtn = h('button', { type: 'button', class: 'btn btn-primary btn-sm', id: 'sync-commit-btn', text: 'Commit' });
   const pullBtn = h('button', { type: 'button', class: 'btn btn-sm', id: 'sync-pull-btn', text: 'Pull latest' });
 
@@ -1257,6 +1330,7 @@ function buildSyncPanel() {
     h('h3', { class: 'sk-dialog-h', text: 'Step 3 · Commit & pull' }),
     syncState,
     h('div', { class: 'sk-field-row' }, [msgInput]),
+    h('p', { class: 'sk-field-note', text: 'The message is saved in the repository\u2019s history next to your change \u2014 future-you will thank present-you for a descriptive one.' }),
     h('div', { class: 'sk-field-row' }, [commitBtn, pullBtn]),
     resultNote,
   ]);
@@ -1350,6 +1424,98 @@ function buildSyncPanel() {
 
 function refreshSyncPanel() {
   if (syncPanel) syncPanel.refresh();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Revision restore (UX review item #9): the safety snapshots existed since M5
+// but had no UI — an invisible safety net. This makes it visible.
+// ─────────────────────────────────────────────────────────────────────────────
+let restorePanel = null;
+
+const REVISION_REASON_LABEL = {
+  auto: 'Autosave checkpoint',
+  'pre-pull': 'Before Pull',
+  'pre-conflict': 'Before conflict resolution',
+  'pre-restore': 'Before a restore',
+  manual: 'Manual snapshot',
+};
+
+function snippetOf(content) {
+  const body = String(content || '').replace(/^---[\s\S]*?\n---\n?/, '');
+  const line = body.split('\n').map((l) => l.trim()).find((l) => l && !l.startsWith('{%'));
+  const t = line || '(empty document)';
+  return t.length > 72 ? t.slice(0, 72) + '…' : t;
+}
+
+async function openRestorePanel() {
+  const docId = appState.currentDocId;
+  if (!docId) return;
+  if (!restorePanel) {
+    const dialog = /** @type {HTMLDialogElement} */ (h('dialog', { id: 'restore-panel', class: 'sk-dialog' }));
+    const closeX = h('button', { type: 'button', class: 'sk-dialog-close', 'aria-label': 'Close', text: '×' });
+    closeX.addEventListener('click', () => dialog.close());
+    const listHost = h('div', { id: 'restore-list' });
+    const closeBtn = h('button', { type: 'button', class: 'btn btn-primary', text: 'Close' });
+    closeBtn.addEventListener('click', () => dialog.close());
+    dialog.append(h('div', { class: 'sk-dialog-body' }, [
+      h('header', { class: 'sk-dialog-head' }, [
+        h('h2', { class: 'sk-dialog-title', text: 'Restore a previous version' }), closeX,
+      ]),
+      h('p', { class: 'sk-field-note', text: 'Snapshots are taken automatically while you work and before anything replaces your text (Pull, conflict resolution, restores). Restoring is safe: your current text is snapshotted first.' }),
+      listHost,
+      h('footer', { class: 'sk-dialog-foot' }, [closeBtn]),
+    ]));
+    document.body.appendChild(dialog);
+    restorePanel = { dialog, listHost };
+  }
+  const { dialog, listHost } = restorePanel;
+  listHost.replaceChildren(h('p', { class: 'sk-field-note', text: 'Loading…' }));
+  if (typeof dialog.showModal === 'function' && !dialog.open) dialog.showModal();
+
+  let revs = [];
+  try { revs = await store.revisions.list(docId); } catch { revs = []; }
+  if (!revs.length) {
+    listHost.replaceChildren(h('p', { class: 'sk-field-note',
+      text: 'No snapshots yet — they accumulate automatically as you edit.' }));
+    return;
+  }
+  const rows = revs.map((rev) => {
+    const restoreBtn = h('button', { type: 'button', class: 'btn btn-sm', text: 'Restore' });
+    restoreBtn.addEventListener('click', async () => {
+      restoreBtn.disabled = true;
+      try {
+        const current = editorHandle ? editorHandle.getContent()
+          : (currentDocRecord && currentDocRecord.content) || '';
+        await store.revisions.snapshot(docId, current, 'pre-restore');
+        const saved = await store.docs.update(docId, { content: rev.content });
+        if (editorHandle) editorHandle.setContent(rev.content);
+        currentDocRecord = saved || currentDocRecord;
+        bus.dispatchEvent(new CustomEvent('doc:saved', { detail: { docId } }));
+        emit('toast', { message: `Restored the version from ${new Date(rev.createdAt).toLocaleString()} — your previous text was snapshotted first.`, level: 'success' });
+        dialog.close();
+        renderPreviewForModeIfVisible();
+      } catch (err) {
+        emit('toast', { message: `Restore failed: ${err?.message || err}`, level: 'error' });
+        restoreBtn.disabled = false;
+      }
+    });
+    return h('div', { class: 'sk-restore-row' }, [
+      h('div', { class: 'sk-restore-meta' }, [
+        h('strong', { text: new Date(rev.createdAt).toLocaleString() }),
+        h('span', { class: 'sk-restore-reason', text: REVISION_REASON_LABEL[rev.reason] || rev.reason }),
+        h('span', { class: 'sk-restore-snippet', text: snippetOf(rev.content) }),
+      ]),
+      restoreBtn,
+    ]);
+  });
+  listHost.replaceChildren(...rows);
+}
+
+/** Re-render the preview if it is on screen (post-restore refresh). */
+function renderPreviewForModeIfVisible() {
+  if (appState.mode === 'split' || appState.mode === 'preview') {
+    if (editorHandle) renderPreviewNow(editorHandle.getContent());
+  }
 }
 
 export function openSyncPanel() {
@@ -1480,6 +1646,9 @@ function buildCommandRegistry() {
 
     { id: 'entity.link', label: 'Link entity', group: 'Entity', shortcut: '⌘⇧K', when: hasEditor,
       run: () => wikidata.linkEntityCommand(editorHandle.view) },
+
+    { id: 'doc.restore', label: 'Restore previous version…', group: 'Document',
+      when: () => !!appState.currentDocId, run: () => openRestorePanel() },
 
     { id: 'help.open', label: 'Open help', group: 'Help',
       run: () => window.open('./help.html', '_blank', 'noopener') },

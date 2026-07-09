@@ -274,7 +274,9 @@ function ensureStyles() {
   border: 1px solid transparent; border-radius: var(--sk-radius, 6px); cursor: pointer;
 }
 .sk-toolbar-btn:hover { background: var(--sk-bg-sunken, #f6f8fa); color: var(--sk-text, #1f2328); }
-.sk-toolbar-sep { width: 1px; align-self: stretch; margin: 4px 4px; background: var(--sk-border, #d8dee4); flex: none; }
+.sk-toolbar-sep { width: 1px; align-self: stretch; margin: 3px 6px; background: var(--sk-border-strong, #afb8c1); flex: none; }
+.sk-toolbar-btn-labeled { width: auto; padding: 0 8px; gap: 5px; }
+.sk-toolbar-btn-text { font-size: 12.5px; font-weight: 600; }
 .sk-toolbar-dropdown { position: relative; flex: none; }
 .sk-toolbar-btn[aria-expanded="true"] { background: var(--sk-selection, rgba(9,105,218,.14)); color: var(--sk-text, #1f2328); }
 .sk-toolbar-viewer-menu {
@@ -372,6 +374,13 @@ function buildViewerDropdown(doc, onPick) {
     icon: 'viewer',
     onClick: () => toggle(),
   });
+  // Text label (review item #4): the most StoryKit-specific action in the
+  // toolbar shouldn't hide behind an ambiguous glyph.
+  trigger.classList.add('sk-toolbar-btn-labeled');
+  const triggerText = document.createElement('span');
+  triggerText.className = 'sk-toolbar-btn-text';
+  triggerText.textContent = 'Insert ▾';
+  trigger.appendChild(triggerText);
   trigger.setAttribute('aria-haspopup', 'menu');
   trigger.setAttribute('aria-expanded', 'false');
 

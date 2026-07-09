@@ -790,3 +790,38 @@ a.icon-btn { text-decoration: none; }
 /* The hidden attribute must always win — display:flex on rows otherwise
    overrides the UA's [hidden] { display:none }. */
 .sk-dialog [hidden] { display: none !important; }
+
+/* Top-bar sync badge (active document's state, next to the title menu) */
+.topbar-sync-badge {
+  display: inline-block;
+  padding: 1px 9px;
+  border: 1px solid var(--sk-border-strong);
+  border-radius: 10px;
+  font-size: var(--sk-fs-xs);
+  color: var(--sk-text-muted);
+  background: var(--sk-surface);
+  white-space: nowrap;
+}
+.topbar-sync-badge[data-state="synced"] { color: var(--sk-success); border-color: var(--sk-success); }
+.topbar-sync-badge[data-state="local-changes"] { color: var(--sk-warning); border-color: var(--sk-warning); }
+.topbar-sync-badge[data-state="remote-changed"],
+.topbar-sync-badge[data-state="conflict"] { color: var(--sk-danger); border-color: var(--sk-danger); }
+
+.empty-cta-row { display: flex; gap: var(--sk-space-1); justify-content: center; margin-top: var(--sk-space-1); }
+
+/* Revision-restore dialog rows */
+.sk-restore-row {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--sk-space-1); padding: 8px 0;
+  border-bottom: 1px solid var(--sk-border);
+}
+.sk-restore-row:last-child { border-bottom: 0; }
+.sk-restore-meta { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sk-restore-meta strong { font-size: var(--sk-fs-sm); }
+.sk-restore-reason { font-size: var(--sk-fs-xs); color: var(--sk-text-muted); }
+.sk-restore-snippet {
+  font-size: var(--sk-fs-xs); color: var(--sk-text-faint);
+  font-family: var(--sk-mono, ui-monospace, monospace);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 420px;
+}
+#restore-list { max-height: 320px; overflow-y: auto; }

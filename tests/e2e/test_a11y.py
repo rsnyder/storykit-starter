@@ -347,3 +347,32 @@ def test_axe_help_page(browser, site_dir):
             _assert_clean(_run_axe(page, context="body"), "help page")
         finally:
             context.close()
+
+
+def test_axe_restore_dialog(browser, site_dir):
+    """The revision-restore dialog (UX review item #9) meets the AA bar."""
+    with rr.serve_site(site_dir) as base_url:
+        context, page, _ = _hermetic_page(browser)
+        try:
+            _boot_editor(page, base_url)
+            page.evaluate(
+                """async () => {
+                    const app = await import('/editor/app.js');
+                    const s = app.modules.store;
+                    const r = await s.docs.create({ title: 'A11y restore', path: null, content: 'one' });
+                    await s.revisions.snapshot(r.id, 'one', 'manual');
+                    await app.openDoc(r.id);
+                }""")
+            page.wait_for_selector(".cm-content", timeout=25_000)
+            page.evaluate(
+                """async () => { (await import('/editor/app.js')); 
+                    document.dispatchEvent(new Event('noop')); }""")
+            page.keyboard.press("ControlOrMeta+KeyK")
+            page.wait_for_selector("#palette-input, [class*=palette] input", timeout=5000)
+            page.keyboard.type("restore")
+            page.wait_for_timeout(300)
+            page.keyboard.press("Enter")
+            page.wait_for_selector("dialog#restore-panel[open]", timeout=8000)
+            _assert_clean(_run_axe(page), "restore dialog")
+        finally:
+            context.close()

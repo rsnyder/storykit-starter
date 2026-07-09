@@ -373,8 +373,11 @@ const CSS_TEXT = `
 .pv-diagnostics.pv-diagnostics-empty { display: none; }
 .pv-diagnostics[data-collapsed='true'] .pv-diagnostics-list { display: none; }
 .pv-diagnostics-toggle {
-  display: block; width: 100%; text-align: left; padding: 6px var(--sk-space-2);
-  font: inherit; color: var(--sk-text-muted); background: transparent; border: 0; cursor: pointer;
+  /* Reads as a BUTTON, not stray text (review item #7): chip outline + hover. */
+  display: inline-block; margin: 4px var(--sk-space-2); padding: 2px 10px;
+  text-align: left; font: inherit; font-size: var(--sk-fs-xs);
+  color: var(--sk-text-muted); background: var(--sk-surface);
+  border: 1px solid var(--sk-border); border-radius: 10px; cursor: pointer;
 }
 /* Chevron affordance: the summary line is a collapse/expand toggle. */
 .pv-diagnostics[data-collapsed='true'] .pv-diagnostics-toggle::before { content: '\\25B8'; margin-right: 6px; opacity: .7; }
