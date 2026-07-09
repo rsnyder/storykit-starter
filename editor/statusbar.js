@@ -88,7 +88,7 @@ export function createStatusBar({ mount, bus } = {}) {
   lintEl.type = 'button';
   lintEl.id = 'status-lint';
   lintEl.setAttribute('title', 'Audit this document (list all issues)');
-  lintEl.textContent = '0 issues';
+  lintEl.textContent = 'Audit · 0 issues';
   lintEl.addEventListener('click', () => {
     if (bus && typeof bus.dispatchEvent === 'function') {
       bus.dispatchEvent(new CustomEvent('audit:open'));
@@ -154,7 +154,7 @@ export function createStatusBar({ mount, bus } = {}) {
 
   function setLintCount(n) {
     const count = Number(n || 0);
-    lintEl.textContent = `${count} issue${count === 1 ? '' : 's'}`;
+    lintEl.textContent = `Audit · ${count} issue${count === 1 ? '' : 's'}`;
   }
 
   // ── Bus wiring (owned here now, not in app.js) ────────────────────────────

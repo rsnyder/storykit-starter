@@ -411,7 +411,10 @@ function buildExtraExtensions() {
   return [
     autocompletion(),
     keymap.of(completionKeymap),
-    langStorykit.storykit({ catalog }),
+    langStorykit.storykit({
+      catalog,
+      onLintCount: (count) => bus.dispatchEvent(new CustomEvent('lint:count', { detail: { count } })),
+    }),
     dnd.dndExtension({ onNotice: (n) => emit('toast', n) }),
     wikidata.qidHoverExtension(),
     Prec.highest(keymap.of([{ key: 'Mod-Shift-k', run: wikidata.linkEntityCommand, preventDefault: true }])),
@@ -1773,6 +1776,7 @@ const toolbarActions = {
   heading: () => editorHandle && commands.cycleHeading(editorHandle.view),
   list: () => editorHandle && toolbar.insertListItem(editorHandle.view),
   linkEntity: () => editorHandle && wikidata.linkEntityCommand(editorHandle.view),
+  audit: () => openAuditPanel(),
   insertViewer: (key) => editorHandle && toolbar.insertViewerTag(editorHandle.view, key),
 };
 

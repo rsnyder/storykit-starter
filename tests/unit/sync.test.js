@@ -710,9 +710,9 @@ describe('statusbar: five-state badge + surfaces', () => {
       bus.dispatchEvent(new CustomEvent('lint:count', { detail: { count: 1 } }));
       assert.equal(mount.querySelector('#status-wordcount').textContent, (1842).toLocaleString() + ' words');
       assert.equal(mount.querySelector('#status-cursor').textContent, 'Ln 12, Col 3');
-      assert.equal(mount.querySelector('#status-lint').textContent, '1 issue');
+      assert.equal(mount.querySelector('#status-lint').textContent, 'Audit · 1 issue');
       bus.dispatchEvent(new CustomEvent('lint:count', { detail: { count: 2 } }));
-      assert.equal(mount.querySelector('#status-lint').textContent, '2 issues');
+      assert.equal(mount.querySelector('#status-lint').textContent, 'Audit · 2 issues');
     } finally { cleanup(); }
   });
 

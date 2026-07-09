@@ -329,6 +329,7 @@ const ICONS = {
   list: '<path d="M8 5h8M8 10h8M8 15h8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="4.3" cy="5" r="1.1" fill="currentColor"/><circle cx="4.3" cy="10" r="1.1" fill="currentColor"/><circle cx="4.3" cy="15" r="1.1" fill="currentColor"/>',
   viewer: '<rect x="4" y="5" width="12" height="10" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4 12l3.2-3.2a1 1 0 011.4 0L12 12M11 10.6l1.3-1.3a1 1 0 011.4 0L16 11.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/>',
   entity: '<path d="M8.5 11.5a3 3 0 004.24 0l2-2a3 3 0 00-4.24-4.24l-1 1M11.5 8.5a3 3 0 00-4.24 0l-2 2a3 3 0 004.24 4.24l1-1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
+  audit: '<path d="M4 5.5l1.5 1.5L8 4.5M4 10.5l1.5 1.5L8 9.5M4 15.5l1.5 1.5L8 14.5M10.5 6h6M10.5 11h6M10.5 16h6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>',
 };
 
 function svgIcon(name) {
@@ -504,7 +505,16 @@ export function createToolbar({ mount, actions = {} } = {}) {
   const viewerDropdown = buildViewerDropdown(doc, (key) => (actions.insertViewer || noop)(key));
   const entityBtn = makeButton({ action: 'link-entity', label: 'Link entity', icon: 'entity', onClick: () => (actions.linkEntity || noop)() });
 
-  root.append(boldBtn, italicBtn, linkBtn, sep(), headingBtn, listBtn, sep(), viewerDropdown.el, sep(), entityBtn);
+  // Labeled like the Insert dropdown — the audit report is a headline
+  // feature and must be findable without hunting the status bar.
+  const auditBtn = makeButton({ action: 'audit', label: 'Audit document', icon: 'audit', onClick: () => (actions.audit || noop)() });
+  auditBtn.classList.add('sk-toolbar-btn-labeled');
+  const auditText = document.createElement('span');
+  auditText.className = 'sk-toolbar-btn-text';
+  auditText.textContent = 'Audit';
+  auditBtn.appendChild(auditText);
+
+  root.append(boldBtn, italicBtn, linkBtn, sep(), headingBtn, listBtn, sep(), viewerDropdown.el, sep(), entityBtn, sep(), auditBtn);
   mount.replaceChildren(root);
 
   return {

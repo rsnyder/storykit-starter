@@ -564,3 +564,19 @@ describe('performance — decoration update on a ~50 KB document', () => {
     }
   }, { timeout: 20000 });
 });
+
+describe('lint: unbalanced quotes in tags (missing trailing quote)', () => {
+  const DEPS2 = { catalog };
+  it('flags a missing closing quote on an attribute value', () => {
+    const diags = computeDiagnostics(
+      '{% include embed/image.html id="v1" src="x.jpg caption="y" %}', DEPS2);
+    assert.ok(diags.some((d) => /Unbalanced quote/.test(d.message)),
+      JSON.stringify(diags.map((d) => d.message)));
+  });
+  it('does not flag balanced tags', () => {
+    const diags = computeDiagnostics(
+      '{% include embed/image.html id="v1" src="x.jpg" caption="y" %}', DEPS2);
+    assert.ok(!diags.some((d) => /Unbalanced quote/.test(d.message)),
+      JSON.stringify(diags.map((d) => d.message)));
+  });
+});

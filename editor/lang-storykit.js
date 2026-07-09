@@ -596,6 +596,23 @@ export function computeDiagnostics(text, deps) {
       }
     }
 
+    // Unbalanced straight quotes (e.g. a missing trailing quote on an
+    // attribute value) silently corrupt every attribute after the gap —
+    // flag the tag itself with an error before attr-level checks run on
+    // garbage. Curly quotes are already flagged above; count only straight.
+    {
+      let straight = 0;
+      for (let i = 0; i < tagSlice.length; i++) if (tagSlice[i] === '"') straight++;
+      if (straight % 2 === 1) {
+        diags.push({
+          from: t.openFrom,
+          to: t.closeTo,
+          severity: 'error',
+          message: 'Unbalanced quote in this tag — an attribute value is missing its closing ".',
+        });
+      }
+    }
+
     if (t.type !== 'include' || t.path == null) continue;
     const known = includeSet.has(t.path);
 
@@ -790,7 +807,14 @@ export function storykit(deps = {}) {
   const lintExt = linter(
     (view) => {
       const text = view.state.doc.toString();
-      return computeDiagnostics(text, deps);
+      const diags = computeDiagnostics(text, deps);
+      // Report the count outward (host emits the frozen `lint:count` bus
+      // event — the status bar's counter listened for it since M2 but
+      // nothing ever emitted it; it read "0 issues" regardless).
+      if (typeof deps.onLintCount === 'function') {
+        try { deps.onLintCount(diags.length); } catch { /* host's problem */ }
+      }
+      return diags;
     },
     { delay: 400 }
   );
