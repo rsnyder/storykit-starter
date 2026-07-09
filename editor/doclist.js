@@ -785,12 +785,17 @@ export function createDocList({ mount, store, bus, onOpen, onSync, onOpenRemote 
       }
       actions.append(syncBtn);
     }
+    // Sample docs are local-only: a repo path (like sync) is meaningless
+    // until the author duplicates it into a document of their own.
+    if (!docRecord.sample) {
+      actions.append(
+        needActive(makeActionBtn('Rename path', () => {
+          renamingId = renamingId === docRecord.id ? null : docRecord.id;
+          confirmingDeleteId = null;
+          renderItems();
+        })));
+    }
     actions.append(
-      needActive(makeActionBtn('Rename path', () => {
-        renamingId = renamingId === docRecord.id ? null : docRecord.id;
-        confirmingDeleteId = null;
-        renderItems();
-      })),
       needActive(makeActionBtn('Duplicate', () => duplicateDoc(docRecord))),
       needActive(makeActionBtn('Export', () => exportDoc(docRecord))),
       renderDeleteControl(docRecord, isActive)

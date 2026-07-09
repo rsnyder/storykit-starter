@@ -761,7 +761,10 @@ describe('doclist: sample (Welcome) documents are local-only', () => {
         .map((b) => b.textContent);
       assert.ok(!btns('w').some((t) => t.includes('Sync with GitHub')),
         `sample row must have no sync button: ${btns('w')}`);
+      assert.ok(!btns('w').some((t) => t.includes('Rename path')),
+        `sample row must have no rename button: ${btns('w')}`);
       assert.ok(btns('w').some((t) => t.includes('Duplicate')), 'other actions remain');
+      assert.ok(btns('n').some((t) => t.includes('Rename path')), 'normal rows keep rename');
       assert.ok(btns('n').some((t) => t.includes('Sync with GitHub')), 'normal rows keep it');
     } finally {
       mount.remove();
