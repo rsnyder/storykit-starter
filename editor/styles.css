@@ -848,4 +848,4 @@ a.icon-btn { text-decoration: none; }
 
 /* Brand mark in the top bar */
 .brand { display: inline-flex; align-items: center; gap: 8px; }
-.brand-mark { display: block; border-radius: 5px; }
+.brand-mark { display: block; }
