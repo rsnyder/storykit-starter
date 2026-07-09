@@ -845,3 +845,7 @@ a.icon-btn { text-decoration: none; }
   text-underline-offset: 3px;
 }
 .status-lint-btn:hover { color: var(--sk-text); }
+
+/* Brand mark in the top bar */
+.brand { display: inline-flex; align-items: center; gap: 8px; }
+.brand-mark { display: block; border-radius: 5px; }
