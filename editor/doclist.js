@@ -371,7 +371,10 @@ const CSS_TEXT = `
 .dl-sync-action:disabled { opacity: 0.45; cursor: default; }
 /* inactive-row actions: dim harder than the generic .btn:disabled so the
    active row's cluster is unmistakably the live one */
-.dl-item:not(.dl-item-active) .dl-action:disabled { opacity: 0.38; }
+.dl-item:not(.dl-item-active) .dl-action:disabled { opacity: 0.38; pointer-events: none; }
+/* whole inactive card is a click target */
+.dl-item:not(.dl-item-active) { cursor: pointer; }
+.dl-item:not(.dl-item-active):hover { background: var(--sk-bg-sunken); border-radius: 4px; }
 .dl-gh-icon { flex: none; }
 .dl-danger { color: var(--sk-accent-contrast); background: var(--sk-danger); border-color: var(--sk-danger); }
 /* Keep the danger scheme on hover: the generic .btn:hover swaps the
@@ -704,6 +707,16 @@ export function createDocList({ mount, store, bus, onOpen, onSync, onOpenRemote 
     li.className = 'dl-item';
     if (docRecord.id === activeDocId) li.classList.add('dl-item-active');
     li.dataset.docId = docRecord.id;
+    // The whole card of an INACTIVE row is a click target for opening it
+    // (the title button remains the keyboard-accessible path). Clicks on
+    // live interactive elements pass through untouched; the active row is
+    // exempt so stray clicks never re-open (and reset) the editor.
+    li.addEventListener('click', (e) => {
+      if (li.dataset.docId === activeDocId) return;
+      const interactive = e.target.closest && e.target.closest('button:not(:disabled), a, input, form');
+      if (interactive) return;
+      onOpen?.(docRecord.id);
+    });
 
     const main = doc.createElement('div');
     main.className = 'dl-item-main';

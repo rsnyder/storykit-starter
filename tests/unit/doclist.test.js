@@ -714,3 +714,31 @@ describe('doclist: active-document highlight (doc:opened)', () => {
     }
   });
 });
+
+describe('doclist: whole-card activation for inactive rows', () => {
+  it('clicking anywhere on an inactive card opens it; active card clicks are inert', async () => {
+    const store = makeFakeStore([
+      { id: 'a', title: 'A', path: null, content: 'a', updatedAt: '2026-07-02T00:00:00.000Z', github: null },
+      { id: 'b', title: 'B', path: null, content: 'b', updatedAt: '2026-07-01T00:00:00.000Z', github: null },
+    ]);
+    const mount = makeMount();
+    const bus = new EventTarget();
+    const opened = [];
+    const api = createDocList({ mount, store, bus, onOpen: (id) => opened.push(id) });
+    try {
+      await api.refresh();
+      bus.dispatchEvent(new CustomEvent('doc:opened', { detail: { docId: 'a' } }));
+
+      // click the META area (not the title button) of the inactive card
+      mount.querySelector('[data-doc-id="b"] .dl-item-meta').click();
+      assert.deepEqual(opened, ['b'], 'card click opens the inactive doc');
+
+      // clicking the ACTIVE card's meta does nothing (no editor reset)
+      bus.dispatchEvent(new CustomEvent('doc:opened', { detail: { docId: 'b' } }));
+      mount.querySelector('[data-doc-id="b"] .dl-item-meta').click();
+      assert.deepEqual(opened, ['b'], 'active card click is inert');
+    } finally {
+      mount.remove();
+    }
+  });
+});
