@@ -369,6 +369,9 @@ const CSS_TEXT = `
 .dl-action { font-size: var(--sk-fs-xs); padding: 2px 8px; }
 .dl-sync-action { display: inline-flex; align-items: center; gap: 5px; }
 .dl-sync-action:disabled { opacity: 0.45; cursor: default; }
+/* inactive-row actions: dim harder than the generic .btn:disabled so the
+   active row's cluster is unmistakably the live one */
+.dl-item:not(.dl-item-active) .dl-action:disabled { opacity: 0.38; }
 .dl-gh-icon { flex: none; }
 .dl-danger { color: var(--sk-accent-contrast); background: var(--sk-danger); border-color: var(--sk-danger); }
 /* Keep the danger scheme on hover: the generic .btn:hover swaps the
@@ -741,31 +744,43 @@ export function createDocList({ mount, store, bus, onOpen, onSync, onOpenRemote 
 
     const actions = doc.createElement('div');
     actions.className = 'dl-item-actions';
+    // Actions apply only to the ACTIVE document: buttons on other rows are
+    // disabled (a click on the row itself opens it, enabling them). Keeps
+    // destructive/ambiguous operations tied to what the author is looking at.
+    const isActive = docRecord.id === activeDocId;
+    const needActive = (btn) => {
+      btn.classList.add('dl-needs-active');
+      if (!isActive) {
+        btn.disabled = true;
+        btn.title = 'Open this document to use its actions';
+      }
+      return btn;
+    };
     // "Sync with GitHub" leads the cluster when the host wires onSync — the
     // primary discoverable entry point to the sync panel (the status-bar
-    // badge remains a secondary one). Disabled while local and remote are
-    // already in sync: there is nothing to push or pull. ('local' — unbound —
-    // stays enabled: the button is how a document gets bound in the first
-    // place.)
+    // badge remains a secondary one). ALSO disabled while local and remote
+    // are already in sync: there is nothing to push or pull. ('local' —
+    // unbound — stays enabled: the button is how binding starts.)
     if (onSync) {
-      const syncBtn = makeActionBtn('Sync with GitHub', () => onSync(docRecord.id));
+      const syncBtn = needActive(makeActionBtn('Sync with GitHub', () => onSync(docRecord.id)));
       syncBtn.classList.add('dl-sync-action');
       syncBtn.prepend(githubIcon());
       if (status === 'synced') {
         syncBtn.disabled = true;
+        syncBtn.dataset.synced = '1';
         syncBtn.title = 'Local and GitHub copies are in sync';
       }
       actions.append(syncBtn);
     }
     actions.append(
-      makeActionBtn('Rename path', () => {
+      needActive(makeActionBtn('Rename path', () => {
         renamingId = renamingId === docRecord.id ? null : docRecord.id;
         confirmingDeleteId = null;
         renderItems();
-      }),
-      makeActionBtn('Duplicate', () => duplicateDoc(docRecord)),
-      makeActionBtn('Export', () => exportDoc(docRecord)),
-      renderDeleteControl(docRecord)
+      })),
+      needActive(makeActionBtn('Duplicate', () => duplicateDoc(docRecord))),
+      needActive(makeActionBtn('Export', () => exportDoc(docRecord))),
+      renderDeleteControl(docRecord, isActive)
     );
 
     li.append(main, meta, actions);
@@ -774,7 +789,7 @@ export function createDocList({ mount, store, bus, onOpen, onSync, onOpenRemote 
     return li;
   }
 
-  function renderDeleteControl(docRecord) {
+  function renderDeleteControl(docRecord, isActive) {
     const wrap = doc.createElement('span');
     wrap.className = 'dl-delete-wrap';
     if (confirmingDeleteId === docRecord.id) {
@@ -793,13 +808,17 @@ export function createDocList({ mount, store, bus, onOpen, onSync, onOpenRemote 
       });
       wrap.append(confirmBtn, cancelBtn);
     } else {
-      wrap.append(
-        makeActionBtn('Delete', () => {
-          confirmingDeleteId = docRecord.id;
-          renamingId = null;
-          renderItems();
-        })
-      );
+      const delBtn = makeActionBtn('Delete', () => {
+        confirmingDeleteId = docRecord.id;
+        renamingId = null;
+        renderItems();
+      });
+      delBtn.classList.add('dl-needs-active');
+      if (!isActive) {
+        delBtn.disabled = true;
+        delBtn.title = 'Open this document to use its actions';
+      }
+      wrap.append(delBtn);
     }
     return wrap;
   }
@@ -892,7 +911,14 @@ export function createDocList({ mount, store, bus, onOpen, onSync, onOpenRemote 
   function onDocOpened(e) {
     activeDocId = (e.detail && e.detail.docId) || null;
     for (const li of mount.querySelectorAll('.dl-item')) {
-      li.classList.toggle('dl-item-active', li.dataset.docId === activeDocId);
+      const active = li.dataset.docId === activeDocId;
+      li.classList.toggle('dl-item-active', active);
+      for (const btn of li.querySelectorAll('.dl-needs-active')) {
+        // a synced Sync button stays disabled even on the active row
+        btn.disabled = !active || btn.dataset.synced === '1';
+        btn.title = !active ? 'Open this document to use its actions'
+          : (btn.dataset.synced === '1' ? 'Local and GitHub copies are in sync' : '');
+      }
     }
   }
   if (bus && typeof bus.addEventListener === 'function') {

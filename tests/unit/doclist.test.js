@@ -349,9 +349,12 @@ describe('doclist: two-step delete (FR-DOC.5)', () => {
       { id: 'a', title: 'Draft A', path: null, content: 'a', updatedAt: '2026-07-01T00:00:00.000Z', github: null },
     ]);
     const mount = makeMount();
-    const api = createDocList({ mount, store });
+    const bus = new EventTarget();
+    const api = createDocList({ mount, store, bus });
     try {
       await api.refresh();
+      // actions require the active row (2026-07-09 UX change)
+      bus.dispatchEvent(new CustomEvent('doc:opened', { detail: { docId: 'a' } }));
 
       const item = mount.querySelector('.dl-item[data-doc-id="a"]');
       const findByText = (text) =>
@@ -380,9 +383,11 @@ describe('doclist: two-step delete (FR-DOC.5)', () => {
       { id: 'a', title: 'Draft A', path: null, content: 'a', updatedAt: '2026-07-01T00:00:00.000Z', github: null },
     ]);
     const mount = makeMount();
-    const api = createDocList({ mount, store });
+    const bus = new EventTarget();
+    const api = createDocList({ mount, store, bus });
     try {
       await api.refresh();
+      bus.dispatchEvent(new CustomEvent('doc:opened', { detail: { docId: 'a' } }));
       const item = mount.querySelector('.dl-item[data-doc-id="a"]');
       [...item.querySelectorAll('button')].find((b) => b.textContent === 'Delete').click();
 
@@ -528,12 +533,14 @@ describe('doclist: Sync with GitHub action (onSync)', () => {
   it('renders a leading "Sync with GitHub" action when onSync is provided, invoking it with the doc id', async () => {
     const mount = makeMount();
     const calls = [];
+    const bus = new EventTarget();
     const api = createDocList({
-      mount, store: makeFakeStore(seed), bus: new EventTarget(),
+      mount, store: makeFakeStore(seed), bus,
       onSync: (id) => calls.push(id),
     });
     try {
       await api.refresh();
+      bus.dispatchEvent(new CustomEvent('doc:opened', { detail: { docId: 'sync-me' } }));
       const btns = syncButtons(mount);
       assert.equal(btns.length, 1, 'one sync button per item');
       const cluster = mount.querySelector('.dl-item-actions');
@@ -609,7 +616,7 @@ describe('doclist: Open from GitHub affordances', () => {
 });
 
 describe('doclist: Sync with GitHub button state + icon', () => {
-  it('disables the button (with tooltip) when synced; enables otherwise; icon always present', async () => {
+  it('action buttons require the ACTIVE row; synced rows keep Sync disabled; icon always present', async () => {
     const store = makeFakeStore([
       { id: 'synced', title: 'In sync', path: '_posts/a.md', content: 'a',
         updatedAt: '2026-06-01T00:00:00.000Z',
@@ -617,29 +624,35 @@ describe('doclist: Sync with GitHub button state + icon', () => {
       { id: 'dirty', title: 'Local edits', path: '_posts/b.md', content: 'b',
         updatedAt: '2026-07-05T00:00:00.000Z',
         github: { owner: 'x', repo: 'y', branch: 'main', sha: 's2', syncedAt: '2026-05-01T00:00:00.000Z' } },
-      { id: 'unbound', title: 'Local only', path: null, content: 'c',
-        updatedAt: '2026-07-01T00:00:00.000Z', github: null },
     ]);
     const mount = makeMount();
-    const api = createDocList({ mount, store, onSync: () => {} });
+    const bus = new EventTarget();
+    const api = createDocList({ mount, store, bus, onSync: () => {} });
     try {
       await api.refresh();
-      const btnFor = (id) => mount.querySelector(`[data-doc-id="${id}"] .dl-sync-action`)
-        || Array.from(mount.querySelectorAll('.dl-item')).find(
-             (li) => li.textContent.includes(id === 'synced' ? 'In sync' : id === 'dirty' ? 'Local edits' : 'Local only'))
-           ?.querySelector('.dl-sync-action');
-      const syncedBtn = btnFor('synced');
-      const dirtyBtn = btnFor('dirty');
-      const unboundBtn = btnFor('unbound');
-      assert.ok(syncedBtn && dirtyBtn && unboundBtn, 'sync button rendered on every row');
-      assert.equal(syncedBtn.disabled, true, 'synced → disabled');
-      assert.ok(/in sync/i.test(syncedBtn.title), 'disabled state explains itself');
-      assert.equal(dirtyBtn.disabled, false, 'local changes → enabled');
-      assert.equal(unboundBtn.disabled, false, 'unbound → enabled (how binding starts)');
-      for (const b of [syncedBtn, dirtyBtn, unboundBtn]) {
-        assert.ok(b.querySelector('svg.dl-gh-icon'), 'GitHub icon present');
-        assert.ok(b.textContent.includes('Sync with GitHub'), 'label preserved for a11y');
+      const btn = (id, label) => Array.from(mount.querySelectorAll(`[data-doc-id="${id}"] .dl-action`))
+        .find((b) => b.textContent.includes(label));
+
+      // No active document: every action on every row is disabled.
+      for (const id of ['synced', 'dirty']) {
+        for (const label of ['Sync with GitHub', 'Rename path', 'Duplicate', 'Export', 'Delete']) {
+          assert.equal(btn(id, label).disabled, true, `${id}/${label} disabled when inactive`);
+        }
+        assert.ok(btn(id, 'Sync with GitHub').querySelector('svg.dl-gh-icon'), 'GitHub icon present');
       }
+
+      // Activate the dirty row: its actions enable (incl. Sync — local changes).
+      bus.dispatchEvent(new CustomEvent('doc:opened', { detail: { docId: 'dirty' } }));
+      assert.equal(btn('dirty', 'Sync with GitHub').disabled, false, 'active + local changes → Sync enabled');
+      assert.equal(btn('dirty', 'Delete').disabled, false, 'active → Delete enabled');
+      assert.equal(btn('synced', 'Delete').disabled, true, 'other rows stay disabled');
+
+      // Activate the synced row: actions enable EXCEPT Sync (nothing to do).
+      bus.dispatchEvent(new CustomEvent('doc:opened', { detail: { docId: 'synced' } }));
+      assert.equal(btn('synced', 'Rename path').disabled, false, 'active → Rename enabled');
+      assert.equal(btn('synced', 'Sync with GitHub').disabled, true, 'in-sync Sync stays disabled');
+      assert.ok(/in sync/i.test(btn('synced', 'Sync with GitHub').title));
+      assert.equal(btn('dirty', 'Duplicate').disabled, true, 'previous active row disabled again');
     } finally {
       mount.remove();
     }
