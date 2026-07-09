@@ -769,3 +769,24 @@ html, body { max-width: 100%; overflow-x: hidden; }
 
 /* .icon-btn is also used on <a> (the Help link) — suppress anchor defaults. */
 a.icon-btn { text-decoration: none; }
+
+/* GitHub sync dialog: success confirmation + footer */
+.sk-sync-result {
+  margin: var(--sk-space-1) 0 0;
+  padding: 8px 12px;
+  border: 1px solid var(--sk-success);
+  border-radius: var(--sk-radius);
+  background: color-mix(in srgb, var(--sk-success) 12%, transparent);
+  color: var(--sk-text);
+  font-size: var(--sk-fs-sm);
+}
+.sk-dialog-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--sk-space-1);
+  border-top: 1px solid var(--sk-border);
+}
+
+/* The hidden attribute must always win — display:flex on rows otherwise
+   overrides the UA's [hidden] { display:none }. */
+.sk-dialog [hidden] { display: none !important; }

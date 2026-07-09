@@ -1138,12 +1138,25 @@ function buildSyncPanel() {
     refreshSyncPanel();
   });
 
+  // Novice-friendly collapse: once a token is saved the input/forget rows
+  // hide behind a "Change or remove token…" toggle — a returning author sees
+  // one reassuring line, not a password field demanding attention.
+  const changeTokenBtn = h('button', {
+    type: 'button', class: 'btn btn-sm', id: 'sync-token-change', text: 'Change or remove token…',
+  });
+  const tokenEntryRow = h('div', { class: 'sk-field-row' }, [tokenInput, saveTokenBtn]);
+  const tokenManageRow = h('div', { class: 'sk-field-row' }, [forgetTokenBtn, setupLink]);
+  const tokenHelpNote = h('p', { class: 'sk-field-note', text: 'One fine-grained personal access token with Contents read/write. Stored in this browser only, under the same key the preview tool uses — forgetting it here affects both tools.' });
+  let tokenEditMode = false;
+  changeTokenBtn.addEventListener('click', () => { tokenEditMode = true; refreshSyncPanel(); tokenInput.focus(); });
+
   const tokenSection = h('section', { class: 'sk-dialog-section' }, [
-    h('h3', { class: 'sk-dialog-h', text: 'GitHub token' }),
+    h('h3', { class: 'sk-dialog-h', text: 'Step 1 · GitHub token' }),
     tokenStatus,
-    h('div', { class: 'sk-field-row' }, [tokenInput, saveTokenBtn]),
-    h('div', { class: 'sk-field-row' }, [forgetTokenBtn, setupLink]),
-    h('p', { class: 'sk-field-note', text: 'One fine-grained personal access token with Contents read/write. Stored in this browser only, under the same key the preview tool uses — forgetting it here affects both tools.' }),
+    h('div', { class: 'sk-field-row', id: 'sync-token-collapsed' }, [changeTokenBtn]),
+    tokenEntryRow,
+    tokenManageRow,
+    tokenHelpNote,
   ]);
 
   // ── Binding section (FR-GH.2) ──────────────────────────────────────────────
@@ -1183,7 +1196,7 @@ function buildSyncPanel() {
   const bindingNote = h('p', { class: 'sk-field-note', id: 'sync-binding-note' });
 
   const bindingSection = h('section', { class: 'sk-dialog-section' }, [
-    h('h3', { class: 'sk-dialog-h', text: 'Repository binding' }),
+    h('h3', { class: 'sk-dialog-h', text: 'Step 2 · Repository' }),
     bindingNote,
     h('div', { class: 'sk-field-grid' }, [
       h('label', { class: 'sk-label', text: 'Owner' }), ownerInput,
@@ -1200,13 +1213,28 @@ function buildSyncPanel() {
   const commitBtn = h('button', { type: 'button', class: 'btn btn-primary btn-sm', id: 'sync-commit-btn', text: 'Commit' });
   const pullBtn = h('button', { type: 'button', class: 'btn btn-sm', id: 'sync-pull-btn', text: 'Pull latest' });
 
+  // Prominent in-dialog confirmation (a toast alone is easy to miss and the
+  // post-action refresh makes the panel look "reset" — novices couldn't tell
+  // the commit happened). Cleared when the dialog closes.
+  const resultNote = h('p', { class: 'sk-sync-result', id: 'sync-result', role: 'status' });
+  resultNote.hidden = true;
+  function showResult(message) {
+    resultNote.textContent = message;
+    resultNote.hidden = false;
+  }
+
   commitBtn.addEventListener('click', async () => {
     const docId = appState.currentDocId;
     if (!docId) return;
     commitBtn.disabled = true;
     try {
       const saved = await sync.commitDocument(docId, { message: msgInput.value.trim() });
-      if (saved) { currentDocRecord = saved; refreshSyncPanel(); }
+      if (saved) {
+        currentDocRecord = saved;
+        refreshSyncPanel();
+        const gh = saved.github || {};
+        showResult(`✓ Committed to ${gh.owner}/${gh.repo} on ${gh.branch} at ${new Date().toLocaleTimeString()}. Your document and GitHub now match — you can close this dialog.`);
+      }
     } catch { /* toasted */ }
     finally { commitBtn.disabled = false; }
   });
@@ -1216,16 +1244,21 @@ function buildSyncPanel() {
     pullBtn.disabled = true;
     try {
       const saved = await sync.pullDocument(docId);
-      if (saved) { currentDocRecord = saved; refreshSyncPanel(); }
+      if (saved) {
+        currentDocRecord = saved;
+        refreshSyncPanel();
+        showResult(`✓ Pulled the latest version from GitHub into the editor (a snapshot of your previous text was saved to this document's history first).`);
+      }
     } catch { /* toasted */ }
     finally { pullBtn.disabled = false; }
   });
 
   const syncSection = h('section', { class: 'sk-dialog-section', id: 'sync-actions-section' }, [
-    h('h3', { class: 'sk-dialog-h', text: 'Sync' }),
+    h('h3', { class: 'sk-dialog-h', text: 'Step 3 · Commit & pull' }),
     syncState,
     h('div', { class: 'sk-field-row' }, [msgInput]),
     h('div', { class: 'sk-field-row' }, [commitBtn, pullBtn]),
+    resultNote,
   ]);
 
   // Bookmarklet: drag to the bookmarks bar; on any GitHub file page it opens
@@ -1249,11 +1282,18 @@ function buildSyncPanel() {
     ]),
   ]);
 
+  const doneBtn = h('button', {
+    type: 'button', class: 'btn btn-primary', id: 'sync-done-btn', text: 'Done',
+  });
+  doneBtn.addEventListener('click', () => dialog.close());
+
   const body = h('div', { class: 'sk-dialog-body' }, [
     h('header', { class: 'sk-dialog-head' }, [h('h2', { class: 'sk-dialog-title', text: 'GitHub sync' }), closeBtn]),
     tokenSection, bindingSection, syncSection, bookmarkletSection,
+    h('footer', { class: 'sk-dialog-foot' }, [doneBtn]),
   ]);
   dialog.append(body);
+  dialog.addEventListener('close', () => { resultNote.hidden = true; tokenEditMode = false; });
   document.body.appendChild(dialog);
 
   const SYNC_LABEL = {
@@ -1262,12 +1302,18 @@ function buildSyncPanel() {
   };
 
   function refresh() {
-    // Token status.
+    // Token status + novice collapse: saved token → one reassuring line and
+    // a "Change or remove token…" toggle; no token (or editing) → the input.
     const hasToken = !!github.getToken();
     tokenStatus.textContent = hasToken
-      ? 'A token is saved in this browser.'
-      : 'No token saved — GitHub sync needs one.';
+      ? '✓ A token is saved in this browser — GitHub sync is ready.'
+      : 'No token saved yet — paste one below (see the guide for the two-minute setup).';
     forgetTokenBtn.disabled = !hasToken;
+    const collapsed = hasToken && !tokenEditMode;
+    changeTokenBtn.parentElement.hidden = !collapsed;
+    tokenEntryRow.hidden = collapsed;
+    tokenManageRow.hidden = collapsed;
+    tokenHelpNote.hidden = collapsed;
 
     // Binding fields prefilled from the open doc.
     const rec = currentDocRecord;
