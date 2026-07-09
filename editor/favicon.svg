@@ -1,12 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="StoryKit Editor">
-  <!-- StoryKit Editor mark: a story page — prose lines above, media below.
-       Single accent color so it sits naturally in both themes. -->
+  <!-- StoryKit Editor mark v2: a story page — prose lines above, a photo
+       below (inset mountain + sun so the pane reads as an image thumbnail).
+       Single accent color; verified at 96/32/16px on light and dark. -->
   <rect x="2" y="2" width="60" height="60" rx="14" fill="#0969da"/>
-  <!-- prose lines -->
-  <rect x="14" y="14" width="36" height="5.5" rx="2.75" fill="#ffffff" opacity="0.95"/>
-  <rect x="14" y="24" width="26" height="5.5" rx="2.75" fill="#ffffff" opacity="0.75"/>
-  <!-- media pane: image with sun + ridge -->
-  <rect x="14" y="34" width="36" height="16" rx="4" fill="#ffffff" opacity="0.95"/>
-  <circle cx="22.5" cy="40.5" r="2.6" fill="#0969da"/>
-  <path d="M17 50 l8.5 -7 5.5 4.5 7-6 12 8.5 z" fill="#0969da"/>
+  <rect x="14" y="13" width="36" height="5.5" rx="2.75" fill="#ffffff" opacity="0.95"/>
+  <rect x="14" y="22.5" width="24" height="5.5" rx="2.75" fill="#ffffff" opacity="0.72"/>
+  <rect x="14" y="32" width="36" height="19" rx="4.5" fill="#ffffff"/>
+  <circle cx="42.5" cy="38.5" r="2.7" fill="#0969da"/>
+  <path d="M18.5 47.5 l6.5-8 4.6 5.2 4.2-4.6 8.7 7.4 z" fill="#0969da"/>
 </svg>
