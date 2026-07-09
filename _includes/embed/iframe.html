@@ -15,7 +15,21 @@ component wrapper), and the caption is rendered by the host page.
 {%- assign figure_class = figure_class | append: " " | append: include.class -%}
 {%- endif -%}
 
+{%- comment -%}
+A raw image URL in an <iframe> renders the browser's synthetic image
+document at NATURAL size — cross-origin, so its overflow can't be styled,
+and wide images force horizontal scrollbars inside the frame. Detect image
+extensions and emit a size-constrained <img> in the same figure instead.
+{%- endcomment -%}
+{%- assign _sk_ext = src_final | downcase | split: '?' | first | split: '#' | first | split: '.' | last -%}
+{%- assign _sk_img_exts = 'jpg,jpeg,png,gif,webp,avif,svg' | split: ',' -%}
+
 <figure class="{{ figure_class }}">
+  {%- if _sk_img_exts contains _sk_ext -%}
+  <img class="embed-iframe-img" src="{{ src_final }}" loading="lazy"
+       alt="{{ include.caption | default: 'Embedded image' | strip_html | strip }}"
+       {%- if include.height %} style="max-height: {{ include.height }}px"{% endif %} />
+  {%- else -%}
   {%- include embed/_iframe.html
         src=src_final
         base_class="embed-iframe"
@@ -25,6 +39,7 @@ component wrapper), and the caption is rendered by the host page.
         width=include.width
         height=include.height
   -%}
+  {%- endif -%}
   <figcaption>
     {{ include.caption }}
   </figcaption>
