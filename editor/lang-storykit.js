@@ -49,6 +49,7 @@ import { EditorView, Decoration, ViewPlugin } from '@codemirror/view';
 import { EditorState, StateEffect } from '@codemirror/state';
 import { linter } from '@codemirror/lint';
 import { parser as yamlParser } from '@lezer/yaml';
+import { load as yamlLoad } from 'js-yaml';
 
 /* ==========================================================================
  * Constants & shared decoration specs
@@ -540,6 +541,154 @@ function checkPctArity(argString) {
  * `deps.docViewerIds` (array) is used when present; otherwise ids are scanned
  * from the document's own include tags.
  */
+// ── Front-matter schema (semantic layer on top of the YAML parse) ───────────
+// Vocabulary derived from what the layouts/includes ACTUALLY read (page.*)
+// in this starter and the Chirpy gem, plus Jekyll core keys — unknown keys
+// get a did-you-mean WARNING (custom keys are legitimate, so never an error).
+const FM_KNOWN_KEYS = new Set([
+  'title', 'description', 'author', 'authors', 'date', 'last_modified_at',
+  'categories', 'tags', 'layout', 'image', 'media_subpath', 'img_path',
+  'toc', 'comments', 'math', 'mermaid', 'lang', 'storykit', 'published',
+  'featured', 'hidden', 'pin', 'show_header_image', 'publisher', 'updated',
+  'lightbox', 'format', 'permalink', 'order', 'excerpt', 'redirect_from',
+  'render_with_liquid', 'sitemap',
+]);
+const FM_BOOLEAN_KEYS = new Set([
+  'toc', 'comments', 'math', 'mermaid', 'published', 'featured', 'hidden',
+  'pin', 'show_header_image', 'render_with_liquid',
+]);
+
+function editDistance(a, b) {
+  const m = a.length, n = b.length;
+  if (Math.abs(m - n) > 2) return 3;
+  const row = Array.from({ length: n + 1 }, (_, i) => i);
+  for (let i = 1; i <= m; i++) {
+    let prev = row[0]; row[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const tmp = row[j];
+      row[j] = Math.min(row[j] + 1, row[j - 1] + 1, prev + (a[i - 1] === b[j - 1] ? 0 : 1));
+      prev = tmp;
+    }
+  }
+  return row[n];
+}
+
+function didYouMean(key) {
+  let best = null, bestD = 3;
+  for (const k of FM_KNOWN_KEYS) {
+    const d = editDistance(key.toLowerCase(), k);
+    if (d < bestD) { bestD = d; best = k; }
+  }
+  return bestD <= 2 ? best : null;
+}
+
+/** Semantic front-matter checks (names + value shapes). `inner` is the YAML
+ *  between the fences; `innerStart` its offset in the document. */
+function checkFrontMatterSchema(inner, innerStart, diags) {
+  let data;
+  try { data = yamlLoad(inner); } catch { return; } // syntax errors reported elsewhere
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return;
+
+  // Map top-level keys to positions (indent-0 `key:` lines).
+  const keyPos = new Map();
+  let off = 0;
+  for (const line of inner.split('\n')) {
+    const m = /^([A-Za-z_][\w-]*)\s*:/.exec(line);
+    if (m && !keyPos.has(m[1])) keyPos.set(m[1], { from: innerStart + off, to: innerStart + off + m[1].length });
+    off += line.length + 1;
+  }
+  const at = (key) => keyPos.get(key) || { from: innerStart, to: innerStart + 3 };
+
+  for (const [key, value] of Object.entries(data)) {
+    if (!FM_KNOWN_KEYS.has(key)) {
+      const hint = didYouMean(key);
+      diags.push({
+        ...at(key), severity: 'warning',
+        message: `Unknown front-matter key "${key}"` + (hint ? ` — did you mean "${hint}"?` : ' — not read by any layout (custom keys are allowed; check the spelling).'),
+      });
+      continue;
+    }
+    if (key === 'image') {
+      if (typeof value === 'string') {
+        if (!value.trim()) diags.push({ ...at(key), severity: 'error', message: 'image is empty — give it a path or remove it (an empty value suppresses the header image).' });
+      } else if (value && typeof value === 'object' && !Array.isArray(value)) {
+        const path = value.path;
+        if (path == null || String(path).trim() === '') {
+          diags.push({ ...at(key), severity: 'error', message: 'image.path is empty — give it a value or remove the image block (the template ships it blank).' });
+        }
+      } else {
+        diags.push({ ...at(key), severity: 'error', message: 'image should be a path string or a mapping with path/alt.' });
+      }
+      continue;
+    }
+    if ((key === 'categories' || key === 'tags')
+        && !(typeof value === 'string' || Array.isArray(value) || value == null)) {
+      diags.push({ ...at(key), severity: 'warning', message: `${key} should be a list (e.g. [a, b]) or a string.` });
+      continue;
+    }
+    if (FM_BOOLEAN_KEYS.has(key) && value != null && typeof value !== 'boolean') {
+      diags.push({ ...at(key), severity: 'warning', message: `${key} should be true or false (unquoted) — "${String(value)}" is a ${typeof value}.` });
+      continue;
+    }
+    if (key === 'date' && value != null) {
+      const str = value instanceof Date ? '' : String(value);
+      if (str && !/^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2})?( ?[+-]\d{4}| ?Z)?)?$/.test(str.trim())) {
+        diags.push({ ...at(key), severity: 'warning', message: 'date should look like YYYY-MM-DD (optionally with a time) — Jekyll may ignore this value.' });
+      }
+    }
+  }
+}
+
+// ── Markdown link syntax (unterminated destination) ─────────────────────────
+/** Ranges to EXCLUDE from prose-level checks: fenced code blocks and inline
+ *  code spans — documentation legitimately shows broken syntax there. */
+function codeRanges(text) {
+  const ranges = [];
+  // fenced blocks
+  const fence = /^(```|~~~).*$/gm;
+  let open = null, m;
+  while ((m = fence.exec(text)) !== null) {
+    if (open === null) open = m.index;
+    else { ranges.push([open, m.index + m[0].length]); open = null; }
+  }
+  if (open !== null) ranges.push([open, text.length]);
+  // inline code spans (single line, non-greedy)
+  const span = /`[^`\n]*`/g;
+  while ((m = span.exec(text)) !== null) ranges.push([m.index, m.index + m[0].length]);
+  return ranges;
+}
+
+/** Flag `[text](destination` that never closes before a blank line/EOF —
+ *  markdown-it renders it as literal text, which authors read as "my link
+ *  silently broke". Balanced parens inside the destination (Wikipedia URLs)
+ *  are handled. */
+function checkUnterminatedLinks(text, diags) {
+  const excluded = codeRanges(text);
+  const inCode = (p) => excluded.some(([a, b]) => p >= a && p < b);
+  const opener = /\[([^\]\n]*)\]\(/g;
+  let m;
+  while ((m = opener.exec(text)) !== null) {
+    if (inCode(m.index)) continue;
+    let depth = 1;
+    let i = m.index + m[0].length;
+    while (i < text.length && depth > 0) {
+      const ch = text[i];
+      if (ch === '(') depth++;
+      else if (ch === ')') depth--;
+      else if (ch === '\n' && text[i + 1] === '\n') break; // paragraph end
+      i++;
+    }
+    if (depth > 0) {
+      diags.push({
+        from: m.index, to: m.index + m[0].length,
+        severity: 'error',
+        message: 'Unclosed link — missing the closing ")" after the destination.',
+      });
+      opener.lastIndex = m.index + m[0].length;
+    }
+  }
+}
+
 export function computeDiagnostics(text, deps) {
   const { catalog, includeSet, haveIncludeList, actionSet } = normalize(deps);
   const diags = [];
@@ -577,6 +726,7 @@ export function computeDiagnostics(text, deps) {
 
   // ---- Front matter (FR-EDIT.7) -----------------------------------------
   lintFrontMatter(text, diags);
+  checkUnterminatedLinks(text, diags);
 
   // ---- Tag diagnostics --------------------------------------------------
   for (const t of tags) {
@@ -762,6 +912,9 @@ function lintFrontMatter(text, diags) {
       }
     } while (cursor.next());
   } catch { /* parser unavailable — tab/close checks still ran */ }
+
+  // Semantic layer: key names (did-you-mean) + value shapes.
+  checkFrontMatterSchema(inner, innerStart, diags);
 }
 
 /* ==========================================================================

@@ -91,8 +91,10 @@
     <li><strong>Command palette</strong> — <kbd>⌘K</kbd> reaches every action from the keyboard.</li>
     <li><strong>Audit</strong> — click the issue counter in the status bar (or
       <kbd>⌘K</kbd> → <em>Audit document</em>) for a full report of StoryKit syntax
-      problems: malformed tags, unknown attributes, curly quotes inside tags, broken
-      action links, front-matter errors. Click a line number to jump to the problem.</li>
+      problems: malformed tags, unknown attributes, curly quotes inside tags, missing closing
+      quotes, broken action links, unclosed Markdown links, and front-matter problems —
+      both YAML syntax and semantics (unknown property names get did-you-mean
+      suggestions; value shapes like an empty <code>image.path</code> are checked). Click a line number to jump to the problem.</li>
     <li><strong>Scroll sync</strong> — in Split view the two panes follow each other,
       anchored at headings and viewers (approximate in long prose between them).
       Toggle it from the palette: <em>Toggle split-view scroll sync</em>.</li>

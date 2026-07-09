@@ -580,3 +580,59 @@ describe('lint: unbalanced quotes in tags (missing trailing quote)', () => {
       JSON.stringify(diags.map((d) => d.message)));
   });
 });
+
+describe('lint: front-matter schema (names + value shapes)', () => {
+  const D = { catalog };
+  const fm = (inner) => `---\n${inner}\n---\n\nBody.\n`;
+  const msgs = (doc) => computeDiagnostics(doc, D).map((d) => d.message);
+
+  it('flags unknown keys with did-you-mean', () => {
+    const m = msgs(fm('titel: Oops'));
+    assert.ok(m.some((x) => x.includes('titel') && x.includes('did you mean "title"')), m);
+  });
+  it('accepts every template/layout key silently', () => {
+    const m = msgs(fm(['title: T', 'description: d', 'author: a', 'date: 2026-07-09',
+      'categories: [a, b]', 'tags: [x]', 'published: true', 'featured: false',
+      'media_subpath: /assets/img', 'image:', '  path: x.jpg', '  alt: alt',
+      'storykit:', '  mode: flat'].join('\n')));
+    assert.deepEqual(m.filter((x) => x.includes('front-matter') || x.includes('should')), [], m);
+  });
+  it('flags the blank image.path template trap as an error', () => {
+    const diags = computeDiagnostics(fm('title: T\nimage:\n  path:\n  alt:'), D);
+    const hit = diags.find((d) => d.message.includes('image.path is empty'));
+    assert.ok(hit && hit.severity === 'error', JSON.stringify(diags));
+  });
+  it('flags non-boolean booleans and unparseable dates as warnings', () => {
+    const m1 = msgs(fm('title: T\npublished: yes please'));
+    assert.ok(m1.some((x) => x.includes('published should be true or false')), m1);
+    const m2 = msgs(fm('title: T\ndate: July 9th 2026'));
+    assert.ok(m2.some((x) => x.includes('date should look like')), m2);
+  });
+  it('flags categories given as a mapping', () => {
+    const m = msgs(fm('title: T\ncategories:\n  a: 1'));
+    assert.ok(m.some((x) => x.includes('categories should be a list')), m);
+  });
+});
+
+describe('lint: unterminated markdown links', () => {
+  const D = { catalog };
+  const msgs = (doc) => computeDiagnostics(doc, D).map((d) => d.message);
+
+  it('flags a link missing its closing paren', () => {
+    const m = msgs('See [the docs](https://example.com/page and more text.\n\nNext para.\n');
+    assert.ok(m.some((x) => x.includes('Unclosed link')), m);
+  });
+  it('accepts balanced links including parens in URLs (Wikipedia)', () => {
+    const m = msgs('See [Bonn](https://en.wikipedia.org/wiki/Bonn_(Germany)) and [x](a).\n');
+    assert.deepEqual(m.filter((x) => x.includes('Unclosed link')), [], m);
+  });
+  it('ignores broken examples inside code fences and inline code', () => {
+    const doc = 'Real prose.\n\n```\n[broken](http://example.com\n```\n\nAnd `[also broken](x` inline.\n';
+    const m = msgs(doc);
+    assert.deepEqual(m.filter((x) => x.includes('Unclosed link')), [], m);
+  });
+  it('accepts action links and reference-style constructs untouched', () => {
+    const m = msgs('Zoom [here](v1/zoomto/pct:1,1,4,4) or see [ref][1].\n\n[1]: https://example.com\n');
+    assert.deepEqual(m.filter((x) => x.includes('Unclosed link')), [], m);
+  });
+});
