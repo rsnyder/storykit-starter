@@ -851,3 +851,11 @@ a.icon-btn { text-decoration: none; }
 .brand-mark { display: block; }
 
 .sk-audit-spelling .sk-audit-sev { color: var(--sk-accent); }
+
+/* Help link: more prominent than a standard icon button (user request) */
+.help-link {
+  width: 36px;
+  height: 36px;
+  color: var(--sk-accent);
+}
+.help-link:hover { color: var(--sk-accent-hover); background: var(--sk-selection); }
