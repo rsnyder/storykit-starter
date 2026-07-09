@@ -1664,7 +1664,7 @@ function wireSyncPanel() {
   });
 
   bus.addEventListener('sync:open-panel', () => openSyncPanel());
-  document.getElementById('overflow-menu')?.addEventListener('click', () => openSyncPanel());
+  // (the top-bar gear that opened the sync panel was removed — doc-list buttons + status chip suffice)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
