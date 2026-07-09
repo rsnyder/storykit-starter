@@ -1924,7 +1924,7 @@ export async function init() {
       const existing = await store.docs.list();
       if (existing.length === 0) {
         const rec = await store.docs.create({
-          title: WELCOME_TITLE, path: null, content: WELCOME_CONTENT,
+          title: WELCOME_TITLE, path: null, content: WELCOME_CONTENT, sample: true,
         });
         appState.prefs.welcomeSeeded = true;
         appState.prefs.lastDocId = rec.id;

@@ -390,3 +390,20 @@ describe('store: ulid (additive export)', () => {
     assert.ok(earlier < later, 'a ulid for an earlier timestamp should sort before a later one');
   });
 });
+
+describe('store: sample flag lifecycle', () => {
+  it('create honors sample:true; duplicate strips it (the copy is the author\'s own)', async () => {
+    const rec = await docs.create({ title: 'W', content: 'x', sample: true });
+    try {
+      assert.equal(rec.sample, true);
+      const plain = await docs.create({ title: 'P', content: 'y' });
+      assert.equal('sample' in plain, false, 'absent unless requested');
+      const copy = await docs.duplicate(rec.id);
+      assert.equal('sample' in copy, false, 'duplicate is a normal document');
+      await docs.remove(plain.id);
+      await docs.remove(copy.id);
+    } finally {
+      await docs.remove(rec.id);
+    }
+  });
+});

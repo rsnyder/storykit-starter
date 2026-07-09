@@ -774,7 +774,7 @@ export function createDocList({ mount, store, bus, onOpen, onSync, onOpenRemote 
     // badge remains a secondary one). ALSO disabled while local and remote
     // are already in sync: there is nothing to push or pull. ('local' —
     // unbound — stays enabled: the button is how binding starts.)
-    if (onSync) {
+    if (onSync && !docRecord.sample) {
       const syncBtn = needActive(makeActionBtn('Sync with GitHub', () => onSync(docRecord.id)));
       syncBtn.classList.add('dl-sync-action');
       syncBtn.prepend(githubIcon());

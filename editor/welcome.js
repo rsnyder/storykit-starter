@@ -39,6 +39,9 @@ work as you'd expect. Lists too:
 
 [^1]: Footnotes collect at the bottom of the published page.
 
+New to Markdown, or want the full syntax? The [Markdown Guide](https://www.markdownguide.org/)
+is an excellent reference.
+
 ## Viewers: where StoryKit begins
 
 An image viewer, straight from Wikimedia Commons via the \`wc:\` shorthand —

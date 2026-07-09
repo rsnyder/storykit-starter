@@ -742,3 +742,29 @@ describe('doclist: whole-card activation for inactive rows', () => {
     }
   });
 });
+
+describe('doclist: sample (Welcome) documents are local-only', () => {
+  it('renders no Sync button for sample docs even when active; duplicate restores it', async () => {
+    const store = makeFakeStore([
+      { id: 'w', title: 'Welcome to StoryKit', path: null, content: 'w',
+        updatedAt: '2026-07-09T00:00:00.000Z', github: null, sample: true },
+      { id: 'n', title: 'Normal', path: null, content: 'n',
+        updatedAt: '2026-07-08T00:00:00.000Z', github: null },
+    ]);
+    const mount = makeMount();
+    const bus = new EventTarget();
+    const api = createDocList({ mount, store, bus, onSync: () => {} });
+    try {
+      await api.refresh();
+      bus.dispatchEvent(new CustomEvent('doc:opened', { detail: { docId: 'w' } }));
+      const btns = (id) => Array.from(mount.querySelectorAll(`[data-doc-id="${id}"] .dl-action`))
+        .map((b) => b.textContent);
+      assert.ok(!btns('w').some((t) => t.includes('Sync with GitHub')),
+        `sample row must have no sync button: ${btns('w')}`);
+      assert.ok(btns('w').some((t) => t.includes('Duplicate')), 'other actions remain');
+      assert.ok(btns('n').some((t) => t.includes('Sync with GitHub')), 'normal rows keep it');
+    } finally {
+      mount.remove();
+    }
+  });
+});

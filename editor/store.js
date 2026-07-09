@@ -167,7 +167,7 @@ export const docs = {
    * createdAt/updatedAt (ISO), github: null. `revisions` field kept as a
    * reserved empty array (see module header note).
    */
-  async create({ title, path = null, content = '' } = {}) {
+  async create({ title, path = null, content = '', sample = false } = {}) {
     const db = await getDB();
     const now = new Date().toISOString();
     const record = {
@@ -180,6 +180,9 @@ export const docs = {
       github: null,
       revisions: [],
     };
+    // Sample/tutorial documents (the first-run Welcome doc): local-only by
+    // design — the doclist hides GitHub sync for them.
+    if (sample) record.sample = true;
     await db.put('documents', record);
     return record;
   },
@@ -237,6 +240,9 @@ export const docs = {
       github: null,
       revisions: [],
     };
+    // A duplicate of a sample is the author making it their own — the copy
+    // is a normal document (sync available).
+    delete copy.sample;
     await db.put('documents', copy);
     return copy;
   },
