@@ -102,6 +102,7 @@ import * as commands from './commands.js';
 import * as langStorykit from './lang-storykit.js';
 import * as doclist from './doclist.js';
 import * as preview from './preview.js';
+import * as scrollsync from './scrollsync.js';
 import * as statusbar from './statusbar.js';
 import * as github from './github.js';
 import * as context from './context.js';
@@ -444,6 +445,10 @@ function mountEditor(content) {
   // WP-4.3: one prime() call per (re)created view is enough — later queued
   // qids auto-flush against this same view via microtask (wikidata.js).
   if (editorHandle) primeEntityResolver(editorHandle.view);
+  // Split-view scroll sync: follow the editor's scroll (guarded inside).
+  if (editorHandle) {
+    editorHandle.view.scrollDOM.addEventListener('scroll', onEditorScrollForSync, { passive: true });
+  }
   return editorHandle;
 }
 
@@ -564,10 +569,85 @@ function refreshPreviewForCurrentMode() {
   renderPreviewNow(editorHandle.getContent());
 }
 
+// ── Split-view scroll sync (editor/scrollsync.js; default on, palette
+//    toggle). Anchor-interpolated: exact at headings/viewers, proportional
+//    between them; silently inactive when mapping isn't possible. ──────────
+const scrollSyncState = { map: null, lock: null, lockTimer: 0, detach: null };
+
+function scrollSyncEnabled() {
+  return appState.prefs.scrollSync !== false && appState.mode === 'split';
+}
+
+function scrollSyncLock(side) {
+  scrollSyncState.lock = side;
+  clearTimeout(scrollSyncState.lockTimer);
+  scrollSyncState.lockTimer = setTimeout(() => { scrollSyncState.lock = null; }, 160);
+}
+
+/** Rebuild the anchor map + (re)attach the preview-side scroll listener —
+ *  the srcdoc document is replaced on every render. */
+function rebuildScrollSync() {
+  scrollSyncState.map = null;
+  if (scrollSyncState.detach) { scrollSyncState.detach(); scrollSyncState.detach = null; }
+  if (!previewHandle || !editorHandle) return;
+  const iframe = previewHandle.getFrame && previewHandle.getFrame();
+  const iwin = iframe && iframe.contentWindow;
+  const idoc = iframe && iframe.contentDocument;
+  if (!iwin || !idoc || !idoc.body) return;
+
+  // Match by TEXT within the post-content area: the preview's markdown-it
+  // pipeline does NOT assign heading ids (kramdown auto_ids is Jekyll-side),
+  // and chrome headings (dialogs, sidebar) must not become anchors.
+  const content = idoc.querySelector('.post-content') || idoc.body;
+  const srcAnchors = scrollsync.extractSourceAnchors(editorHandle.getContent());
+  const pvAnchors = [];
+  for (const el of content.querySelectorAll('h1,h2,h3,h4,h5,h6,iframe[id]')) {
+    const top = el.getBoundingClientRect().top + iwin.scrollY;
+    if (el.tagName === 'IFRAME') { pvAnchors.push({ key: `v:${el.id}`, top }); continue; }
+    const norm = scrollsync.normalizeHeadingText(el.textContent);
+    if (!norm) continue;
+    const n = (rebuildScrollSync._seen.get(norm) || 0) + 1;
+    rebuildScrollSync._seen.set(norm, n);
+    pvAnchors.push({ key: `h:${n}:${norm}`, top });
+  }
+  rebuildScrollSync._seen.clear();
+
+  const totalLines = editorHandle.view.state.doc.lines;
+  const totalHeight = Math.max(0, idoc.documentElement.scrollHeight - iwin.innerHeight);
+  scrollSyncState.map = scrollsync.buildScrollMap(srcAnchors, pvAnchors, totalLines, totalHeight);
+
+  const onPreviewScroll = () => {
+    if (!scrollSyncEnabled() || !scrollSyncState.map || scrollSyncState.lock === 'editor') return;
+    scrollSyncLock('preview');
+    const line = scrollsync.previewToSource(scrollSyncState.map, iwin.scrollY);
+    const view = editorHandle && editorHandle.view;
+    if (!view) return;
+    const ln = Math.max(1, Math.min(Math.round(line), view.state.doc.lines));
+    const block = view.lineBlockAt(view.state.doc.line(ln).from);
+    view.scrollDOM.scrollTo({ top: Math.max(0, block.top) });
+  };
+  iwin.addEventListener('scroll', onPreviewScroll, { passive: true });
+  scrollSyncState.detach = () => { try { iwin.removeEventListener('scroll', onPreviewScroll); } catch { /* gone */ } };
+}
+rebuildScrollSync._seen = new Map();
+
+function onEditorScrollForSync() {
+  if (!scrollSyncEnabled() || !scrollSyncState.map || scrollSyncState.lock === 'preview') return;
+  const view = editorHandle && editorHandle.view;
+  const iframe = previewHandle && previewHandle.getFrame && previewHandle.getFrame();
+  const iwin = iframe && iframe.contentWindow;
+  if (!view || !iwin) return;
+  scrollSyncLock('editor');
+  const block = view.lineBlockAtHeight(view.scrollDOM.scrollTop);
+  const line = view.state.doc.lineAt(block.from).number
+    + (block.height > 0 ? (view.scrollDOM.scrollTop - block.top) / block.height : 0);
+  iwin.scrollTo({ top: scrollsync.sourceToPreview(scrollSyncState.map, line) });
+}
+
 function wirePreview() {
   const mount = document.getElementById('preview-mount');
   if (!mount) return;
-  previewHandle = preview.createPreviewPane({ mount });
+  previewHandle = preview.createPreviewPane({ mount, onRendered: rebuildScrollSync });
 
   // Entering Preview, or entering Split, renders immediately (FR-PRE.1/3).
   bus.addEventListener('mode:changed', (e) => {
@@ -633,7 +713,7 @@ function closeCurrentDoc() {
     const mount = document.getElementById('preview-mount');
     if (mount) {
       mount.replaceChildren();
-      previewHandle = preview.createPreviewPane({ mount });
+      previewHandle = preview.createPreviewPane({ mount, onRendered: rebuildScrollSync });
     } else {
       previewHandle = null;
     }
@@ -1326,6 +1406,13 @@ function buildCommandRegistry() {
 
     { id: 'help.open', label: 'Open help', group: 'Help',
       run: () => window.open('./help.html', '_blank', 'noopener') },
+
+    { id: 'view.scrollsync', label: 'Toggle split-view scroll sync', group: 'View',
+      run: () => {
+        appState.prefs.scrollSync = appState.prefs.scrollSync === false;
+        savePrefs();
+        showToast({ message: `Scroll sync ${appState.prefs.scrollSync === false ? 'off' : 'on'}.`, level: 'success' });
+      } },
 
     { id: 'sync.panel', label: 'Open sync panel', group: 'Sync', run: () => openSyncPanel() },
     { id: 'sync.commit', label: 'Commit', group: 'Sync', when: hasBoundDoc,

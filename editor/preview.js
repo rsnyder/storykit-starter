@@ -485,6 +485,10 @@ export function createPreviewPane({
   renderPost: renderPostFn,
   loadLibraries: loadLibrariesFn,
   debounceMs = DEFAULT_DEBOUNCE_MS,
+  // Additive: called after each successful srcdoc load (scroll restore done).
+  // The host uses it to (re)attach scroll-sync listeners and rebuild the
+  // anchor map — the iframe document is REPLACED on every render.
+  onRendered,
 } = {}) {
   if (!mount) throw new Error('createPreviewPane: mount is required');
 
@@ -613,6 +617,9 @@ export function createPreviewPane({
     const onLoad = () => {
       iframe.removeEventListener('load', onLoad);
       restoreAnchor(anchorId);
+      if (typeof onRendered === 'function') {
+        try { onRendered(); } catch (err) { console.error('[storykit-editor] onRendered hook failed', err); }
+      }
     };
     iframe.addEventListener('load', onLoad);
     iframe.srcdoc = html;
@@ -682,6 +689,9 @@ export function createPreviewPane({
     render,
     schedule: scheduled,
     showEmpty,
+    /** Additive: the preview iframe (same-origin srcdoc) — scroll sync
+     *  reads its document geometry and window scroll position. */
+    getFrame() { return iframe; },
     destroy() {
       if (destroyed) return;
       destroyed = true;
