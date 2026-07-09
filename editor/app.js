@@ -103,6 +103,7 @@ import * as langStorykit from './lang-storykit.js';
 import * as doclist from './doclist.js';
 import * as preview from './preview.js';
 import * as scrollsync from './scrollsync.js';
+import * as spellcheck from './spellcheck.js';
 import * as statusbar from './statusbar.js';
 import * as github from './github.js';
 import * as context from './context.js';
@@ -407,43 +408,43 @@ langStorykit.storykit.setEntityResolver(entityResolver);
  * placeholder at a time, instead of indenting — see toolbar.js's header for
  * the full design note.
  */
-// Native browser spell check (user-requested, "option 1"): the OS dictionary
-// squiggles typos and offers right-click suggestions. Not region-aware (it
-// will flag tag attributes and front-matter values) — the palette toggle is
-// the escape hatch. A Compartment so toggling reconfigures the live view.
-const spellcheckCompartment = new Compartment();
-
-/** Chrome (and friends) only spell-check text the user has TYPED — a buffer
- *  set programmatically (opening/switching documents) shows no squiggles
- *  until each line is edited. Toggling the attribute on the focused element
- *  is the standard workaround: it forces a re-evaluation of the visible
- *  buffer. Called after openDoc's focus and when the toggle turns on. */
-function kickSpellcheck() {
-  if (appState.prefs.spellcheck === false || !editorHandle) return;
-  const dom = editorHandle.view.contentDOM;
-  requestAnimationFrame(() => {
-    dom.setAttribute('spellcheck', 'false');
-    requestAnimationFrame(() => dom.setAttribute('spellcheck', 'true'));
-  });
+// Region-aware spell check (editor/spellcheck.js — nspell/Hunspell run as a
+// CM lint source; our own squiggles survive redraws, unlike the native
+// checker's, which this replaced). Native checking stays OFF so the two
+// never double-underline. Issue counts from the two lint sources (syntax +
+// spelling) are summed before the frozen lint:count event goes out.
+const lintCounts = { syntax: 0, spelling: 0 };
+function emitLintCount(kind, n) {
+  lintCounts[kind] = n;
+  bus.dispatchEvent(new CustomEvent('lint:count', {
+    detail: { count: lintCounts.syntax + lintCounts.spelling },
+  }));
 }
 
-function spellcheckAttrs() {
-  const on = appState.prefs.spellcheck !== false;
-  return EditorView.contentAttributes.of({
-    spellcheck: on ? 'true' : 'false',
-    autocorrect: 'off',
-    autocapitalize: 'off',
-  });
+function spellcheckDeps() {
+  return {
+    isEnabled: () => appState.prefs.spellcheck !== false,
+    getPersonalWords: () => appState.prefs.spellWords || [],
+    addPersonalWord: (word) => {
+      const list = appState.prefs.spellWords || [];
+      if (!list.includes(word)) list.push(word);
+      appState.prefs.spellWords = list;
+      savePrefs();
+      emit('toast', { message: `"${word}" added to your dictionary.`, level: 'success' });
+    },
+    onCount: (n) => emitLintCount('spelling', n),
+  };
 }
 
 function buildExtraExtensions() {
   return [
-    spellcheckCompartment.of(spellcheckAttrs()),
+    EditorView.contentAttributes.of({ spellcheck: 'false', autocorrect: 'off', autocapitalize: 'off' }),
+    spellcheck.spellcheckExtension(spellcheckDeps()),
     autocompletion(),
     keymap.of(completionKeymap),
     langStorykit.storykit({
       catalog,
-      onLintCount: (count) => bus.dispatchEvent(new CustomEvent('lint:count', { detail: { count } })),
+      onLintCount: (count) => emitLintCount('syntax', count),
     }),
     dnd.dndExtension({ onNotice: (n) => emit('toast', n) }),
     wikidata.qidHoverExtension(),
@@ -866,7 +867,6 @@ export async function openDoc(docId) {
     onSave: () => { bus.dispatchEvent(new CustomEvent('doc:saved', { detail: { docId } })); },
   });
   editorHandle?.focus();
-  kickSpellcheck();
 
   // Switching documents while Preview/Split is already showing must reflect
   // the newly-opened buffer right away, not wait for the next edit/mode flip.
@@ -1472,7 +1472,18 @@ function runAudit() {
   if (!editorHandle) return null;
   const view = editorHandle.view;
   const text = view.state.doc.toString();
-  const diags = langStorykit.computeDiagnostics(text, { catalog }) || [];
+  const diags = (langStorykit.computeDiagnostics(text, { catalog }) || []).slice();
+  // Spelling (when enabled and the engine has loaded — null means warming up)
+  let spellPending = false;
+  if (appState.prefs.spellcheck !== false) {
+    const hits = spellcheck.auditSpelling(text, () => appState.prefs.spellWords || []);
+    if (hits === null) spellPending = true;
+    else for (const h of hits) {
+      diags.push({ from: h.from, to: h.to, severity: 'spelling',
+                   message: `Unknown word "${h.word}".` });
+    }
+  }
+  runAudit.spellPending = spellPending;
   const seen = new Set();
   return diags.map((d) => {
     const line = view.state.doc.lineAt(Math.min(d.from, view.state.doc.length)).number;
@@ -1515,13 +1526,17 @@ async function openAuditPanel() {
   function populate() {
     const diags = runAudit() || [];
     const errors = diags.filter((d) => d.severity === 'error').length;
-    const warns = diags.length - errors;
+    const spelling = diags.filter((d) => d.severity === 'spelling').length;
+    const warns = diags.length - errors - spelling;
+    const warming = runAudit.spellPending ? ' (spell check is still warming up — re-run in a moment)' : '';
     if (!diags.length) {
-      summary.textContent = '✓ No issues found — StoryKit tags, action links, and front matter all check out.';
+      summary.textContent = '✓ No issues found — StoryKit tags, action links, front matter, and spelling all check out.' + warming;
       listHost.replaceChildren();
       return;
     }
-    summary.textContent = `${errors} error${errors === 1 ? '' : 's'}, ${warns} warning${warns === 1 ? '' : 's'} — click a line number to jump there.`;
+    const parts = [`${errors} error${errors === 1 ? '' : 's'}`, `${warns} warning${warns === 1 ? '' : 's'}`];
+    if (spelling) parts.push(`${spelling} spelling`);
+    summary.textContent = `${parts.join(', ')} — click a line number to jump there.` + warming;
     const rows = diags.map((d) => {
       const lineBtn = h('button', { type: 'button', class: 'btn btn-sm sk-audit-line', text: `Line ${d.line}` });
       lineBtn.addEventListener('click', () => {
@@ -1529,7 +1544,8 @@ async function openAuditPanel() {
         bus.dispatchEvent(new CustomEvent('preview:goto-line', { detail: { line: d.line } }));
       });
       return h('div', { class: `sk-audit-row sk-audit-${d.severity}` }, [
-        h('span', { class: 'sk-audit-sev', text: d.severity === 'error' ? '✖' : '⚠',
+        h('span', { class: 'sk-audit-sev',
+                    text: d.severity === 'error' ? '✖' : (d.severity === 'spelling' ? '✎' : '⚠'),
                     'aria-label': d.severity }),
         lineBtn,
         h('span', { class: 'sk-audit-msg', text: d.message }),
@@ -1776,12 +1792,9 @@ function buildCommandRegistry() {
       run: () => {
         appState.prefs.spellcheck = appState.prefs.spellcheck === false;
         savePrefs();
-        if (editorHandle) {
-          editorHandle.view.dispatch({ effects: spellcheckCompartment.reconfigure(spellcheckAttrs()) });
-          editorHandle.view.focus();
-          kickSpellcheck();
-        }
-        showToast({ message: `Spell check ${appState.prefs.spellcheck === false ? 'off' : 'on'} (uses your browser's dictionary).`, level: 'success' });
+        // an empty transaction retriggers the debounced lint sources
+        if (editorHandle) editorHandle.view.dispatch({});
+        showToast({ message: `Spell check ${appState.prefs.spellcheck === false ? 'off' : 'on'}.`, level: 'success' });
       } },
 
     { id: 'view.scrollsync', label: 'Toggle split-view scroll sync', group: 'View',

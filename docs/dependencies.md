@@ -95,6 +95,7 @@ that must be mapped for the graph to be closed.
 | idb | 8.0.3 | IndexedDB promise wrapper for editor/store.js (FR-DOC.1) |
 | js-yaml | 4.1.0 | YAML parsing for editor/context.js (`_config.yml`, `_data/locales/*`, `_data/origin/default.yml`) — WP-3.2 |
 | diff | 9.0.0 | jsdiff `diffLines` for editor/conflict.js's side-by-side conflict diff (FR-GH.4) — WP-5.2; zero runtime dependencies of its own |
+| nspell | 2.1.5 | Hunspell-compatible spell engine for editor/spellcheck.js (region-aware spell check) — bundled (no ?external: CJS with its own small dep graph); dictionary-en@4.0.0 aff/dic fetched at runtime and kept in the Cache API |
 
 ## Test-only (vendored, never shipped to the site)
 

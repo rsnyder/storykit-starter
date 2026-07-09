@@ -244,3 +244,66 @@ def test_document_audit_reports_and_jumps(browser, site_dir):
             assert 'No issues found' in summary, summary
         finally:
             context.close()
+
+
+def test_region_aware_spellcheck(browser, site_dir):
+    """Spell check (editor/spellcheck.js): prose typos squiggle, tag/code
+    content is masked, counts merge into the status chip, findings appear in
+    the Audit report, and the personal dictionary suppresses flags. The
+    dictionary is served hermetically (mini fixture via routes)."""
+    with rr.serve_site(site_dir) as base_url:
+        context, page, _ = _hermetic_page(browser)
+        try:
+            words = ["the", "brown", "fox", "over", "lazy", "dog", "spell", "probe"]
+            dic = f"{len(words)}\n" + "\n".join(words) + "\n"
+            page.route("https://cdn.jsdelivr.net/npm/dictionary-en@4.0.0/index.aff",
+                       lambda r: r.fulfill(status=200, body="SET UTF-8\n",
+                                           content_type="text/plain"))
+            page.route("https://cdn.jsdelivr.net/npm/dictionary-en@4.0.0/index.dic",
+                       lambda r: r.fulfill(status=200, body=dic, content_type="text/plain"))
+            page.goto(f"{base_url}/editor/index.html", wait_until="load",
+                      timeout=rr.POLL_TIMEOUT_MS)
+            page.wait_for_selector("#new-doc:not([disabled])", timeout=rr.POLL_TIMEOUT_MS)
+            doc = ('---\ntitle: Spell probe\n---\n\n'
+                   'The qick brown fox jumpd over the lazy dog.\n\n'
+                   '{% include embed/image.html id="v1" src="mispeled.jpg" %}\n')
+            page.evaluate(
+                """async (c) => {
+                    const app = await import('/editor/app.js');
+                    const r = await app.modules.store.docs.create({ title: 'SP', path: null, content: c });
+                    await app.openDoc(r.id);
+                }""", doc)
+            page.wait_for_selector(".cm-content", timeout=30_000)
+            page.wait_for_timeout(2000)  # engine load on first pass
+            page.locator(".cm-content").click()
+            page.keyboard.press("End")
+            page.keyboard.type(" ")      # retrigger lint after engine load
+            page.wait_for_function(
+                "() => document.querySelectorAll('.cm-lintRange-warning').length === 2",
+                timeout=20_000)
+
+            # masked: the tag's misspelled filename is NOT flagged (exactly 2)
+            # audit shows the spelling section
+            page.click('button[data-sk-toolbar-action="audit"]')
+            page.wait_for_selector("dialog#audit-panel[open]", timeout=8000)
+            msgs = page.evaluate(
+                "() => Array.from(document.querySelectorAll('.sk-audit-msg')).map(e => e.textContent)")
+            assert any('qick' in m for m in msgs) and any('jumpd' in m for m in msgs), msgs
+            assert not any('mispeled' in m for m in msgs), f"tag content must be masked: {msgs}"
+            assert 'spelling' in page.text_content('#audit-summary')
+            page.click('#sync-done-btn') if False else page.keyboard.press("Escape")
+
+            # personal dictionary suppresses the flag
+            page.evaluate(
+                """async () => {
+                    const app = await import('/editor/app.js');
+                    app.appState.prefs.spellWords = ['qick'];
+                }""")
+            page.locator(".cm-content").click()
+            page.keyboard.press("End")
+            page.keyboard.type(" ")
+            page.wait_for_function(
+                "() => document.querySelectorAll('.cm-lintRange-warning').length === 1",
+                timeout=20_000)
+        finally:
+            context.close()

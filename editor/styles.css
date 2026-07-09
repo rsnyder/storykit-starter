@@ -849,3 +849,5 @@ a.icon-btn { text-decoration: none; }
 /* Brand mark in the top bar */
 .brand { display: inline-flex; align-items: center; gap: 8px; }
 .brand-mark { display: block; }
+
+.sk-audit-spelling .sk-audit-sev { color: var(--sk-accent); }

@@ -96,9 +96,10 @@
       quotes, broken action links, unclosed Markdown links, and front-matter problems —
       both YAML syntax and semantics (unknown property names get did-you-mean
       suggestions; value shapes like an empty <code>image.path</code> are checked). Click a line number to jump to the problem.</li>
-    <li><strong>Spell check</strong> — your browser's native spell checker runs in
-      the editor (right-click a squiggled word for suggestions). It isn't StoryKit-aware,
-      so it may flag tag attributes and filenames — <kbd>⌘K</kbd> →
+    <li><strong>Spell check</strong> — StoryKit-aware: only prose is checked (front
+      matter, tags, code, and URLs are skipped). Click a squiggled word for suggestions
+      and <em>Add to dictionary</em>; findings also appear in the Audit report. The
+      English dictionary loads once (~1 MB) and is cached. <kbd>⌘K</kbd> →
       <em>Toggle spell check</em> turns it off.</li>
     <li><strong>Scroll sync</strong> — in Split view the two panes follow each other,
       anchored at headings and viewers (approximate in long prose between them).
