@@ -413,6 +413,20 @@ langStorykit.storykit.setEntityResolver(entityResolver);
 // the escape hatch. A Compartment so toggling reconfigures the live view.
 const spellcheckCompartment = new Compartment();
 
+/** Chrome (and friends) only spell-check text the user has TYPED — a buffer
+ *  set programmatically (opening/switching documents) shows no squiggles
+ *  until each line is edited. Toggling the attribute on the focused element
+ *  is the standard workaround: it forces a re-evaluation of the visible
+ *  buffer. Called after openDoc's focus and when the toggle turns on. */
+function kickSpellcheck() {
+  if (appState.prefs.spellcheck === false || !editorHandle) return;
+  const dom = editorHandle.view.contentDOM;
+  requestAnimationFrame(() => {
+    dom.setAttribute('spellcheck', 'false');
+    requestAnimationFrame(() => dom.setAttribute('spellcheck', 'true'));
+  });
+}
+
 function spellcheckAttrs() {
   const on = appState.prefs.spellcheck !== false;
   return EditorView.contentAttributes.of({
@@ -852,6 +866,7 @@ export async function openDoc(docId) {
     onSave: () => { bus.dispatchEvent(new CustomEvent('doc:saved', { detail: { docId } })); },
   });
   editorHandle?.focus();
+  kickSpellcheck();
 
   // Switching documents while Preview/Split is already showing must reflect
   // the newly-opened buffer right away, not wait for the next edit/mode flip.
@@ -1763,6 +1778,8 @@ function buildCommandRegistry() {
         savePrefs();
         if (editorHandle) {
           editorHandle.view.dispatch({ effects: spellcheckCompartment.reconfigure(spellcheckAttrs()) });
+          editorHandle.view.focus();
+          kickSpellcheck();
         }
         showToast({ message: `Spell check ${appState.prefs.spellcheck === false ? 'off' : 'on'} (uses your browser's dictionary).`, level: 'success' });
       } },
