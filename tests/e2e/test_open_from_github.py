@@ -30,11 +30,13 @@ OWNER, REPO_NAME = "acme-corp", "open-site"
 
 
 def _doc_summary(page):
+    # Only GitHub-bound documents: the first-run Welcome seed (path null,
+    # unbound) coexists in a fresh store and is not what these tests assert.
     return page.evaluate(
         """async () => {
             const app = await import('/editor/app.js');
             const docs = await app.modules.store.docs.list();
-            return docs.map((d) => ({
+            return docs.filter((d) => d.path).map((d) => ({
                 path: d.path, title: d.title, content: d.content,
                 bound: !!(d.github && d.github.owner),
                 sha: d.github && d.github.sha,
@@ -110,7 +112,11 @@ def test_dropping_a_github_blob_url_on_the_doclist_opens_it(browser, site_dir):
                     document.getElementById('doclist-mount').dispatchEvent(
                         new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: dt }));
                 }""", blob)
-            page.wait_for_selector(".cm-content", timeout=30_000)
+            page.wait_for_function(
+                """async () => {
+                    const app = await import('/editor/app.js');
+                    return (await app.modules.store.docs.list()).some((d) => d.path);
+                }""", timeout=30_000)
 
             docs = _doc_summary(page)
             assert len(docs) == 1 and docs[0]["path"] == PATH and docs[0]["bound"]
@@ -305,5 +311,40 @@ def test_region_aware_spellcheck(browser, site_dir):
             page.wait_for_function(
                 "() => document.querySelectorAll('.cm-lintRange-warning').length === 1",
                 timeout=20_000)
+        finally:
+            context.close()
+
+
+def test_welcome_document_seeds_once(browser, site_dir):
+    """First run with an empty store seeds the Welcome document (opened in
+    Split on wide viewports); deleting it and reloading does NOT resurrect
+    it (prefs.welcomeSeeded)."""
+    with rr.serve_site(site_dir) as base_url:
+        context, page, _ = _hermetic_page(browser)
+        try:
+            page.set_viewport_size({"width": 1400, "height": 800})
+            page.goto(f"{base_url}/editor/index.html", wait_until="load",
+                      timeout=rr.POLL_TIMEOUT_MS)
+            page.wait_for_selector(".cm-content", timeout=30_000)
+            state = page.evaluate(
+                """async () => {
+                    const app = await import('/editor/app.js');
+                    const docs = await app.modules.store.docs.list();
+                    return { n: docs.length, title: docs[0] && docs[0].title,
+                             mode: app.appState.mode };
+                }""")
+            assert state["n"] == 1 and state["title"] == "Welcome to StoryKit", state
+            assert state["mode"] == "split", state
+
+            # delete it via the real UI (active row), then reload
+            page.locator(".dl-item .dl-action", has_text="Delete").first.click()
+            page.locator(".dl-danger", has_text="Confirm").click()
+            page.wait_for_selector("#editor-mount .empty-state", timeout=15_000)
+            page.reload(wait_until="load")
+            page.wait_for_selector("#new-doc:not([disabled])", timeout=rr.POLL_TIMEOUT_MS)
+            page.wait_for_timeout(800)
+            n = page.evaluate(
+                """async () => (await (await import('/editor/app.js')).modules.store.docs.list()).length""")
+            assert n == 0, "welcome must not resurrect after deletion"
         finally:
             context.close()

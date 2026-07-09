@@ -104,6 +104,7 @@ import * as doclist from './doclist.js';
 import * as preview from './preview.js';
 import * as scrollsync from './scrollsync.js';
 import * as spellcheck from './spellcheck.js';
+import { WELCOME_TITLE, WELCOME_CONTENT } from './welcome.js';
 import * as statusbar from './statusbar.js';
 import * as github from './github.js';
 import * as context from './context.js';
@@ -1910,6 +1911,33 @@ export async function init() {
     } catch (error) {
       console.error('[storykit-editor] doclist failed to mount', error);
     }
+  }
+
+  // ── First-run welcome document ─────────────────────────────────────────────
+  // Seeded ONCE when the store is empty (deleting it is respected via the
+  // pref). Opens in Split so source + rendered page teach side by side.
+  try {
+    // An ?open= arrival (bookmarklet) has a specific intent — don't add
+    // welcome noise next to the document they asked for.
+    const arrivingWithIntent = new URLSearchParams(window.location.search).has('open');
+    if (!appState.prefs.welcomeSeeded && !arrivingWithIntent) {
+      const existing = await store.docs.list();
+      if (existing.length === 0) {
+        const rec = await store.docs.create({
+          title: WELCOME_TITLE, path: null, content: WELCOME_CONTENT,
+        });
+        appState.prefs.welcomeSeeded = true;
+        appState.prefs.lastDocId = rec.id;
+        savePrefs();
+        bus.dispatchEvent(new CustomEvent('doc:saved'));
+        if (!isNarrowViewport()) setMode('split');
+      } else {
+        appState.prefs.welcomeSeeded = true; // returning user, nothing to seed
+        savePrefs();
+      }
+    }
+  } catch (error) {
+    console.warn('[storykit-editor] welcome seed failed', error);
   }
 
   // Restore the last-open document (FR-DOC.3 "over multiple sessions"); else
