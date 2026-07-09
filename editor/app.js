@@ -76,8 +76,8 @@
  */
 
 // ── CodeMirror 6 (single-instance assertion + extraExtensions helpers) ──────
-import { EditorState, StateField, Prec } from '@codemirror/state';
-import { keymap, lineNumbers, highlightActiveLine } from '@codemirror/view';
+import { EditorState, StateField, Prec, Compartment } from '@codemirror/state';
+import { keymap, lineNumbers, highlightActiveLine, EditorView } from '@codemirror/view';
 import {
   defaultKeymap, history, historyKeymap, historyField,
 } from '@codemirror/commands';
@@ -407,8 +407,24 @@ langStorykit.storykit.setEntityResolver(entityResolver);
  * placeholder at a time, instead of indenting — see toolbar.js's header for
  * the full design note.
  */
+// Native browser spell check (user-requested, "option 1"): the OS dictionary
+// squiggles typos and offers right-click suggestions. Not region-aware (it
+// will flag tag attributes and front-matter values) — the palette toggle is
+// the escape hatch. A Compartment so toggling reconfigures the live view.
+const spellcheckCompartment = new Compartment();
+
+function spellcheckAttrs() {
+  const on = appState.prefs.spellcheck !== false;
+  return EditorView.contentAttributes.of({
+    spellcheck: on ? 'true' : 'false',
+    autocorrect: 'off',
+    autocapitalize: 'off',
+  });
+}
+
 function buildExtraExtensions() {
   return [
+    spellcheckCompartment.of(spellcheckAttrs()),
     autocompletion(),
     keymap.of(completionKeymap),
     langStorykit.storykit({
@@ -1740,6 +1756,16 @@ function buildCommandRegistry() {
 
     { id: 'help.open', label: 'Open help', group: 'Help',
       run: () => window.open('./help.html', '_blank', 'noopener') },
+
+    { id: 'view.spellcheck', label: 'Toggle spell check', group: 'View',
+      run: () => {
+        appState.prefs.spellcheck = appState.prefs.spellcheck === false;
+        savePrefs();
+        if (editorHandle) {
+          editorHandle.view.dispatch({ effects: spellcheckCompartment.reconfigure(spellcheckAttrs()) });
+        }
+        showToast({ message: `Spell check ${appState.prefs.spellcheck === false ? 'off' : 'on'} (uses your browser's dictionary).`, level: 'success' });
+      } },
 
     { id: 'view.scrollsync', label: 'Toggle split-view scroll sync', group: 'View',
       run: () => {
