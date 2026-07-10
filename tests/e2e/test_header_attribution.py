@@ -77,13 +77,10 @@ def test_commons_header_gets_attribution_line(browser, site_dir):
         # hermetic media: CI runners' live wikimedia fetches are slow/flaky
         page.route("https://upload.wikimedia.org/**",
                    lambda r: r.fulfill(status=200, body=PIXEL, content_type="image/jpeg"))
-        # the embedded viewer iframes pull heavy libs from live CDNs — abort
-        # them (irrelevant here) so slow runners aren't dragged by them, and
-        # don't wait for full 'load' (iframes included) at all
-        page.route("https://cdnjs.cloudflare.com/**", lambda r: r.abort())
-        page.route("https://cdn.jsdelivr.net/**", lambda r: r.abort())
-        page.route("https://fonts.googleapis.com/**", lambda r: r.abort())
-        page.route("https://fonts.gstatic.com/**", lambda r: r.abort())
+        # NOTE: storykit.js statically imports js-md5 + Shoelace (jsdelivr)
+        # and scrollama (cdnjs) — those CDNs must stay LIVE (aborting any of
+        # them kills the whole module; the rest of the e2e suite rides the
+        # same live-CDN exception). Only wikimedia/commons are mocked.
         page.goto("https://rsnyder.github.io/storykit-starter/admin/storykit-regression-fixture-wc-header",
                   wait_until="domcontentloaded", timeout=60_000)
         page.wait_for_selector(".sk-header-attribution", timeout=45_000)
@@ -144,9 +141,14 @@ def test_alt_rules_through_the_real_pipeline(editor_prod):
     assert absent["caption"] == "Terraced vineyards in late winter", absent
     assert absent["attribution"], absent
 
-    # NOTE: bare `alt:` parses as YAML null — indistinguishable from absent
-    # (and gets the auto-caption). The expressible opt-out is alt: "".
-    empty = case('  alt: ""\n', 'empty')
+    # bare `alt:` (YAML null) and alt: "" both mean present-but-empty —
+    # the author's caption opt-out (detected via key iteration in the layout)
+    empty = case("  alt:\n", "empty")
+    assert empty["skAlt"] == "empty", empty
+    assert empty["caption"] is None, empty
+    assert empty["attribution"], empty
+
+    empty = case('  alt: ""\n', "empty")
     assert empty["skAlt"] == "empty", empty
     assert empty["caption"] is None, empty
     assert empty["attribution"], empty
