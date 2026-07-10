@@ -852,3 +852,12 @@ figure.iframe-wrapper img.embed-iframe-img {
   margin: 0 auto;
   object-fit: contain;
 }
+
+/* Header-image attribution (manual via front matter image.attribution, or
+   automatic for Commons-hosted headers — storykit.js headerAttribution) */
+.sk-header-attribution {
+  margin-top: 0.35rem;
+  font-size: 0.75rem;
+  color: var(--text-muted-color, #6c757d);
+}
+.sk-header-attribution a { color: inherit; text-decoration: underline; }

@@ -229,6 +229,12 @@ script_includes:
           {%- if page.image.alt -%}
             <figcaption class="text-center pt-2 pb-2">{{ page.image.alt }}</figcaption>
           {%- endif -%}
+          {%- comment -%} Manual attribution (front matter image.attribution);
+              Commons-hosted headers get an automatic line from storykit.js's
+              headerAttribution() when this is absent. {%- endcomment -%}
+          {%- if page.image.attribution -%}
+            <small class="sk-header-attribution text-center d-block">{{ page.image.attribution }}</small>
+          {%- endif -%}
         </div>
       {% endif %}
 

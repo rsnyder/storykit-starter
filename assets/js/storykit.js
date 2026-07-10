@@ -1246,6 +1246,75 @@ function getViewMode() {
  *   modeToggle           - whether the reader's toggle (and saved choice) applies
  *   autoFloat, groupEmbeds, wikidataInfoPopups - feature flags (default true)
  */
+/**
+ * Automatic attribution for Commons-hosted HEADER images. The image VIEWER
+ * builds its caption from Commons extmetadata; this is the header's
+ * equivalent — same source, same format:
+ *   Source: Wikimedia Commons • © Artist — License
+ * (the © segment only when the license requires attribution). Runs only
+ * when the layout emitted no manual line (front matter image.attribution).
+ */
+async function headerAttribution(attempt = 0) {
+  const img = document.querySelector('.preview-img img, img.preview-img');
+  if (!img) return;
+  const container = img.closest('div') || img.parentElement;
+  if (!container || container.querySelector('.sk-header-attribution')) return;
+  // Chirpy's LQIP/lazy pipeline may not have swapped the REAL src in yet at
+  // init time (the placeholder is a data: URI) — read every known location
+  // and, when none matches, retry after the image actually loads.
+  const src = img.currentSrc || img.getAttribute('data-src') || img.src || '';
+  const m = /upload\.wikimedia\.org\/wikipedia\/commons\/(?:thumb\/)?[0-9a-f]\/[0-9a-f]{2}\/([^\/]+)/.exec(src);
+  if (!m) {
+    if (attempt >= 3) return;
+    const retry = () => headerAttribution(attempt + 1);
+    if (!img.complete) img.addEventListener('load', retry, { once: true });
+    else setTimeout(retry, 800 * (attempt + 1));
+    return;
+  }
+  let file;
+  try { file = decodeURIComponent(m[1]); } catch { file = m[1]; }
+
+  try {
+    const resp = await fetch(
+      'https://commons.wikimedia.org/w/api.php?origin=*&format=json&action=query' +
+      '&titles=File:' + encodeURIComponent(file) + '&prop=imageinfo&iiprop=extmetadata');
+    if (!resp.ok) return;
+    const data = await resp.json();
+    const pages = data && data.query && data.query.pages;
+    const page = pages && Object.values(pages)[0];
+    const info = page && page.imageinfo && page.imageinfo[0];
+    const meta = {};
+    for (const [k, v] of Object.entries((info && info.extmetadata) || {})) meta[k] = v && v.value;
+
+    const stripHtml = (h) => {
+      if (!h) return null;
+      const d = document.createElement('div');
+      d.innerHTML = h;
+      const t = (d.textContent || '').replace(/\s+/g, ' ').trim();
+      return t || null;
+    };
+    const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    const commonsUrl = 'https://commons.wikimedia.org/wiki/File:' + encodeURIComponent(file.replace(/ /g, '_'));
+    const parts = ['Source: <a href="' + esc(commonsUrl) + '" target="_blank" rel="noopener noreferrer">Wikimedia Commons</a>'];
+    const required = String(meta.AttributionRequired || '').toLowerCase() === 'true';
+    if (required) {
+      const artist = stripHtml(meta.Artist) || 'Unknown author';
+      const license = stripHtml(meta.LicenseShortName) || stripHtml(meta.UsageTerms) || 'License';
+      const licenseHtml = meta.LicenseUrl
+        ? '<a href="' + esc(meta.LicenseUrl) + '" target="_blank" rel="license noopener noreferrer">' + esc(license) + '</a>'
+        : esc(license);
+      parts.push('\u00A9 ' + esc(artist) + ' \u2014 ' + licenseHtml);
+    }
+
+    const el = document.createElement('small');
+    el.className = 'sk-header-attribution text-center d-block';
+    el.innerHTML = parts.join(' \u2022 ');
+    container.appendChild(el);
+  } catch { /* offline / API hiccup — attribution is best-effort */ }
+}
+
 function initStoryKit(cfg = {}) {
     // Trust messages from wherever this page's viewer components actually
     // load — same-origin normally, the deployed site when a local-dev
@@ -1261,6 +1330,7 @@ function initStoryKit(cfg = {}) {
     // Wire interactive features before entering a display mode so that
     // scrollytelling (if the initial mode is col2) sees the final DOM.
     if (cfg.wikidataInfoPopups !== false) makeEntityPopups();
+    if (cfg.headerAttribution !== false) headerAttribution();
     if (cfg.groupEmbeds !== false) wrapAdjacentEmbedsAsTabs();
     addActionLinks();
     if (cfg.autoFloat !== false && !isMobile) autoFloat();
