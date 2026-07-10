@@ -1298,8 +1298,9 @@ async function headerAttribution(attempt = 0) {
 
     const commonsUrl = 'https://commons.wikimedia.org/wiki/File:' + encodeURIComponent(file.replace(/ /g, '_'));
     const parts = ['Source: <a href="' + esc(commonsUrl) + '" target="_blank" rel="noopener noreferrer">Wikimedia Commons</a>'];
-    const required = String(meta.AttributionRequired || '').toLowerCase() === 'true';
-    if (required) {
+    // Author + license ALWAYS shown for Commons headers (not only when the
+    // license technically requires it) — credit is the norm, not the floor.
+    {
       const artist = stripHtml(meta.Artist) || 'Unknown author';
       const license = stripHtml(meta.LicenseShortName) || stripHtml(meta.UsageTerms) || 'License';
       const licenseHtml = meta.LicenseUrl

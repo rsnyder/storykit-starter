@@ -1,5 +1,8 @@
 """Header-image attribution (storykit.js headerAttribution + post.html).
 
+The artist/license segment appears in ALL cases for Commons headers (the
+mocked metadata deliberately says AttributionRequired=false to pin that).
+
 Commons-hosted header images get an automatic attribution line, formatted
 like the image viewer's: 'Source: Wikimedia Commons • © Artist — License'
 (the © segment only when the license requires it). Hermetic: the fixture
@@ -40,7 +43,7 @@ def _route_site(route):
 
 
 META = {"query": {"pages": {"1": {"imageinfo": [{"extmetadata": {
-    "AttributionRequired": {"value": "true"},
+    "AttributionRequired": {"value": "false"},
     "Artist": {"value": "Jane Photographer"},
     "LicenseShortName": {"value": "CC BY-SA 4.0"},
     "LicenseUrl": {"value": "https://creativecommons.org/licenses/by-sa/4.0"},
