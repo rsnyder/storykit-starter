@@ -77,9 +77,16 @@ def test_commons_header_gets_attribution_line(browser, site_dir):
         # hermetic media: CI runners' live wikimedia fetches are slow/flaky
         page.route("https://upload.wikimedia.org/**",
                    lambda r: r.fulfill(status=200, body=PIXEL, content_type="image/jpeg"))
+        # the embedded viewer iframes pull heavy libs from live CDNs — abort
+        # them (irrelevant here) so slow runners aren't dragged by them, and
+        # don't wait for full 'load' (iframes included) at all
+        page.route("https://cdnjs.cloudflare.com/**", lambda r: r.abort())
+        page.route("https://cdn.jsdelivr.net/**", lambda r: r.abort())
+        page.route("https://fonts.googleapis.com/**", lambda r: r.abort())
+        page.route("https://fonts.gstatic.com/**", lambda r: r.abort())
         page.goto("https://rsnyder.github.io/storykit-starter/admin/storykit-regression-fixture-wc-header",
-                  wait_until="load", timeout=60_000)
-        page.wait_for_selector(".sk-header-attribution", timeout=20_000)
+                  wait_until="domcontentloaded", timeout=60_000)
+        page.wait_for_selector(".sk-header-attribution", timeout=45_000)
         state = page.evaluate(
             """() => {
                 const el = document.querySelector('.sk-header-attribution');
