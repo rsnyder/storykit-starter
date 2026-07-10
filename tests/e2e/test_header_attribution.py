@@ -43,6 +43,20 @@ def _route_site(route):
         route.fulfill(status=404, body=b"x")
 
 
+# minimal valid JPEG (1x1) for hermetic image responses
+PIXEL = bytes.fromhex(
+    "ffd8ffe000104a46494600010100000100010000ffdb004300080606070605080707"
+    "07090908080a0c140d0c0b0b0c1912130f141d1a1f1e1d1a1c1c20242e2720222c23"
+    "1c1c2837292c30313434341f27393d38323c2e333432ffc0000b0800010001010100"
+    "11003fffc4001f0000010501010101010100000000000000000102030405060708090a0b"
+    "ffc400b5100002010303020403050504040000017d01020300041105122131410613"
+    "516107227114328191a1082342b1c11552d1f02433627282090a161718191a252627"
+    "28292a3435363738393a434445464748494a535455565758595a636465666768696a"
+    "737475767778797a838485868788898a92939495969798999aa2a3a4a5a6a7a8a9aa"
+    "b2b3b4b5b6b7b8b9bac2c3c4c5c6c7c8c9cad2d3d4d5d6d7d8d9dae1e2e3e4e5e6e7"
+    "e8e9eaf1f2f3f4f5f6f7f8f9faffda0008010100003f00fbfe8a28a2800a28a2800a"
+    "28a2803fffd9")
+
 META = {"query": {"pages": {"1": {"imageinfo": [{"extmetadata": {
     "AttributionRequired": {"value": "false"},
     "Artist": {"value": "Jane Photographer"},
@@ -60,6 +74,9 @@ def test_commons_header_gets_attribution_line(browser, site_dir):
         page.route("https://commons.wikimedia.org/**",
                    lambda r: r.fulfill(status=200, body=json.dumps(META),
                                        content_type="application/json"))
+        # hermetic media: CI runners' live wikimedia fetches are slow/flaky
+        page.route("https://upload.wikimedia.org/**",
+                   lambda r: r.fulfill(status=200, body=PIXEL, content_type="image/jpeg"))
         page.goto("https://rsnyder.github.io/storykit-starter/admin/storykit-regression-fixture-wc-header",
                   wait_until="load", timeout=60_000)
         page.wait_for_selector(".sk-header-attribution", timeout=20_000)
