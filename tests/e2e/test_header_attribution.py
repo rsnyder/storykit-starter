@@ -47,6 +47,7 @@ META = {"query": {"pages": {"1": {"imageinfo": [{"extmetadata": {
     "Artist": {"value": "Jane Photographer"},
     "LicenseShortName": {"value": "CC BY-SA 4.0"},
     "LicenseUrl": {"value": "https://creativecommons.org/licenses/by-sa/4.0"},
+    "ImageDescription": {"value": "<span>Terraced vineyards in late winter</span>"},
 }}]}}}}
 
 
@@ -73,5 +74,55 @@ def test_commons_header_gets_attribution_line(browser, site_dir):
         assert "Source: Wikimedia Commons" in state["text"]
         assert "© Jane Photographer" in state["text"] and "CC BY-SA 4.0" in state["text"]
         assert state["sourceLink"] and state["licenseLink"]
+    finally:
+        context.close()
+
+
+def test_absent_alt_gets_commons_caption_empty_alt_suppresses(browser, site_dir):
+    """Caption rules for Commons headers: alt ABSENT → auto-caption from the
+    Commons image description; alt EXPLICITLY EMPTY (alt="") → no caption.
+    The fixture page ships alt text, so both cases are staged by editing the
+    live DOM and re-running init (the same entry point the page uses)."""
+    context = browser.new_context()
+    page = context.new_page()
+    try:
+        page.route("https://rsnyder.github.io/**", _route_site)
+        page.route("https://commons.wikimedia.org/**",
+                   lambda r: r.fulfill(status=200, body=json.dumps(META),
+                                       content_type="application/json"))
+        page.goto("https://rsnyder.github.io/storykit-starter/admin/storykit-regression-fixture-wc-header",
+                  wait_until="load", timeout=60_000)
+        page.wait_for_selector(".sk-header-attribution", timeout=20_000)
+
+        # alt ABSENT → auto-caption
+        cap = page.evaluate(
+            """async () => {
+                const img = document.querySelector('.preview-img img, img.preview-img');
+                const box = img.closest('div');
+                box.querySelector('figcaption')?.remove();
+                box.querySelector('.sk-header-attribution')?.remove();
+                img.removeAttribute('alt');
+                const m = await import('/storykit-starter/assets/js/storykit.js');
+                m.initStoryKit({});
+                await new Promise(r => setTimeout(r, 800));
+                return box.querySelector('figcaption')?.textContent || null;
+            }""")
+        assert cap == "Terraced vineyards in late winter", cap
+
+        # alt EMPTY ("") → caption suppressed, attribution still present
+        state = page.evaluate(
+            """async () => {
+                const img = document.querySelector('.preview-img img, img.preview-img');
+                const box = img.closest('div');
+                box.querySelector('figcaption')?.remove();
+                box.querySelector('.sk-header-attribution')?.remove();
+                img.setAttribute('alt', '');
+                const m = await import('/storykit-starter/assets/js/storykit.js');
+                m.initStoryKit({});
+                await new Promise(r => setTimeout(r, 800));
+                return { caption: !!box.querySelector('figcaption'),
+                         attribution: !!box.querySelector('.sk-header-attribution') };
+            }""")
+        assert state == {"caption": False, "attribution": True}, state
     finally:
         context.close()

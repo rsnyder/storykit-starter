@@ -1309,6 +1309,20 @@ async function headerAttribution(attempt = 0) {
       parts.push('\u00A9 ' + esc(artist) + ' \u2014 ' + licenseHtml);
     }
 
+    // Auto-caption from the Commons image description when the author gave
+    // no alt AT ALL (front matter alt absent → the img has no alt attribute).
+    // An EXPLICITLY EMPTY alt ("alt:" left blank → alt="") suppresses the
+    // caption; alt text renders as the figcaption server-side already.
+    if (!container.querySelector('figcaption') && !img.hasAttribute('alt')) {
+      const desc = stripHtml(meta.ImageDescription);
+      if (desc) {
+        const fig = document.createElement('figcaption');
+        fig.className = 'text-center pt-2 pb-2';
+        fig.textContent = desc;
+        container.appendChild(fig);
+      }
+    }
+
     const el = document.createElement('small');
     el.className = 'sk-header-attribution text-center d-block';
     el.innerHTML = parts.join(' \u2022 ');
