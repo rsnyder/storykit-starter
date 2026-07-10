@@ -1310,10 +1310,12 @@ async function headerAttribution(attempt = 0) {
     }
 
     // Auto-caption from the Commons image description when the author gave
-    // no alt AT ALL (front matter alt absent → the img has no alt attribute).
-    // An EXPLICITLY EMPTY alt ("alt:" left blank → alt="") suppresses the
-    // caption; alt text renders as the figcaption server-side already.
-    if (!container.querySelector('figcaption') && !img.hasAttribute('alt')) {
+    // no alt AT ALL. The DOM can't distinguish absent from empty (Chirpy's
+    // "Preview Image" fallback + Liquid's default filter normalize both), so
+    // post.html emits data-sk-alt with the front-matter truth: 'absent' →
+    // auto-caption; 'empty' → the author's opt-out; alt text → figcaption
+    // already rendered server-side.
+    if (!container.querySelector('figcaption') && img.dataset.skAlt === 'absent') {
       const desc = stripHtml(meta.ImageDescription);
       if (desc) {
         const fig = document.createElement('figcaption');

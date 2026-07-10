@@ -20,6 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import render_regression as rr  # noqa: E402
 
 from test_m5_sync import browser, site_dir  # noqa: E402,F401
+from test_preview_interactions import editor_prod, built_site  # noqa: E402,F401
 
 SITE = REPO / "_site"
 CT = {".html": "text/html", ".js": "text/javascript", ".css": "text/css",
@@ -78,51 +79,50 @@ def test_commons_header_gets_attribution_line(browser, site_dir):
         context.close()
 
 
-def test_absent_alt_gets_commons_caption_empty_alt_suppresses(browser, site_dir):
-    """Caption rules for Commons headers: alt ABSENT → auto-caption from the
-    Commons image description; alt EXPLICITLY EMPTY (alt="") → no caption.
-    The fixture page ships alt text, so both cases are staged by editing the
-    live DOM and re-running init (the same entry point the page uses)."""
-    context = browser.new_context()
-    page = context.new_page()
-    try:
-        page.route("https://rsnyder.github.io/**", _route_site)
-        page.route("https://commons.wikimedia.org/**",
-                   lambda r: r.fulfill(status=200, body=json.dumps(META),
-                                       content_type="application/json"))
-        page.goto("https://rsnyder.github.io/storykit-starter/admin/storykit-regression-fixture-wc-header",
-                  wait_until="load", timeout=60_000)
-        page.wait_for_selector(".sk-header-attribution", timeout=20_000)
+def test_alt_rules_through_the_real_pipeline(editor_prod):
+    """Caption rules verified through the REAL render pipeline (the editor
+    preview renders post.html via skrender — the same layout the deployed
+    site uses): alt ABSENT → data-sk-alt=absent → auto-caption from Commons;
+    alt EMPTY → data-sk-alt=empty → no caption; attribution in both cases.
+    (The previous DOM-staged version of this test passed while the real
+    pipeline failed — Chirpy's alt fallback made absent/empty invisible.)"""
+    page, load = editor_prod
+    page.route("https://commons.wikimedia.org/**",
+               lambda r: r.fulfill(status=200, body=json.dumps(META),
+                                   content_type="application/json"))
 
-        # alt ABSENT → auto-caption
-        cap = page.evaluate(
-            """async () => {
-                const img = document.querySelector('.preview-img img, img.preview-img');
+    def case(front_matter_alt_line, expected_mark):
+        load("---\ntitle: Alt case\nimage:\n"
+             "  path: wc:Monument_Valley,_Utah,_USA.jpg\n"
+             + front_matter_alt_line + "---\n\nBody.\n")
+        # wait for THIS case's render (the marker distinguishes it from the
+        # previous document's still-displayed srcdoc) + the async attribution
+        page.wait_for_function(
+            """(mark) => {
+                const f = document.querySelector('#preview-mount iframe.pv-frame');
+                const d = f && f.contentDocument;
+                const img = d && d.querySelector('.preview-img img, img.preview-img');
+                return img && img.dataset.skAlt === mark
+                    && d.querySelector('.sk-header-attribution'); }""",
+            arg=expected_mark, timeout=45_000)
+        return page.evaluate(
+            """() => {
+                const d = document.querySelector('#preview-mount iframe.pv-frame').contentDocument;
+                const img = d.querySelector('.preview-img img, img.preview-img');
                 const box = img.closest('div');
-                box.querySelector('figcaption')?.remove();
-                box.querySelector('.sk-header-attribution')?.remove();
-                img.removeAttribute('alt');
-                const m = await import('/storykit-starter/assets/js/storykit.js');
-                m.initStoryKit({});
-                await new Promise(r => setTimeout(r, 800));
-                return box.querySelector('figcaption')?.textContent || null;
-            }""")
-        assert cap == "Terraced vineyards in late winter", cap
-
-        # alt EMPTY ("") → caption suppressed, attribution still present
-        state = page.evaluate(
-            """async () => {
-                const img = document.querySelector('.preview-img img, img.preview-img');
-                const box = img.closest('div');
-                box.querySelector('figcaption')?.remove();
-                box.querySelector('.sk-header-attribution')?.remove();
-                img.setAttribute('alt', '');
-                const m = await import('/storykit-starter/assets/js/storykit.js');
-                m.initStoryKit({});
-                await new Promise(r => setTimeout(r, 800));
-                return { caption: !!box.querySelector('figcaption'),
+                return { skAlt: img.dataset.skAlt || null,
+                         caption: box.querySelector('figcaption')?.textContent || null,
                          attribution: !!box.querySelector('.sk-header-attribution') };
             }""")
-        assert state == {"caption": False, "attribution": True}, state
-    finally:
-        context.close()
+
+    absent = case("", "absent")             # no alt line at all
+    assert absent["skAlt"] == "absent", absent
+    assert absent["caption"] == "Terraced vineyards in late winter", absent
+    assert absent["attribution"], absent
+
+    # NOTE: bare `alt:` parses as YAML null — indistinguishable from absent
+    # (and gets the auto-caption). The expressible opt-out is alt: "".
+    empty = case('  alt: ""\n', 'empty')
+    assert empty["skAlt"] == "empty", empty
+    assert empty["caption"] is None, empty
+    assert empty["attribution"], empty

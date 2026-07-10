@@ -218,7 +218,13 @@ script_includes:
         {% capture src %}src="{{ src }}"{% endcapture %}
 
         {% capture class %}class="preview-img{% if page.image.no_bg %}{{ ' no-bg' }}{% endif %}"{% endcapture %}
-        {% capture alt %}alt="{{ page.image.alt | xml_escape | default: "Preview Image" }}"{% endcapture %}
+        {%- comment -%} data-sk-alt tells storykit.js the FRONT-MATTER truth:
+            Chirpy's alt fallback ("Preview Image") + Liquid's default filter
+            make absent and empty alt indistinguishable in the DOM. absent →
+            auto-caption from Commons metadata; empty → author's opt-out.
+            Embedded inside this capture so alt-present pages render
+            byte-identically. {%- endcomment -%}
+        {% capture alt %}alt="{{ page.image.alt | xml_escape | default: "Preview Image" }}"{% if page.image.alt == nil %} data-sk-alt="absent"{% elsif page.image.alt == blank %} data-sk-alt="empty"{% endif %}{% endcapture %}
 
         {% if page.image.lqip %}
           {%- capture lqip -%}lqip="{{ page.image.lqip }}"{%- endcapture -%}
