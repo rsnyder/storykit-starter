@@ -69,13 +69,6 @@ META = {"query": {"pages": {"1": {"imageinfo": [{"extmetadata": {
 def test_commons_header_gets_attribution_line(browser, site_dir):
     context = browser.new_context()
     page = context.new_page()
-    # CI-only failure diagnostics: this test passes locally and in the CI
-    # container but has failed repeatedly on real runners — collect evidence.
-    console, perrors, failed_reqs = [], [], []
-    page.on("console", lambda m: console.append(f"{m.type}: {m.text[:160]}"))
-    page.on("pageerror", lambda e: perrors.append(str(e)[:200]))
-    page.on("requestfailed",
-            lambda r: failed_reqs.append(f"{r.url[:120]} :: {r.failure}"))
     try:
         page.route("https://rsnyder.github.io/**", _route_site)
         page.route("https://commons.wikimedia.org/**",
@@ -90,23 +83,18 @@ def test_commons_header_gets_attribution_line(browser, site_dir):
         # same live-CDN exception). Only wikimedia/commons are mocked.
         page.goto("https://rsnyder.github.io/storykit-starter/admin/storykit-regression-fixture-wc-header",
                   wait_until="domcontentloaded", timeout=60_000)
-        try:
-            page.wait_for_selector(".sk-header-attribution", timeout=45_000)
-        except Exception:
-            print("\n=== CI DIAGNOSTICS (attribution never appeared) ===")
-            print("--- page errors ---")
-            for x in perrors[:10]: print(" ", x)
-            print("--- failed requests ---")
-            for x in failed_reqs[:20]: print(" ", x)
-            print("--- console (errors/warnings) ---")
-            for x in console:
-                if x.startswith(("error", "warning")): print(" ", x)
-            print("--- module import probe ---")
-            print(" ", page.evaluate(
-                """async () => { try { const m = await import('/storykit-starter/assets/js/storykit.js');
-                     return 'import ok: ' + typeof m.initStoryKit; }
-                     catch (e) { return 'import FAILED: ' + String(e).slice(0, 200); } }"""))
-            raise
+        # Deterministic boot: on congested CI runners the page's own inline
+        # module script can spend >45s just fetching the live Shoelace tree
+        # (diagnosed via in-test CI instrumentation: zero errors, zero failed
+        # requests, import probe fine — pure CDN pacing). Import + init
+        # explicitly so the assertion isn't racing jsdelivr; the page-boot
+        # path itself is exercised by the srcdoc viewer e2es.
+        page.evaluate(
+            """async () => {
+                const m = await import('/storykit-starter/assets/js/storykit.js');
+                m.initStoryKit({});
+            }""")
+        page.wait_for_selector(".sk-header-attribution", timeout=30_000)
         state = page.evaluate(
             """() => {
                 const el = document.querySelector('.sk-header-attribution');
