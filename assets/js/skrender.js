@@ -25,6 +25,10 @@
 //    parseFrontMatter(text)                 → { frontMatter, body, fmEndLine }
 //    createResolveFileCache(resolveFile)    → memoizing async wrapper
 //
+//  DIAGNOSTIC SHAPE: { level, stage, message[, detail] }. `message` is written
+//  for essay authors (see describeLiquidError); the optional `detail` carries
+//  the raw underlying error for troubleshooting. Consumers may ignore `detail`.
+//
 //  CONTEXT DELTAS beyond the frozen §1.1 shape (flagged for WP-2.6 / WP-3.2):
 //    · context.origin         — parsed `_data/origin/default.yml` (shape
 //        `{ default: {...} }`). Chirpy's head.html reads `site.data.origin[type]`,
@@ -102,6 +106,57 @@ export function parseFrontMatter(text) {
   let frontMatter = {};
   try { frontMatter = window.jsyaml.load(yamlText) || {}; } catch { frontMatter = {}; }
   return { frontMatter, body, fmEndLine: end };
+}
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  LIQUID ERROR → AUTHOR-FACING MESSAGE
+//  LiquidJS writes for template developers ('tag "inlcude" not found, line:67,
+//  col:1'); essay authors need to know which line to look at and what to change.
+//  Two corrections happen here:
+//
+//    · LINE NUMBER — LiquidJS counts from the start of the string it was handed.
+//      For the post body that is the text AFTER the front matter, so its line is
+//      short by the front-matter length; `lineOffset` shifts it back into file
+//      coordinates. A message carrying `file:` was raised inside an include or
+//      layout, where the line is already relative to that file — not shifted.
+//
+//    · WORDING — the LiquidJS phrasings below are restated in plain language.
+//      Anything unrecognized falls back to a generic syntax-error line, so a
+//      message we haven't mapped never reaches the author raw. Callers should
+//      keep the original text as the diagnostic's `detail` for troubleshooting.
+//
+//  Only PARSE failures in the post body reach this — a missing include file or
+//  an error inside an include renders an inline placeholder (see renderInclude)
+//  rather than throwing. Output is one short sentence for the status badge.
+// ════════════════════════════════════════════════════════════════════════════
+
+export function describeLiquidError(message, lineOffset) {
+  const raw     = String(message);
+  const inFile  = /(^|,\s*)file:/.test(raw);
+  const lineNum = raw.match(/(?:^|[^a-z])line:(\d+)/);
+  const line    = lineNum ? Number(lineNum[1]) + (inFile ? 0 : (lineOffset || 0)) : null;
+  const at      = line ? `Line ${line}: ` : '';
+  // Every case ends the same way: the page in view has no tags expanded, which
+  // to an author reads as "my viewers are gone".
+  const end     = ' (viewers not shown until this is fixed)';
+  let m;
+
+  // {% endif %} with no {% if %} — LiquidJS reports the stray end tag as unknown
+  if ((m = raw.match(/^tag "(end[a-z]+)" not found/)))
+    return `${at}{% ${m[1]} %} has no matching {% ${m[1].slice(3)} %}${end}`;
+  // Misspelled or unsupported tag name — the common case ({% inlcude %})
+  if ((m = raw.match(/^tag "([^"]*)" not found/)))
+    return `${at}{% ${m[1]} %} isn't a known tag — check the spelling${end}`;
+  // Block tag opened but never closed; LiquidJS echoes the opening tag source
+  if ((m = raw.match(/^tag \{%-?\s*([a-z]+)[\s\S]*?not closed/)))
+    return `${at}{% ${m[1]} %} is never closed — add {% end${m[1]} %}${end}`;
+  // Unterminated delimiters; LiquidJS echoes a truncated slab of source with
+  // embedded newlines, so describe the problem instead of quoting it back
+  if (/^tag "/.test(raw)    && /not closed/.test(raw)) return `${at}a tag is missing its closing %}${end}`;
+  if (/^output "/.test(raw) && /not closed/.test(raw)) return `${at}an expression is missing its closing }}${end}`;
+
+  return `${at}tag syntax error${end}`;
 }
 
 
@@ -790,7 +845,10 @@ async function resolveLayoutChain(startLayout, layoutsSeed, resolveFile, maxDept
 
 export async function renderPost({ content, path, context }) {
   const diagnostics = [];
-  const diag = (level, stage, message) => diagnostics.push({ level, stage, message });
+  // `detail` is optional: the raw underlying error, kept for troubleshooting
+  // when `message` has been rewritten for authors. Consumers may ignore it.
+  const diag = (level, stage, message, detail) =>
+    diagnostics.push(detail ? { level, stage, message, detail } : { level, stage, message });
 
   const config         = context.config || {};
   const deployedOrigin = context.assetOrigin || '';
@@ -799,7 +857,9 @@ export async function renderPost({ content, path, context }) {
   const layoutsSeed    = context.layouts || null;
   const p              = path;
 
-  const { frontMatter: pageFM, body: pageBody } = parseFrontMatter(content);
+  const { frontMatter: pageFM, body: pageBody, fmEndLine } = parseFrontMatter(content);
+  // Body line 1 is file line fmEndLine + 2 (fmEndLine is the 0-based closing ---).
+  const bodyLineOffset = fmEndLine >= 0 ? fmEndLine + 1 : 0;
 
   // ── Build Liquid context ──────────────────────────────────────────────────
   // Mirrors the context Jekyll provides at build time.
@@ -839,9 +899,11 @@ export async function renderPost({ content, path, context }) {
     const liquidExpanded = await engine.parseAndRender(pageBody, liquidContext);
     renderedContent = applyKramdownAttributes(liquidExpanded, src => md.render(collapseMultilineTags(src)));
   } catch (e) {
-    // Liquid error — fall back to rendering raw markdown without Liquid expansion
+    // Tag syntax error — fall back to rendering raw markdown without Liquid
+    // expansion. Reported as an ERROR, not a warning: the author must fix this
+    // before the page renders correctly anywhere, preview or deployed site.
     renderedContent = applyKramdownAttributes(pageBody, src => md.render(collapseMultilineTags(src)));
-    diag('warn', 'liquid', `Liquid error in post body (rendered raw): ${e.message}`);
+    diag('error', 'liquid', describeLiquidError(e.message, bodyLineOffset), e.message);
   }
 
   // ── Resolve layout chain ────────────────────────────────────────────────────
