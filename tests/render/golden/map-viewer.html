@@ -449,8 +449,8 @@
 
 
 <!-- return element -->
-<span class="readtime" data-bs-toggle="tooltip" data-bs-placement="bottom" title="626 words">
-  <em>3 min</em> read</span>
+<span class="readtime" data-bs-toggle="tooltip" data-bs-placement="bottom" title="837 words">
+  <em>4 min</em> read</span>
 
         </div>
       </div>
@@ -594,7 +594,65 @@
 </code></pre>
 <h2 id="basemap">basemap</h2>
 
-<p>Defines a basemap to add to the map.</p>
+<p>Defines the basemap — the tiled map imagery drawn underneath your markers and overlays. Defaults to <code>OpenStreetMap</code>.</p>
+<pre><code>basemap=&quot;OpenTopoMap&quot;
+</code></pre>
+<p>Five basemaps are available:</p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>What it looks like</th>
+<th>Max zoom</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OpenStreetMap</code></td>
+<td>The familiar street map: roads, labels, and place names. The default.</td>
+<td>19</td>
+</tr>
+<tr>
+<td><code>OpenTopoMap</code></td>
+<td>Topographic — contour lines, terrain shading, trails.</td>
+<td>17</td>
+</tr>
+<tr>
+<td><code>Esri_WorldPhysical</code></td>
+<td>Physical relief with no roads or labels, for a natural-landscape feel.</td>
+<td>10</td>
+</tr>
+<tr>
+<td><code>Esri_WorldImagery</code></td>
+<td>Satellite and aerial imagery.</td>
+<td>18</td>
+</tr>
+<tr>
+<td><code>CartoDB_Positron</code></td>
+<td>Pale, low-contrast streets that keep your markers prominent.</td>
+<td>20</td>
+</tr>
+</tbody>
+</table>
+<p>Spell the name exactly as shown, underscores included. An unrecognized name is ignored; if none of the names given are recognized, the map falls back to <code>OpenStreetMap</code>.</p>
+<p>The <strong>max zoom</strong> column matters when you also set <code>zoom</code>. <code>Esri_WorldPhysical</code> has no tiles past level 10, so asking for <code>zoom=&quot;14&quot;</code> with it will not show you more detail.</p>
+<p><strong>Letting readers switch basemaps.</strong> List several names separated by commas and the map gains a layer picker in its top-right corner. The <strong>first</strong> name listed is the one shown when the map loads. The picker labels them with spaces in place of the underscores, so <code>Esri_WorldImagery</code> appears there as “Esri WorldImagery”.</p>
+<div class="example">
+<div markdown="1">
+<pre><code class="language-liquid">{% include embed/map.html
+    center=&quot;37.01056, -110.2425&quot;
+    zoom=&quot;11&quot;
+    basemap=&quot;Esri_WorldImagery, OpenTopoMap, OpenStreetMap&quot;
+%}
+</code></pre>
+
+<p>The map opens on satellite imagery. Use the control in the top-right corner to compare it against the topographic and street maps.</p>
+</div>
+<div>
+<iframe data-storykit-warn="no-id" class="embed-map " loading="lazy" title="StoryKit map viewer" allow="clipboard-write" allowfullscreen style="aspect-ratio: 1.0;" src="https://rsnyder.github.io/storykit-starter/assets/components/map.html?center=37.01056%2C+-110.2425&zoom=11&basemap=Esri_WorldImagery%2C+OpenTopoMap%2C+OpenStreetMap">
+</iframe>
+</div>
+</div>
 <h2 id="caption">caption</h2>
 
 <p>Defines a caption to add to the map viewer.</p>

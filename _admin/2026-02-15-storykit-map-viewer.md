@@ -180,7 +180,53 @@ The width-to-height ratio of the map. Defaults to `1.0` (square).
 ## basemap
 {: .attribute }
 
-Defines a basemap to add to the map.
+Defines the basemap — the tiled map imagery drawn underneath your markers and overlays. Defaults to `OpenStreetMap`.
+
+    basemap="OpenTopoMap"
+
+Five basemaps are available:
+
+| Name | What it looks like | Max zoom |
+|---|---|---|
+| `OpenStreetMap` | The familiar street map: roads, labels, and place names. The default. | 19 |
+| `OpenTopoMap` | Topographic — contour lines, terrain shading, trails. | 17 |
+| `Esri_WorldPhysical` | Physical relief with no roads or labels, for a natural-landscape feel. | 10 |
+| `Esri_WorldImagery` | Satellite and aerial imagery. | 18 |
+| `CartoDB_Positron` | Pale, low-contrast streets that keep your markers prominent. | 20 |
+
+Spell the name exactly as shown, underscores included. An unrecognized name is ignored; if none of the names given are recognized, the map falls back to `OpenStreetMap`.
+
+The **max zoom** column matters when you also set `zoom`. `Esri_WorldPhysical` has no tiles past level 10, so asking for `zoom="14"` with it will not show you more detail.
+
+**Letting readers switch basemaps.** List several names separated by commas and the map gains a layer picker in its top-right corner. The **first** name listed is the one shown when the map loads. The picker labels them with spaces in place of the underscores, so `Esri_WorldImagery` appears there as "Esri WorldImagery".
+
+<div class="example">
+
+<div markdown="1">
+{% raw %}
+```liquid
+{% include embed/map.html
+    center="37.01056, -110.2425"
+    zoom="11"
+    basemap="Esri_WorldImagery, OpenTopoMap, OpenStreetMap"
+%}
+```
+{: .nolineno }
+{% endraw %}
+
+The map opens on satellite imagery. Use the control in the top-right corner to compare it against the topographic and street maps.
+
+</div>
+
+<div>
+{% include embed/map.html
+    center="37.01056, -110.2425"
+    zoom="11"
+    basemap="Esri_WorldImagery, OpenTopoMap, OpenStreetMap"
+%}
+</div>
+
+</div>
 
 ## caption
 {: .attribute }
