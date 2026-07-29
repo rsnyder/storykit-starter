@@ -133,8 +133,10 @@
       That single permission covers everything the editor does. <em>Metadata: Read-only</em>
       is added automatically; leave everything else at <em>No access</em>.</li>
     <li>Click <strong>Generate token</strong> and copy the value (it's shown only once).</li>
-    <li>Back in the editor: open the sync panel (the status-bar chip, or any document's
-      <em>Sync with GitHub</em> button), paste the token, and click <strong>Save token</strong>.</li>
+    <li>Back in the editor: click <strong>GitHub</strong> above the document list to open the
+      sync panel, paste the token, and click <strong>Save token</strong>. (The status-bar chip
+      and any document's <em>Sync with GitHub</em> button open the same panel.) Do this before
+      opening a file from a private repository — the editor can't read one without a token.</li>
   </ol>
   <div class="note">The token is stored <strong>only in this browser's local storage</strong>
   and is sent only to <code>api.github.com</code>. Nothing else ever sees it, and

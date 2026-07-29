@@ -68,8 +68,8 @@ published page (select any text and press ⌘⇧K to link your own).
 
 - **Open your own post**: the *Open…* button above the document list takes a
   GitHub URL — or drag a file link straight in from GitHub.
-- **Connect GitHub**: any document's *Sync with GitHub* button walks you
-  through the one-time token setup.
+- **Connect GitHub**: the *GitHub* button above the document list walks you
+  through the one-time token setup — do that first if your repo is private.
 - **Audit**: the toolbar's *Audit* button checks tags, links, front matter,
   and spelling in one report.
 - **Help**: the **?** in the top bar covers everything else.

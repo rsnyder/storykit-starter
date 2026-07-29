@@ -659,6 +659,54 @@ describe('doclist: Sync with GitHub button state + icon', () => {
   });
 });
 
+describe('doclist: document-independent GitHub button (onSyncSetup)', () => {
+  it('shows the toolbar GitHub button only when onSyncSetup is wired, and invokes it', () => {
+    const store = makeFakeStore([]);
+    const withBtn = makeMount();
+    const without = makeMount();
+    let calls = 0;
+    createDocList({ mount: withBtn, store, onSyncSetup: () => { calls += 1; } });
+    createDocList({ mount: without, store });
+    try {
+      const btn = withBtn.querySelector('.dl-sync-setup-btn');
+      assert.ok(btn, 'button present when wired');
+      assert.equal(without.querySelector('.dl-sync-setup-btn'), null, 'absent when not wired');
+      assert.ok(btn.querySelector('svg.dl-gh-icon'), 'carries the GitHub mark');
+      btn.click();
+      assert.equal(calls, 1, 'click reaches the host (opens the sync panel)');
+    } finally {
+      withBtn.remove(); without.remove();
+    }
+  });
+
+  // The regression this exists for: on first run the store holds ONLY the
+  // welcome sample, which gets no per-row "Sync with GitHub" button — so the
+  // toolbar button was the missing (and now only) way to save a token before
+  // any GitHub document has been loaded.
+  it('stays available and enabled when the list holds only the sample (first run)', async () => {
+    const store = makeFakeStore([
+      { id: 'w', title: 'Welcome to StoryKit', path: null, content: 'hi',
+        updatedAt: '2026-07-01T00:00:00.000Z', sample: true },
+    ]);
+    const mount = makeMount();
+    const api = createDocList({
+      mount, store, bus: new EventTarget(), onSync: () => {}, onSyncSetup: () => {},
+    });
+    try {
+      await api.refresh();
+      const perRow = Array.from(mount.querySelectorAll('.dl-item-actions button'))
+        .filter((b) => b.textContent.includes('Sync with GitHub'));
+      assert.equal(perRow.length, 0, 'sample row has no per-document sync button');
+      const btn = mount.querySelector('.dl-sync-setup-btn');
+      assert.ok(btn, 'toolbar GitHub button still present');
+      assert.equal(btn.disabled, false, 'never gated on an active/bound document');
+    } finally {
+      api.destroy();
+      mount.remove();
+    }
+  });
+});
+
 describe('doclist: repo chip (central editor, one list spans repos)', () => {
   it('bound rows show owner/repo (+branch when not main); unbound rows do not', async () => {
     const store = makeFakeStore([

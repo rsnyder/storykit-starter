@@ -38,6 +38,16 @@
  *             action cluster leads with a "Sync with GitHub" button invoking
  *             it (the host is expected to open the document, then the sync
  *             panel). Omitted → no sync button (tests, unbound hosts).
+ *   onSyncSetup — OPTIONAL `() => void`, wired to a "GitHub" button in the
+ *             list toolbar. Unlike `onSync` it is DOCUMENT-INDEPENDENT: it
+ *             takes no docId, is never disabled, and exists even when the
+ *             list is empty or holds only the sample. That is the point —
+ *             the per-row sync buttons are absent on the sample and disabled
+ *             off the active row, so on first run (welcome sample only)
+ *             there was no way to reach the panel and save a token before
+ *             loading anything from GitHub. Since "Open…" needs a token for
+ *             a private repo, the token entry point has to precede having a
+ *             GitHub document, not follow it.
  *   onOpen  — `(docId: string) => void`, called whenever the panel wants the
  *             host app to switch to a document: clicking a list item,
  *             finishing New Post, finishing Import, or Duplicate. WP-2.6 is
@@ -308,7 +318,14 @@ const STYLE_ID = 'sk-doclist-styles';
 
 const CSS_TEXT = `
 .dl-root { display: flex; flex-direction: column; gap: var(--sk-space-1); }
-.dl-toolbar { display: flex; justify-content: flex-end; padding: 0 var(--sk-space-xs) var(--sk-space-xs); }
+.dl-toolbar {
+  display: flex; flex-wrap: wrap; justify-content: flex-end;
+  gap: var(--sk-space-xs);
+  padding: 0 var(--sk-space-xs) var(--sk-space-xs);
+}
+/* Settings-ish button on the left, document actions on the right (and the
+   whole row wraps rather than overflowing the ~244px sidebar). */
+.dl-sync-setup-btn { margin-right: auto; }
 .dl-file-input { display: none; }
 .dl-form-host:empty { display: none; }
 .dl-new-form, .dl-rename-form {
@@ -404,7 +421,7 @@ function ensureStyles(doc) {
  * @param {{ mount: HTMLElement, store: object, bus?: EventTarget, onOpen?: (id: string) => void }} opts
  * @returns {{ refresh: () => Promise<void>, destroy: () => void, openNewPostForm: () => void }}
  */
-export function createDocList({ mount, store, bus, onOpen, onSync, onOpenRemote } = {}) {
+export function createDocList({ mount, store, bus, onOpen, onSync, onSyncSetup, onOpenRemote } = {}) {
   if (!mount) throw new Error('createDocList: mount is required');
   if (!store || !store.docs) throw new Error('createDocList: store (with a .docs subset) is required');
 
@@ -447,6 +464,21 @@ export function createDocList({ mount, store, bus, onOpen, onSync, onOpenRemote 
     // repo binding, so it owns the prompt copy (see app.js promptOpenRemote).
     openBtn.addEventListener('click', () => onOpenRemote());
     toolbar.insertBefore(openBtn, importBtn);
+  }
+
+  // Optional "GitHub" (token + sync settings): the document-INDEPENDENT way
+  // into the sync panel. Leads the toolbar because it is step zero — the
+  // token has to exist before "Open…" can reach a private repo, and before
+  // any per-row "Sync with GitHub" button exists to be clicked.
+  if (typeof onSyncSetup === 'function') {
+    const setupBtn = doc.createElement('button');
+    setupBtn.type = 'button';
+    setupBtn.className = 'btn btn-sm dl-sync-setup-btn';
+    setupBtn.textContent = 'GitHub';
+    setupBtn.title = 'GitHub token and sync settings';
+    setupBtn.addEventListener('click', () => onSyncSetup());
+    setupBtn.prepend(githubIcon());
+    toolbar.insertBefore(setupBtn, toolbar.firstChild);
   }
 
   const formHost = doc.createElement('div');

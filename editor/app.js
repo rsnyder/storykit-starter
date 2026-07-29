@@ -1432,10 +1432,16 @@ function buildSyncPanel() {
     if (rec) pathInput.value = (rec.path) || pathInput.value || '';
     bindBtn.textContent = gh ? 'Update binding' : 'Connect';
 
+    // The panel is reachable with NO document open (the doc-list "GitHub"
+    // button — the only token entry point on first run), so say what this
+    // step is waiting for rather than showing a dead Connect button.
+    const noDoc = !appState.currentDocId;
     const bound = !!gh;
-    bindingNote.textContent = bound
-      ? `Connected to ${gh.owner}/${gh.repo} on ${gh.branch}. Committing and pulling are below.`
-      : 'Not connected yet. Fill in a repository below and click Connect to enable committing and pulling changes for this document.';
+    bindingNote.textContent = noDoc
+      ? 'No document is open. Step 1 above is all you need for now — open or create a document, then come back to connect it to a repository.'
+      : bound
+        ? `Connected to ${gh.owner}/${gh.repo} on ${gh.branch}. Committing and pulling are below.`
+        : 'Not connected yet. Fill in a repository below and click Connect to enable committing and pulling changes for this document.';
     syncSection.hidden = !bound;
     commitBtn.disabled = !bound;
     pullBtn.disabled = !bound;
@@ -1447,7 +1453,6 @@ function buildSyncPanel() {
       ? `Status: ${SYNC_LABEL[state] || state}${gh.syncedAt ? ` · last synced ${new Date(gh.syncedAt).toLocaleString()}` : ''}`
       : 'Not connected to a repository.';
 
-    const noDoc = !appState.currentDocId;
     bindBtn.disabled = noDoc;
   }
 
@@ -1900,6 +1905,11 @@ export async function init() {
         // "Sync with GitHub" in each row's action cluster: open that document
         // (no-op if already open), then the sync panel.
         onSync: async (docId) => { await openDoc(docId); openSyncPanel(); },
+        // "GitHub" in the list toolbar: the same panel, reached WITHOUT a
+        // document. On first run the only document is the welcome sample,
+        // which has no per-row sync button, so this is the only way to save
+        // a token before opening anything from a (private) repo.
+        onSyncSetup: () => openSyncPanel(),
         // "Open…" button + GitHub-link drops: open an EXISTING repo file as a
         // bound document (or focus it if it's already in the list). A no-arg
         // call means "prompt the user" — the host owns the prompt copy since
