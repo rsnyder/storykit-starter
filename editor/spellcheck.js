@@ -25,6 +25,27 @@
  * the "Add to dictionary" lint action appends and re-lints. Sentence-initial
  * capitalization is handled by retrying the lowercase form before flagging.
  *
+ * ── SUGGESTION COST (why this file has a cache and a viewport window) ───────
+ * Measured against dictionary-en@4.0.0 in the deployed editor:
+ *     engine.correct(word)   ~0.002 ms   (and memoized by `okCache`)
+ *     engine.suggest(word)   ~61 ms      (edit-distance search of the dictionary)
+ * suggest() is ~30,000x the cost of correct(), and this lint source used to
+ * call it EAGERLY for every unknown word on EVERY pass. A real essay carries
+ * ~113 unknown words (proper nouns, place names, jargon), so each edit burned
+ * ~5.4 s of SYNCHRONOUS main-thread time — profiled as a single long task,
+ * which also delayed the split-view preview (its debounce timer could not
+ * fire behind the block) and read to authors as "the preview lags".
+ *
+ * Two independent fixes, both here:
+ *   1. Memoize suggestions per word (`suggestCache`) — the same unknown words
+ *      recur on every pass, so passes after the first cost ~0.
+ *   2. Only compute suggestions for hits near the rendered viewport — the only
+ *      ones whose tooltip the author can open right now. This also spares the
+ *      FIRST pass (and document open, which pays the same price).
+ * Because scrolling does not re-run lint sources, the linter's `needsRefresh`
+ * hook asks for another pass once the viewport settles outside the window the
+ * last pass covered — so a word scrolled to still gets its suggestions.
+ *
  * TEST SEAMS: `_deps.loadEngine` (tests inject a fake nspell) and
  * `DICTIONARY_URLS` (e2e routes serve a committed mini dictionary fixture).
  */
@@ -120,8 +141,26 @@ function skippable(word) {
  * used to memoize engine hits across passes (grows per session).
  */
 export function checkText(text, engine, known, okCache) {
-  const masked = maskedRanges(text);
-  const inMasked = (p) => masked.some(([a, b]) => p >= a && p < b);
+  // maskedRanges emits one pass per pattern, so ranges arrive unsorted and may
+  // overlap or nest. Words, however, are scanned left to right — so sorting
+  // once lets a pointer walk replace what was a full linear scan of every
+  // range per word (profiled as the top JS cost of a lint pass on a 66 KB
+  // document, where the range count runs into the hundreds).
+  //
+  // `maxEnd` is the largest end among ranges that have started at or before
+  // `p`; if it is past `p`, some range covers `p`. That stays correct with
+  // overlapping and nested ranges, which a start-sorted scan alone would not.
+  // Relies on `p` never going backwards across calls — true for WORD_RE.
+  const masked = maskedRanges(text).sort((x, y) => x[0] - y[0]);
+  let nextRange = 0;
+  let maxEnd = 0;
+  const inMasked = (p) => {
+    while (nextRange < masked.length && masked[nextRange][0] <= p) {
+      if (masked[nextRange][1] > maxEnd) maxEnd = masked[nextRange][1];
+      nextRange += 1;
+    }
+    return p < maxEnd;
+  };
   const out = [];
   let m;
   WORD_RE.lastIndex = 0;
@@ -162,10 +201,56 @@ function ensureEngine() {
   );
 }
 
+// ── Suggestions: memoized, and only for hits near the viewport ──────────────
+// (see the file header for the measurements that motivate both.)
+
+/** word → its top suggestions. Session-lived; unknown words recur every pass. */
+const suggestCache = new Map();
+
+const MAX_SUGGESTIONS = 3;
+
+/** Characters either side of the rendered viewport that still get suggestions. */
+export const SUGGEST_MARGIN = 2000;
+
+/**
+ * Top suggestions for `word`, computed at most once per session per word.
+ * @param {string} word
+ * @param {{ suggest: (w: string) => string[] }} eng
+ * @returns {string[]}
+ */
+export function suggestionsFor(word, eng) {
+  let hit = suggestCache.get(word);
+  if (!hit) {
+    hit = eng.suggest(word).slice(0, MAX_SUGGESTIONS);
+    suggestCache.set(word, hit);
+  }
+  return hit;
+}
+
+/**
+ * Is a hit at `pos` close enough to what's on screen to be worth the ~61 ms?
+ * A null viewport (non-view callers) means "yes" — no window to gate on.
+ * @param {number} pos
+ * @param {{ from: number, to: number }|null} viewport
+ */
+export function shouldSuggestAt(pos, viewport) {
+  if (!viewport) return true;
+  return pos >= viewport.from - SUGGEST_MARGIN && pos <= viewport.to + SUGGEST_MARGIN;
+}
+
 /** Test seam: reset module state between unit tests. */
-export function _resetForTests() { engine = null; loading = null; okCache.clear(); }
+export function _resetForTests() {
+  engine = null;
+  loading = null;
+  okCache.clear();
+  suggestCache.clear();
+}
 
 export function spellcheckExtension(opts) {
+  // The document range the last pass computed suggestions for. Doubles as the
+  // termination guard for `needsRefresh` below.
+  let suggestedWindow = null;
+
   return linter(
     (view) => {
       if (!opts.isEnabled()) { opts.onCount?.(0); return []; }
@@ -174,6 +259,12 @@ export function spellcheckExtension(opts) {
       const known = new Set((opts.getPersonalWords() || []).map((w) => w.toLowerCase()));
       const hits = checkText(text, engine, known, okCache);
       opts.onCount?.(hits.length);
+
+      const viewport = view.viewport;
+      suggestedWindow = viewport
+        ? { from: viewport.from - SUGGEST_MARGIN, to: viewport.to + SUGGEST_MARGIN }
+        : null;
+
       return hits.map((h) => ({
         from: h.from,
         to: h.to,
@@ -181,10 +272,14 @@ export function spellcheckExtension(opts) {
         source: 'spelling',
         message: `Unknown word "${h.word}".`,
         actions: [
-          ...engine.suggest(h.word).slice(0, 3).map((sug) => ({
-            name: sug,
-            apply(v, from, to) { v.dispatch({ changes: { from, to, insert: sug } }); },
-          })),
+          // Off-screen hits are still flagged — they just skip the expensive
+          // suggest() until the author scrolls them into view.
+          ...(shouldSuggestAt(h.from, viewport)
+            ? suggestionsFor(h.word, engine).map((sug) => ({
+              name: sug,
+              apply(v, from, to) { v.dispatch({ changes: { from, to, insert: sug } }); },
+            }))
+            : []),
           {
             name: 'Add to dictionary',
             apply(v) {
@@ -197,7 +292,25 @@ export function spellcheckExtension(opts) {
         ],
       }));
     },
-    { delay: 600 },
+    {
+      delay: 600,
+      // Scrolling alone never re-runs a lint source, so a diagnostic produced
+      // while it was off-window would keep an empty suggestion list once the
+      // author scrolled to it. `needsRefresh` is CM's hook for exactly this —
+      // results that depend on something other than the document. (NOT
+      // `forceLinting`: its `force()` no-ops unless the plugin already has a
+      // pass pending, which after a settled lint it never does.)
+      //
+      // Self-terminating: the refreshed pass moves `suggestedWindow` onto the
+      // new viewport, so the containment test then reports "no refresh needed".
+      needsRefresh: (update) => {
+        if (!update.viewportChanged || update.docChanged) return false;
+        const vp = update.view.viewport;
+        return !(suggestedWindow
+          && vp.from >= suggestedWindow.from
+          && vp.to <= suggestedWindow.to);
+      },
+    },
   );
 }
 
