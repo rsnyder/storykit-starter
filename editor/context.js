@@ -105,7 +105,7 @@ const STARTER = { owner: 'rsnyder', repo: 'storykit-starter', branch: 'main' };
 const UNBOUND = { owner: 'unbound', repo: 'storykit-starter', branch: 'main' };
 
 /** Chirpy gem version on jsDelivr — mirror of preview/index.html:CHIRPY_VERSION. */
-const CHIRPY_VERSION = 'v7.5.0';
+const CHIRPY_VERSION = 'v7.6.0';
 const GEM_BASE = `https://cdn.jsdelivr.net/gh/cotes2020/jekyll-theme-chirpy@${CHIRPY_VERSION}/`;
 
 /**

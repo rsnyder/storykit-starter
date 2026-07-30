@@ -238,8 +238,12 @@ describe('context: resolveFile cache chain', () => {
       (url) => {
         if (url.includes('api.github.com')) return fakeResponse({ status: 404, body: { message: 'Not Found' } });
         if (url.startsWith(CHIRPY_CDN)) {
-          assert.ok(url.includes('jekyll-theme-chirpy@v7.5.0/_includes/refactor-content.html'),
-            `gem URL must pin CHIRPY_VERSION, got ${url}`);
+          // Asserts the SHAPE — pinned to some exact version tag — not the
+          // number. The number is enforced against Gemfile.lock by
+          // tools/check_consistency.py; hardcoding it here too just meant a
+          // Chirpy upgrade broke this test for no signal.
+          assert.ok(/jekyll-theme-chirpy@v\d+\.\d+\.\d+\/_includes\/refactor-content\.html/.test(url),
+            `gem URL must pin CHIRPY_VERSION to an exact tag, got ${url}`);
           return fakeResponse({ status: 200, body: 'GEM INCLUDE BODY' });
         }
         throw new TypeError(`unrouted: ${url}`);
