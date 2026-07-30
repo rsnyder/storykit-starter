@@ -42,7 +42,7 @@ SRC_USER = "rsnyder"
 SRC_REPO = "storykit-starter"
 # Pinned commit of storykit-starter that this repo was last baselined to.
 # Bump deliberately (see module docstring), never point back at a branch name.
-SRC_REF = "0d96dd84796f9d73a290a2a72a553ee5e1b883f7"
+SRC_REF = "b2ff8127630f26eab2579537e9a012cd6d2cccfc"
 
 # Optional: GitHub token (env var) to avoid rate limits / access private repos
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "")
