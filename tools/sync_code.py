@@ -118,15 +118,19 @@ FILES_TO_SYNC = [
     "_admin/2026-07-06-storykit-authoring-a-visual-narrative.md",
     "tools/sync_code.py",
     "Gemfile",
-    # pages-deploy.yml's Setup Ruby step takes NO ruby-version input — it reads
-    # .ruby-version, so that file has to travel with the workflow. Without it a
-    # downstream deploy dies in setup-ruby before it ever reaches the build:
-    #   "input ruby-version needs to be specified if no .ruby-version or
-    #    .tool-versions file exists"
-    # (Regression from b91ecdd, which replaced the workflow's inline
-    # `ruby-version: 3.3` with the .ruby-version lookup and added the file here
-    # but not to this list. The canonical repo kept building; every downstream
-    # repo broke on its next deploy.)
+    # The Setup Ruby step in pages-deploy.yml takes NO ruby-version input; it
+    # reads .ruby-version, so that file has to travel with the workflow. Without
+    # it a downstream deploy dies inside setup-ruby before reaching the build,
+    # reporting that ruby-version must be specified when no .ruby-version or
+    # .tool-versions file exists. Regression from b91ecdd, which replaced the
+    # inline ruby-version 3.3 pin with the .ruby-version lookup and added the
+    # file here but not to this list; the canonical repo kept building, so the
+    # breakage was only ever visible downstream.
+    #
+    # Keep comments in this list free of apostrophes and quote characters:
+    # check_consistency.py mines the list for quoted paths, and older copies of
+    # it (downstream repos do not receive that file) read such prose as
+    # filenames and fail the build.
     ".ruby-version",
     ".github/workflows/pages-deploy.yml",
 ]
