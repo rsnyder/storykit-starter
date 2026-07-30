@@ -90,7 +90,13 @@ def check_sync_manifest() -> None:
     if not m:
         errors.append("tools/sync_code.py: could not parse FILES_TO_SYNC")
         return
-    entries = re.findall(r"['\"]([^'\"]+)['\"]", m.group(1))
+    # Strip comments before scanning for quoted paths. FILES_TO_SYNC carries
+    # explanatory comments by convention, and prose contains apostrophes
+    # ("pages-deploy.yml's Setup Ruby step") and quoted error text — all of
+    # which this deliberately naive quoted-string scan would otherwise read as
+    # filenames, failing CI with entries that were never entries.
+    body = re.sub(r"#[^\n]*", "", m.group(1))
+    entries = re.findall(r"['\"]([^'\"]+)['\"]", body)
     for rel in entries:
         if not (REPO / rel).exists():
             errors.append(
