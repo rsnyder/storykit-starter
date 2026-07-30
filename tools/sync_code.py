@@ -117,6 +117,12 @@ FILES_TO_SYNC = [
     #    serves all repos (storykit-starter/docs/editor-central.md).
     "_admin/2026-07-06-storykit-authoring-a-visual-narrative.md",
     "tools/sync_code.py",
+    # pages-deploy.yml runs exactly two repo scripts, sync_code.py above and
+    # check_consistency.py here, so both have to travel with it. This one was
+    # left out, meaning downstream copies froze at whenever the repo was created
+    # and drifted silently from the manifest they validate. Same class of bug as
+    # the .ruby-version omission below.
+    "tools/check_consistency.py",
     "Gemfile",
     # The Setup Ruby step in pages-deploy.yml takes NO ruby-version input; it
     # reads .ruby-version, so that file has to travel with the workflow. Without
