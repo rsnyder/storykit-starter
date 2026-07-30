@@ -1251,7 +1251,11 @@ function buildSyncPanel() {
   });
   const tokenEntryRow = h('div', { class: 'sk-field-row' }, [tokenInput, saveTokenBtn]);
   const tokenManageRow = h('div', { class: 'sk-field-row' }, [forgetTokenBtn, setupLink]);
-  const tokenHelpNote = h('p', { class: 'sk-field-note', text: 'One fine-grained personal access token with Contents read/write. Stored in this browser only, under the same key the preview tool uses — forgetting it here affects both tools.' });
+  // Say CLASSIC explicitly. A fine-grained token is issued against one resource
+  // owner, so it cannot be granted access to a repo you merely collaborate on —
+  // and the failure is silent-ish: reads can look fine while every commit is
+  // rejected. A tester lost real time to exactly that.
+  const tokenHelpNote = h('p', { class: 'sk-field-note', text: 'Use a CLASSIC personal access token with the “repo” scope — a fine-grained token only reaches repositories its owner controls, so commits fail on repos you collaborate on. Stored in this browser only, under the same key the preview tool uses — forgetting it here affects both tools.' });
   let tokenEditMode = false;
   changeTokenBtn.addEventListener('click', () => { tokenEditMode = true; refreshSyncPanel(); tokenInput.focus(); });
 

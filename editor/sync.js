@@ -128,9 +128,15 @@ function toast(message, level = 'success') {
 function toastGitHubError(err) {
   const kind = err && err.kind;
   if (kind === 'auth') {
-    toast('GitHub rejected the request — your access token is missing or invalid. Open the sync panel → Setup to add one.', 'error');
+    // 403 "Resource not accessible by personal access token" lands here too, and
+    // that is NOT a missing-or-invalid token: it is the fine-grained-token trap.
+    // Such a token is issued against one resource owner, so it can never reach a
+    // repo you merely collaborate on — reads may look fine while commits fail.
+    // Name the fix, because "missing or invalid" sends people to re-paste a token
+    // that was never the problem.
+    toast('GitHub refused this request. If your token is a fine-grained one, it only covers repositories its owner controls — use a classic token with the “repo” scope for repositories you collaborate on. Otherwise the token may be missing or expired. Open the sync panel to update it.', 'error');
   } else if (kind === 'rate-limit') {
-    toast('GitHub API rate limit reached. Adding a personal access token (sync panel → Setup) raises the limit substantially.', 'warning');
+    toast('GitHub API rate limit reached. Adding a personal access token (open the sync panel) raises the limit substantially.', 'warning');
   } else if (kind === 'not-found') {
     toast('Not found — check the repository owner/name, branch, and file path in the sync panel.', 'error');
   } else if (kind === 'network') {

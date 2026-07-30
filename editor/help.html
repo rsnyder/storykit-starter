@@ -116,28 +116,35 @@
   <h2 id="github-token">Connecting to GitHub (one-time token setup)</h2>
   <p>To read private repositories and commit changes, the editor needs a GitHub
   <em>personal access token</em> — think of it as a password you mint specifically for
-  this purpose, limited to exactly the repositories and abilities you choose. It takes
-  about two minutes:</p>
+  this purpose. GitHub offers two kinds, and for this editor you want a
+  <strong>classic</strong> token. It takes about two minutes:</p>
   <ol>
-    <li>Open <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">
-      github.com/settings/personal-access-tokens/new</a> (GitHub → Settings →
-      Developer settings → Personal access tokens → Fine-grained tokens → Generate new token).</li>
-    <li><strong>Token name:</strong> anything memorable, e.g. <code>storykit-editor</code>.</li>
+    <li>Open <a href="https://github.com/settings/tokens/new" target="_blank" rel="noopener">
+      github.com/settings/tokens/new</a> (GitHub → Settings →
+      Developer settings → Personal access tokens → <strong>Tokens (classic)</strong> →
+      Generate new token (classic)).</li>
+    <li><strong>Note:</strong> anything memorable, e.g. <code>storykit-editor</code>.</li>
     <li><strong>Expiration:</strong> your choice — 90 days is a sensible default. (When it
       expires, sync starts failing with an auth error; just mint a new token and save it here.)</li>
-    <li><strong>Repository access:</strong> choose <em>Only select repositories</em> and pick
-      the repositories you'll author in — or <em>All repositories</em> if you prefer one
-      token that covers everything you own.</li>
-    <li><strong>Permissions → Repository permissions</strong> (expand the accordion):
-      find the <strong>Contents</strong> row and set it to <strong>Read and write</strong>.
-      That single permission covers everything the editor does. <em>Metadata: Read-only</em>
-      is added automatically; leave everything else at <em>No access</em>.</li>
+    <li><strong>Select scopes:</strong> tick <strong><code>repo</code></strong> — the top-level
+      checkbox, which selects the whole group. That covers reading and committing. If you only
+      ever author in public repositories you can tick just <code>public_repo</code> instead.</li>
     <li>Click <strong>Generate token</strong> and copy the value (it's shown only once).</li>
     <li>Back in the editor: click <strong>GitHub</strong> above the document list to open the
       sync panel, paste the token, and click <strong>Save token</strong>. (The status-bar chip
       and any document's <em>Sync with GitHub</em> button open the same panel.) Do this before
       opening a file from a private repository — the editor can't read one without a token.</li>
   </ol>
+  <div class="note warn"><strong>Why classic rather than fine-grained?</strong> A fine-grained
+  token is issued against a single <em>resource owner</em> — you, or one organization — so it
+  can only reach repositories that owner controls. If you are a <em>collaborator</em> on
+  someone else's repository, a fine-grained token cannot be granted access to it at all, and
+  for an organization's repositories the organization has to enable fine-grained tokens (often
+  with an admin approving each one). The symptom is confusing: reading may appear to work while
+  every commit fails. A classic token with the <code>repo</code> scope reaches every repository
+  you can already push to, including ones you collaborate on. The trade-off is that it is
+  broader — it is not limited to chosen repositories — so set an expiration, and use
+  <em>Forget token</em> when you are done on a shared machine.</div>
   <div class="note">The token is stored <strong>only in this browser's local storage</strong>
   and is sent only to <code>api.github.com</code>. Nothing else ever sees it, and
   <em>Forget token</em> removes it. Public repositories can be <em>opened</em> without a

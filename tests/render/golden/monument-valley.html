@@ -353,7 +353,11 @@
   #topbar-wrapper {
     background: #F6F8FA !important;
   }
-  [data-mode="dark"] #topbar-wrapper {
+  /* Chirpy signalled dark mode with [data-mode="dark"] before 7.5 and with
+     [data-bs-theme="dark"] from 7.5 on. Both are matched so this override
+     survives either. */
+  [data-mode="dark"] #topbar-wrapper,
+  [data-bs-theme="dark"] #topbar-wrapper {
       background: var(--main-bg) !important;
   }
 
@@ -405,7 +409,10 @@
     const btn = document.querySelector('.js-col2-toggle');
     if (btn) {
         if (isMobile) {
-            // Two-column mode is unavailable on small screens.
+            /* Two-column mode is unavailable on small screens.
+               Block comment, not `//`: the production compress.html layout
+               strips newlines and a line comment would eat the rest of this
+               script (and unbalance the braces). */
             btn.remove();
         } else {
             const icon = btn.querySelector('i');
@@ -1054,9 +1061,13 @@ of moviegoers think of when they imagine the American West”.<sup class="footno
       toolbar.style.marginLeft = 'auto';
     }
 
-    // All display-mode and feature initialization is delegated to
-    // initStoryKit / setViewMode in storykit.js — the single mode controller.
-    // (The toggle button in col2-toggle.html calls setViewMode too.)
+    /* All display-mode and feature initialization is delegated to
+       initStoryKit / setViewMode in storykit.js — the single mode controller.
+       (The toggle button in col2-toggle.html calls setViewMode too.)
+
+       NOTE: use block comments only in inline scripts. In production the
+       compress.html layout (compress_html.ignore.envs: [development]) strips
+       newlines, so a `//` comment swallows the rest of the script. */
     initStoryKit({
       pageMode: '',
       siteMode: 'flat',

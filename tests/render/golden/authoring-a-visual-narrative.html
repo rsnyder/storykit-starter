@@ -357,7 +357,11 @@
   #topbar-wrapper {
     background: #F6F8FA !important;
   }
-  [data-mode="dark"] #topbar-wrapper {
+  /* Chirpy signalled dark mode with [data-mode="dark"] before 7.5 and with
+     [data-bs-theme="dark"] from 7.5 on. Both are matched so this override
+     survives either. */
+  [data-mode="dark"] #topbar-wrapper,
+  [data-bs-theme="dark"] #topbar-wrapper {
       background: var(--main-bg) !important;
   }
 
@@ -462,7 +466,7 @@
 
 
 <!-- return element -->
-<span class="readtime" data-bs-toggle="tooltip" data-bs-placement="bottom" title="8822 words">
+<span class="readtime" data-bs-toggle="tooltip" data-bs-placement="bottom" title="8849 words">
   <em>49 min</em> read</span>
 
         </div>
@@ -739,7 +743,7 @@
 <p>The preview tool reads your file from GitHub’s servers. Without a token, GitHub limits you to a handful of preview loads per hour — fine for a quick look, frustrating for a working session. Adding a free <strong>personal access token</strong> raises the limit to 5,000 loads per hour, effectively unlimited.</p>
 <ol>
 <li>Go to <a href="https://github.com/settings/tokens/new">github.com/settings/tokens/new</a> <em>(sign in if prompted)</em>.</li>
-<li>In the <strong>Note</strong> field type <code>Jekyll Preview</code>, choose an expiration, and — important — <strong>do not check any permission boxes</strong>.</li>
+<li>In the <strong>Note</strong> field type <code>Jekyll Preview</code>, choose an expiration, and leave the permission boxes <strong>unchecked</strong> — raising the rate limit needs no scopes. (If you also commit from the StoryKit editor, tick <strong><code>repo</code></strong> instead: both tools share one saved token, and a scopeless one cannot commit.)</li>
 <li>Click <strong>Generate token</strong> and <strong>copy the token</strong> that appears (it starts with <code>ghp_</code>). You won’t be able to see it again after leaving the page.</li>
 <li>Open the preview page at <a href="https://rsnyder.github.io/storykit-starter/preview">https://rsnyder.github.io/storykit-starter/preview</a>, click the <strong>⚙ Config</strong> button in the top bar, enter <code>1</code>, then paste your token.</li>
 </ol>
@@ -1829,9 +1833,13 @@ $$
       toolbar.style.marginLeft = 'auto';
     }
 
-    // All display-mode and feature initialization is delegated to
-    // initStoryKit / setViewMode in storykit.js — the single mode controller.
-    // (The toggle button in col2-toggle.html calls setViewMode too.)
+    /* All display-mode and feature initialization is delegated to
+       initStoryKit / setViewMode in storykit.js — the single mode controller.
+       (The toggle button in col2-toggle.html calls setViewMode too.)
+
+       NOTE: use block comments only in inline scripts. In production the
+       compress.html layout (compress_html.ignore.envs: [development]) strips
+       newlines, so a `//` comment swallows the rest of the script. */
     initStoryKit({
       pageMode: 'flat',
       siteMode: 'flat',

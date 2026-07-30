@@ -9,11 +9,20 @@ One editor instance serves all StoryKit repos, deployed at
 **https://rsnyder.github.io/storykit-editor/** from the deploy-only repo
 `rsnyder/storykit-editor`. Site repos no longer carry `editor/`.
 
-A user saves one fine-grained PAT (Contents read/write on the repos they
-author in) and can open/bind/commit documents in **any repo they have write
-access to** — binding was always per-document (`doc.github = {owner, repo,
-branch}`), so the store, sync machine, conflict flow, badges, `openFromGitHub`
-and the `?open=` bookmarklet are repo-agnostic already.
+A user saves one **classic** PAT with the `repo` scope and can open/bind/commit
+documents in **any repo they have write access to** — binding was always
+per-document (`doc.github = {owner, repo, branch}`), so the store, sync machine,
+conflict flow, badges, `openFromGitHub` and the `?open=` bookmarklet are
+repo-agnostic already.
+
+Classic, not fine-grained, and the distinction is load-bearing for exactly the
+"any repo they have write access to" claim above. A fine-grained PAT is issued
+against a single *resource owner*, so it can only reach that owner's
+repositories: a collaborator on someone else's repo cannot grant one access at
+all, and an organization must opt in (often per-token admin approval). The
+failure is quiet — reads can succeed while every commit returns 403 "Resource
+not accessible by personal access token", which `github.js` maps to `kind:
+'auth'`. A tester lost a session to this before the docs were corrected.
 
 ## Source of truth stays here
 
