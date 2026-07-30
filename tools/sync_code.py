@@ -312,6 +312,19 @@ def main(argv: List[str]) -> int:
         except Exception as e:
             print(f"\nWARNING: could not update self-pin SRC_REF: {e} — bump it manually.")
 
+    # The manifest is read from the RUNNING script, so when a sync replaces
+    # this file the entries added upstream were never in the list this run
+    # iterated -- they are silently skipped. --ref does not help: it chooses
+    # where files come from, not which files. Say so, loudly, because the
+    # symptom is a sync that reports success while leaving the repo broken.
+    if args.apply and "tools/sync_code.py" in result.changed:
+        print(
+            "\n*** RE-RUN THE SYNC ***"
+            "\ntools/sync_code.py was itself updated by this run, so any files"
+            "\nadded to FILES_TO_SYNC upstream were NOT fetched -- this run used"
+            "\nthe old manifest. Run the same command again to pick them up."
+        )
+
     if result.changed and not args.apply:
         print(
             "\nLocal copies differ from the canonical repo. If the local changes are"
