@@ -118,6 +118,16 @@ FILES_TO_SYNC = [
     "_admin/2026-07-06-storykit-authoring-a-visual-narrative.md",
     "tools/sync_code.py",
     "Gemfile",
+    # pages-deploy.yml's Setup Ruby step takes NO ruby-version input — it reads
+    # .ruby-version, so that file has to travel with the workflow. Without it a
+    # downstream deploy dies in setup-ruby before it ever reaches the build:
+    #   "input ruby-version needs to be specified if no .ruby-version or
+    #    .tool-versions file exists"
+    # (Regression from b91ecdd, which replaced the workflow's inline
+    # `ruby-version: 3.3` with the .ruby-version lookup and added the file here
+    # but not to this list. The canonical repo kept building; every downstream
+    # repo broke on its next deploy.)
+    ".ruby-version",
     ".github/workflows/pages-deploy.yml",
 ]
 
